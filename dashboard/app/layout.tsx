@@ -1,15 +1,36 @@
 import type { Metadata } from "next";
+import { Inter, Sora } from "next/font/google";
+import { AppProviders } from "../components/app-providers";
+import { DashboardNav } from "../components/dashboard-nav";
 import "./globals.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap"
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["500", "600", "700"]
+});
+
 export const metadata: Metadata = {
-  title: "Social Media Controller Dashboard",
-  description: "Instagram growth dashboard for local businesses and creators"
+  title: "Pulse — Growth Studio",
+  description: "Instagram analytics, AI insights, and captions for creators who want to grow faster."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
+      <body>
+        <AppProviders>
+          <DashboardNav />
+          <main className="app-main">{children}</main>
+        </AppProviders>
+      </body>
     </html>
   );
 }

@@ -1,16 +1,41 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
+import { TOKEN_KEY } from "./auth-storage";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export const API_BASE_URL = `${API}/api`;
 
 export type AnalyticsSummary = {
+  success?: boolean;
   postsAnalyzed: number;
   averageEngagementRate: number;
-  topHours: Array<{ hour: number; avgEngagementRate: number }>;
-  captionPerformance: Array<{ bucket: string; avgEngagementRate: number }>;
-  topPosts: Array<{ id: string; caption: string; engagementRate: number; publishedAt: string | Date }>;
-  worstPosts: Array<{ id: string; caption: string; engagementRate: number; publishedAt: string | Date }>;
+  bestPostingHour: number | null;
+  captionWinner: string;
+  topHours: number[];
+  captionPerformance: { avgLikes: number; avgComments: number; avgShares: number };
+  topPosts: Array<{ id: string; content?: string | null; platformPostId: string }>;
+  worstPosts: Array<{ id: string; content?: string | null; platformPostId: string }>;
 };
 
-async function request<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+export type CaptionCard = {
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+};
+
+export async function apiFetch(path: string, options?: RequestInit) {
+  const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : "";
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token ?? ""}`,
+      ...(options?.headers ?? {})
+    },
+    cache: "no-store"
+  });
+}
+
+async function requestWithToken<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -20,26 +45,25 @@ async function request<T>(path: string, token: string, init?: RequestInit): Prom
     },
     cache: "no-store"
   });
-
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Request failed: ${response.status}`);
   }
-
   return response.json() as Promise<T>;
 }
 
 export const api = {
   analyticsSummary(clientId: string, token: string) {
-    return request<AnalyticsSummary>(`/analytics/instagram/${clientId}/summary`, token);
+    return requestWithToken<AnalyticsSummary>(`/analytics/INSTAGRAM/${clientId}/summary`, token);
   },
   generateInsight(clientId: string, token: string) {
-    return request(`/ai/insights/content-performance/${clientId}`, token, {
-      method: "POST"
+    return requestWithToken(`/ai/insights/content-performance/${clientId}`, token, {
+      method: "POST",
+      body: JSON.stringify({ platform: "INSTAGRAM" })
     });
   },
   generateWeeklyRecommendation(clientId: string, token: string) {
-    return request(`/ai/recommendations/weekly/${clientId}`, token, {
+    return requestWithToken(`/ai/recommendations/weekly/${clientId}`, token, {
       method: "POST"
     });
   },
@@ -53,15 +77,23 @@ export const api = {
       offer?: string;
     }
   ) {
-    return request<{ prompt: string; captions: string[] }>("/ai/captions/generate", token, {
+    return requestWithToken<{ prompt: string; captions: CaptionCard[] | string[] }>("/ai/captions/generate", token, {
       method: "POST",
       body: JSON.stringify(payload)
     });
   },
   startInstagramAuth(clientId: string, token: string) {
-    return request<{ state: string; authUrl: string }>("/social-accounts/instagram/start", token, {
+    return requestWithToken<{ state: string; authUrl: string }>("/social-accounts/instagram/start", token, {
       method: "POST",
       body: JSON.stringify({ clientId })
     });
   }
 };
+
+export async function fetchMe(token: string) {
+  return requestWithToken<{
+    success: boolean;
+    user: { id: string; email: string; name: string | null; role: string; clientId: string | null };
+    instagramConnected: boolean;
+  }>("/auth/me", token);
+}
