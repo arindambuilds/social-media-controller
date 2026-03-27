@@ -1,14 +1,41 @@
 import { Router } from "express";
 import { z } from "zod";
+import { env } from "../config/env";
 import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
+import { issueOAuthState } from "../services/oauthStateStore";
+import { exchangeInstagramCode } from "../services/instagramOAuthService";
 import { upsertSocialAccount } from "../services/socialAccountService";
+import { ingestionQueue } from "../queues/ingestionQueue";
 import { tokenRefreshQueue } from "../queues/tokenRefreshQueue";
 
 export const socialAccountsRouter = Router();
 const platformSchema = z.enum(["FACEBOOK", "INSTAGRAM", "TWITTER", "LINKEDIN", "TIKTOK"]);
 
 socialAccountsRouter.use(authenticate);
+
+socialAccountsRouter.post("/instagram/start", requireRole("AGENCY_ADMIN"), async (req, res) => {
+  const payload = z.object({
+    clientId: z.string().min(1)
+  }).parse(req.body);
+
+  const state = await issueOAuthState({
+    clientId: payload.clientId,
+    platform: "INSTAGRAM",
+    initiatedBy: req.auth?.userId ?? "unknown"
+  });
+
+  const clientId = env.INSTAGRAM_APP_ID || env.FACEBOOK_APP_ID;
+  const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?${new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: env.INSTAGRAM_REDIRECT_URI,
+    state,
+    response_type: "code",
+    scope: "instagram_basic,instagram_manage_insights,pages_show_list,business_management"
+  }).toString()}`;
+
+  res.json({ state, authUrl });
+});
 
 socialAccountsRouter.post("/", requireRole("AGENCY_ADMIN"), async (req, res) => {
   const bodySchema = z.object({
@@ -35,6 +62,39 @@ socialAccountsRouter.post("/", requireRole("AGENCY_ADMIN"), async (req, res) => 
     { socialAccountId: socialAccount.id },
     {
       jobId: `token-refresh:${socialAccount.id}`
+    }
+  );
+
+  res.status(201).json(socialAccount);
+});
+
+socialAccountsRouter.post("/instagram/exchange", requireRole("AGENCY_ADMIN"), async (req, res) => {
+  const payload = z.object({
+    clientId: z.string().min(1),
+    code: z.string().min(1)
+  }).parse(req.body);
+
+  const result = await exchangeInstagramCode(payload.code);
+  const socialAccount = await upsertSocialAccount({
+    clientId: payload.clientId,
+    platform: "INSTAGRAM",
+    platformUserId: result.instagramBusinessAccountId,
+    platformUsername: result.instagramUsername,
+    pageId: result.pageId,
+    pageName: result.pageName,
+    accessToken: result.accessToken,
+    tokenExpiresAt: result.expiresAt ?? undefined
+  });
+
+  await ingestionQueue.add(
+    "instagram-manual-connect",
+    {
+      socialAccountId: socialAccount.id,
+      platform: "INSTAGRAM",
+      trigger: "manual"
+    },
+    {
+      jobId: `instagram-sync:${socialAccount.id}:manual`
     }
   );
 

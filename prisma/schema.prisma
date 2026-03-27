@@ -20,34 +20,43 @@ model User {
 }
 
 model Client {
-  id             String          @id @default(cuid())
-  name           String
-  ownerId        String
-  owner          User            @relation("ClientOwner", fields: [ownerId], references: [id])
-  agencyId       String?
-  agency         User?           @relation("Agency", fields: [agencyId], references: [id])
-  socialAccounts SocialAccount[]
-  campaigns      Campaign[]
-  leads          Lead[]
-  auditLogs      AuditLog[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id              String           @id @default(cuid())
+  name            String
+  ownerId         String
+  owner           User             @relation("ClientOwner", fields: [ownerId], references: [id])
+  agencyId        String?
+  agency          User?            @relation("Agency", fields: [agencyId], references: [id])
+  socialAccounts  SocialAccount[]
+  campaigns       Campaign[]
+  leads           Lead[]
+  auditLogs       AuditLog[]
+  syncRuns        SyncRun[]
+  aiInsights      AiInsight[]
+  recommendations Recommendation[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model SocialAccount {
-  id                String    @id @default(cuid())
-  platform          Platform
-  platformUserId    String
-  encryptedToken    String
+  id                    String        @id @default(cuid())
+  platform              Platform
+  platformUserId        String
+  platformUsername      String?
+  pageId                String?
+  pageName              String?
+  encryptedToken        String
   encryptedRefreshToken String?
-  tokenExpiresAt    DateTime?
-  clientId          String
-  client            Client    @relation(fields: [clientId], references: [id])
-  posts             Post[]
-  comments          Comment[]
-  messages          Message[]
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  tokenExpiresAt        DateTime?
+  lastSyncedAt          DateTime?
+  metadata              Json?
+  clientId              String
+  client                Client        @relation(fields: [clientId], references: [id])
+  posts                 Post[]
+  comments              Comment[]
+  messages              Message[]
+  syncRuns              SyncRun[]
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@unique([platform, platformUserId])
 }
@@ -65,17 +74,18 @@ model Campaign {
 }
 
 model Post {
-  id               String        @id @default(cuid())
+  id               String            @id @default(cuid())
   platformPostId   String
   socialAccountId  String
-  socialAccount    SocialAccount @relation(fields: [socialAccountId], references: [id])
+  socialAccount    SocialAccount     @relation(fields: [socialAccountId], references: [id])
   content          String?
   mediaUrl         String?
   publishedAt      DateTime
   insights         PostInsight[]
+  dailyMetrics     PostMetricDaily[]
   comments         Comment[]
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@unique([socialAccountId, platformPostId])
 }
@@ -90,6 +100,24 @@ model PostInsight {
   shares        Int      @default(0)
   impressions   Int      @default(0)
   reach         Int      @default(0)
+}
+
+model PostMetricDaily {
+  id             String   @id @default(cuid())
+  postId         String
+  post           Post     @relation(fields: [postId], references: [id])
+  date           DateTime
+  likes          Int      @default(0)
+  commentsCount  Int      @default(0)
+  shares         Int      @default(0)
+  saves          Int      @default(0)
+  impressions    Int      @default(0)
+  reach          Int      @default(0)
+  engagementRate Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([postId, date])
 }
 
 model Comment {
@@ -153,6 +181,48 @@ model AuditLog {
   createdAt  DateTime @default(now())
 }
 
+model SyncRun {
+  id              String        @id @default(cuid())
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id])
+  socialAccountId String
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id])
+  platform        Platform
+  trigger         SyncTrigger   @default(MANUAL)
+  status          SyncRunStatus @default(PENDING)
+  startedAt       DateTime      @default(now())
+  finishedAt      DateTime?
+  recordsFetched  Int           @default(0)
+  externalCursor  String?
+  errorMessage    String?
+}
+
+model AiInsight {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  type        String
+  title       String
+  summary     String
+  payload     Json
+  periodStart DateTime?
+  periodEnd   DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model Recommendation {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id])
+  category   String
+  priority   Int      @default(1)
+  status     String   @default("ACTIVE")
+  text       String
+  sourceData Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 enum Role {
   AGENCY_ADMIN
   CLIENT_USER
@@ -177,4 +247,18 @@ enum LeadStatus {
   CONTACTED
   CONVERTED
   LOST
+}
+
+enum SyncRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum SyncTrigger {
+  MANUAL
+  WEBHOOK
+  OAUTH_CONNECT
+  SCHEDULED
 }

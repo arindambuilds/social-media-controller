@@ -10,9 +10,13 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:seed": "tsx prisma/seed.ts",
     "worker": "tsx src/workers/ingestionWorker.ts",
     "scheduler": "tsx src/scheduler/tokenRefreshScheduler.ts",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "dashboard:dev": "npm --prefix dashboard run dev",
+    "dashboard:build": "npm --prefix dashboard run build"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",

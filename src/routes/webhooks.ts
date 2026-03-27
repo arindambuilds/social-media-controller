@@ -48,13 +48,63 @@ webhookRouter.post("/social/:platform", async (req, res) => {
     });
   }
 
+  if (payload.eventType === "message") {
+    await prisma.message.upsert({
+      where: {
+        socialAccountId_platformMessageId: {
+          socialAccountId: payload.socialAccountId,
+          platformMessageId: payload.externalId
+        }
+      },
+      update: {
+        text: payload.text,
+        fromId: payload.authorId,
+        fromName: payload.authorName,
+        isLead
+      },
+      create: {
+        socialAccountId: payload.socialAccountId,
+        platformMessageId: payload.externalId,
+        text: payload.text,
+        fromId: payload.authorId,
+        fromName: payload.authorName,
+        isLead
+      }
+    });
+  }
+
+  if (payload.eventType === "post") {
+    await prisma.post.upsert({
+      where: {
+        socialAccountId_platformPostId: {
+          socialAccountId: payload.socialAccountId,
+          platformPostId: payload.externalId
+        }
+      },
+      update: {
+        content: payload.text || null,
+        publishedAt: new Date()
+      },
+      create: {
+        socialAccountId: payload.socialAccountId,
+        platformPostId: payload.externalId,
+        content: payload.text || null,
+        publishedAt: new Date()
+      }
+    });
+  }
+
   await ingestionQueue.add(
     "ingest-event",
     {
       socialAccountId: payload.socialAccountId,
-      platform: req.params.platform
+      platform: req.params.platform,
+      trigger: "webhook",
+      eventType: payload.eventType,
+      externalId: payload.externalId
     },
     {
+      jobId: `ingest:${payload.socialAccountId}:${payload.eventType}:${payload.externalId}`,
       removeOnComplete: 100,
       attempts: 5,
       backoff: {

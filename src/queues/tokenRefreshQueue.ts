@@ -4,6 +4,7 @@ import { queueNames } from "./queueNames";
 
 export type TokenRefreshJob = {
   socialAccountId: string;
+  platform?: string;
 };
 
 export const tokenRefreshQueue = new Queue<TokenRefreshJob>(queueNames.tokenRefresh, {
