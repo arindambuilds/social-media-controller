@@ -11,9 +11,9 @@ import { ProgressBar } from "./ui/progress-bar";
 import { UpgradeNudge } from "./ui/upgrade-nudge";
 
 type InsightResponse = {
-  title: string;
-  summary: string;
-  payload: unknown;
+  summary?: string;
+  title?: string;
+  payload?: unknown;
 };
 
 type RecommendationResponse = {
@@ -59,8 +59,8 @@ export function DashboardClient() {
   const pulseCopy = useMemo(() => {
     if (!summary?.postsAnalyzed) {
       return {
-        title: "Your growth cockpit is ready",
-        body: "Connect your account and load analytics to unlock personalized posting windows, AI insights, and caption ideas tailored to your audience."
+        title: "Your Instagram cockpit is ready",
+        body: "Connect Instagram (or use seeded demo data), then load analytics for posting windows, AI insights, and captions tuned to a local business like yours."
       };
     }
     const h = summary.topHours?.[0];
@@ -74,9 +74,9 @@ export function DashboardClient() {
     if (!summary?.postsAnalyzed) {
       return { direction: "neutral" as const, text: "Load data to see momentum" };
     }
-    const er = summary.averageEngagementRate ?? 0;
-    if (er > 1.2) return { direction: "up" as const, text: "Strong engagement depth" };
-    if (er > 0.4) return { direction: "up" as const, text: "Healthy baseline — keep iterating" };
+    const avgIx = summary.averageEngagementRate ?? 0;
+    if (avgIx > 120) return { direction: "up" as const, text: "Strong interaction depth (sample)" };
+    if (avgIx > 50) return { direction: "up" as const, text: "Healthy baseline — keep iterating" };
     return { direction: "neutral" as const, text: "Room to optimize hooks & CTAs" };
   }, [summary]);
 
@@ -143,9 +143,9 @@ export function DashboardClient() {
   return (
     <div className="page-shell">
       <PageHeader
-        eyebrow="Creator growth OS"
-        title="Grow faster with clarity, not chaos"
-        description="See what is working, get AI-backed next steps, and ship scroll-stopping captions — built for creators and digital entrepreneurs who treat content like a growth channel."
+        eyebrow="Instagram growth copilot"
+        title="Grow locally — with clarity, not chaos"
+        description="See what works on Instagram, get plain-language next steps, and draft captions — built for salons, cafés, gyms, and neighbourhood brands in India (pilot-ready for Odisha)."
         actions={
           <>
             <Link href="/analytics" className="button">
@@ -170,10 +170,10 @@ export function DashboardClient() {
           trend={engagementTrend}
         />
         <MetricStat
-          label="Engagement pulse"
-          value={summary ? summary.averageEngagementRate.toFixed(2) : "—"}
-          hint="Composite interaction signal"
-          accent={!!summary && (summary.averageEngagementRate ?? 0) > 0.5}
+          label="Avg interactions / post"
+          value={summary ? summary.averageEngagementRate.toFixed(1) : "—"}
+          hint="Likes + comments + shares (sample), not a percentage"
+          accent={!!summary && (summary.averageEngagementRate ?? 0) > 50}
         />
         <MetricStat label="Power hour" value={summary ? bestHourLabel : "—"} hint="When your audience leans in" />
         <MetricStat
@@ -282,8 +282,8 @@ export function DashboardClient() {
               <div className="stat-value">{summary?.postsAnalyzed ?? 0}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">Avg engagement rate</div>
-              <div className="stat-value">{summary?.averageEngagementRate?.toFixed(2) ?? "0.00"}</div>
+              <div className="stat-label">Avg interactions / post</div>
+              <div className="stat-value">{summary?.averageEngagementRate?.toFixed(1) ?? "0.0"}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Best posting hour</div>
@@ -342,7 +342,11 @@ export function DashboardClient() {
               Generate insight
             </button>
           </div>
-          {insight ? <p>{insight.summary}</p> : <p className="muted">No insight generated yet.</p>}
+          {insight?.summary ? (
+            <p>{insight.summary}</p>
+          ) : (
+            <p className="muted">No insight generated yet.</p>
+          )}
         </div>
 
         <div className="panel span-6">

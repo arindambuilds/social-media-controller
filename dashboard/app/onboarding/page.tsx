@@ -12,6 +12,8 @@ export default function OnboardingPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [postsSynced, setPostsSynced] = useState(0);
   const [error, setError] = useState("");
+  const [ingestionMode, setIngestionMode] = useState<string | null>(null);
+  const [metaConfigured, setMetaConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     const token = getStoredToken();
@@ -22,6 +24,17 @@ export default function OnboardingPage() {
 
     (async () => {
       try {
+        const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+        const healthRes = await fetch(`${apiBase}/health`, { cache: "no-store" });
+        if (healthRes.ok) {
+          const h = (await healthRes.json()) as {
+            ingestionMode?: string;
+            instagramOAuthConfigured?: boolean;
+          };
+          setIngestionMode(h.ingestionMode ?? null);
+          setMetaConfigured(h.instagramOAuthConfigured ?? null);
+        }
+
         const me = await fetchMe(token);
         const clientId = me.user.clientId;
         if (!clientId) {
@@ -98,6 +111,19 @@ export default function OnboardingPage() {
         <div className="eyebrow">Step 1</div>
         <h2>Connect Instagram</h2>
         <p className="muted">Authorize Meta to sync your posts. You will return here after signing in.</p>
+        {ingestionMode === "mock" ? (
+          <p className="muted" style={{ marginTop: 12, padding: 12, borderRadius: 12, border: "1px solid var(--line)" }}>
+            <strong>Demo mode:</strong> <code>INGESTION_MODE=mock</code> is active — sync uses synthetic data. Seeded posts
+            already power analytics. For live Instagram, set Meta app credentials and <code>INGESTION_MODE=instagram</code>{" "}
+            in the API <code>.env</code>.
+          </p>
+        ) : null}
+        {ingestionMode === "instagram" && metaConfigured === false ? (
+          <p className="muted" style={{ marginTop: 12 }}>
+            Meta app ID is not configured on the API — OAuth will return an error until you add{" "}
+            <code>INSTAGRAM_APP_ID</code> / <code>FACEBOOK_APP_ID</code> and secrets.
+          </p>
+        ) : null}
         {error ? <p className="text-error">{error}</p> : null}
         <div className="actions" style={{ marginTop: 16 }}>
           <button type="button" className="button" onClick={connect}>

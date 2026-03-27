@@ -18,8 +18,9 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "Pulse — Growth Studio",
-  description: "Instagram analytics, AI insights, and captions for creators who want to grow faster."
+  title: "Pulse — Instagram growth copilot",
+  description:
+    "Analytics, AI insights, and captions for local businesses and creators — Instagram-first, pilot-ready."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

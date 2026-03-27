@@ -83,6 +83,21 @@ export async function syncInstagramSocialAccount(socialAccountId: string) {
       const reach = metrics.reach ?? 0;
       const engagementRate = reach > 0 ? (likes + commentsCount + shares + saves) / reach : null;
 
+      await prisma.post.update({
+        where: { id: post.id },
+        data: {
+          engagementStats: {
+            likes,
+            commentsCount,
+            shares,
+            saves,
+            impressions,
+            reach,
+            engagementRate
+          }
+        }
+      });
+
       await prisma.postInsight.create({
         data: {
           postId: post.id,

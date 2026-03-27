@@ -3,8 +3,43 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { detectLeadIntent } from "../services/leadDetection";
 import { ingestionQueue } from "../queues/ingestionQueue";
+import { authenticate } from "../middleware/authenticate";
+import { requireRole } from "../middleware/requireRole";
+import { env } from "../config/env";
 
 export const webhookRouter = Router();
+
+webhookRouter.post("/ingestion", authenticate, requireRole("AGENCY_ADMIN"), async (req, res) => {
+  if (env.INGESTION_MODE !== "mock") {
+    res.status(400).json({ error: "Manual ingestion enqueue is only enabled when INGESTION_MODE=mock." });
+    return;
+  }
+
+  const bodySchema = z.object({
+    socialAccountId: z.string().min(1),
+    platform: z.enum(["FACEBOOK", "INSTAGRAM", "TWITTER", "LINKEDIN", "TIKTOK"]).default("INSTAGRAM"),
+    trigger: z.literal("manual").optional().default("manual")
+  });
+
+  const payload = bodySchema.parse(req.body);
+
+  await ingestionQueue.add(
+    "manual-mock-ingestion",
+    {
+      socialAccountId: payload.socialAccountId,
+      platform: payload.platform,
+      trigger: payload.trigger
+    },
+    {
+      jobId: `mock-ingestion:${payload.socialAccountId}:${Date.now()}`,
+      removeOnComplete: 100,
+      attempts: 3,
+      backoff: { type: "exponential", delay: 500 }
+    }
+  );
+
+  res.status(202).json({ accepted: true });
+});
 
 webhookRouter.post("/social/:platform", async (req, res) => {
   const bodySchema = z.object({

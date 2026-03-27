@@ -1,29 +1,65 @@
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
-import { getInstagramAnalyticsSummary } from "./analyticsService";
+import { recordAiGeneration } from "./usageService";
+
+export type CaptionCard = {
+  hook: string;
+  body: string;
+  cta: string;
+  hashtags: string[];
+};
 
 export async function generateContentPerformanceInsight(clientId: string) {
-  const summary = await getInstagramAnalyticsSummary(clientId);
-
-  const deterministicInsights = buildDeterministicInsights(summary);
-  const narrative = env.OPENAI_API_KEY
-    ? await generateNarrative(summary, deterministicInsights)
-    : deterministicInsights.join(" ");
-
-  const insight = await prisma.aiInsight.create({
+  // Legacy endpoint kept for compatibility. Use /api/ai/insights/* instead.
+  const deterministic = "Use /api/ai/insights/content-performance/:clientId for the new insights pipeline.";
+  return prisma.aiInsight.create({
     data: {
       clientId,
-      type: "CONTENT_PERFORMANCE",
-      title: "Instagram content performance summary",
-      summary: narrative,
-      payload: {
-        summary,
-        deterministicInsights
-      }
+      platform: "INSTAGRAM",
+      summary: deterministic,
+      recommendations: []
     }
   });
+}
 
-  return insight;
+function parseCaptionBlob(raw: string, index: number): CaptionCard {
+  const hashtags = (raw.match(/#[\w\u00c0-\u024f]+/g) ?? []).slice(0, 12);
+  const lines = raw.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const hook = lines[0] ?? `Idea ${index + 1}`;
+  const ctaLine =
+    lines.find((l) => /book|dm|link|tap|shop|call|visit|order|save/i.test(l)) ?? lines[lines.length - 1] ?? "DM us to book.";
+  const bodyLines = lines.filter((l) => l !== hook && l !== ctaLine);
+  const body = bodyLines.join("\n").trim() || raw.replace(hook, "").replace(ctaLine, "").trim() || raw;
+  return { hook, body, cta: ctaLine, hashtags };
+}
+
+function tryParseCaptionJson(text: string): CaptionCard[] | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("[")) return null;
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    const out: CaptionCard[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+      const o = item as Record<string, unknown>;
+      const hook = typeof o.hook === "string" ? o.hook : "";
+      const body = typeof o.body === "string" ? o.body : "";
+      const cta = typeof o.cta === "string" ? o.cta : "";
+      const tags = Array.isArray(o.hashtags) ? o.hashtags.filter((t): t is string => typeof t === "string") : [];
+      if (hook || body) {
+        out.push({
+          hook: hook || "Hook",
+          body: body || hook,
+          cta: cta || "DM us",
+          hashtags: tags.map((t) => (t.startsWith("#") ? t : `#${t}`))
+        });
+      }
+    }
+    return out.length ? out : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function generateCaptions(input: {
@@ -32,7 +68,7 @@ export async function generateCaptions(input: {
   tone: string;
   objective: string;
   offer?: string;
-}) {
+}): Promise<{ prompt: string; captions: CaptionCard[] }> {
   const recentPosts = await prisma.post.findMany({
     where: {
       socialAccount: {
@@ -60,41 +96,47 @@ Offer: ${input.offer ?? "none"}
 Avoid repeating these previous styles:
 ${(recentPosts as RecentPost[]).map((post) => post.content ?? "").filter(Boolean).join("\n---\n")}
 
-For each caption include:
-- caption text
-- first-line hook
-- CTA
-- 5 hashtags`;
+Return ONLY valid JSON: an array of 5 objects with keys hook (string), body (string), cta (string), hashtags (array of strings starting with #).`;
 
   if (!env.OPENAI_API_KEY) {
-    return {
-      prompt,
-      captions: [
-        "Glow up your feed with a strong local offer and clear CTA.",
-        "Show the result first, then explain the service in simple words.",
-        "Use a short hook, one benefit, and a booking CTA.",
-        "Make it local, specific, and tied to one customer problem.",
-        "Post with social proof and a direct next step."
-      ]
-    };
+    const stubs = [
+      "Your weekend glow-up starts here ✨\nBook the makeover package locals love.\nDM \"GLOW\" to reserve your slot.\n#glowup #localbusiness",
+      "Real results, zero fluff.\nSee why clients keep coming back.\nTap the link in bio to book.\n#beforeandafter #salon",
+      "Busy schedule? We get it.\nSame-day slots open for trims + color.\nCall or DM to claim yours.\n#hairstylist #booking",
+      "Soft light, sharp cut, confident you.\nWalk in stressed, walk out polished.\nBook online — link in bio.\n#selfcare #style",
+      "Tag someone who needs this reset 🙌\nNew client offer ends Sunday.\nComment BOOK for details.\n#community #offer"
+    ];
+    const captions = stubs.map((s, i) => parseCaptionBlob(s, i));
+    await recordAiGeneration(input.clientId);
+    return { prompt, captions };
   }
 
-  const text = await callOpenAI(prompt, "You write high-converting Instagram captions for local businesses.");
-  return {
+  const text = await callOpenAI(
     prompt,
-    captions: text.split("\n\n").filter(Boolean)
-  };
+    "You write high-converting Instagram captions for local businesses. Output JSON only."
+  );
+  const fromJson = tryParseCaptionJson(text);
+  if (fromJson) {
+    await recordAiGeneration(input.clientId);
+    return { prompt, captions: fromJson };
+  }
+  const chunks = text.split(/\n\n/).filter(Boolean);
+  const captions = chunks.slice(0, 5).map((c, i) => parseCaptionBlob(c, i));
+  await recordAiGeneration(input.clientId);
+  return { prompt, captions };
 }
 
 export async function generateWeeklyRecommendations(clientId: string) {
-  const summary = await getInstagramAnalyticsSummary(clientId);
-  const rules = buildRuleSignals(summary);
   const text = env.OPENAI_API_KEY
     ? await callOpenAI(
-        `Turn these structured Instagram growth signals into 3 practical weekly recommendations:\n${JSON.stringify(rules)}`,
+        "Turn these Instagram growth signals into 3 practical weekly recommendations.",
         "You are an Instagram growth strategist for small businesses. Be concise and practical."
       )
-    : rules.join(" ");
+    : [
+        "This week: schedule 3 posts for 6–9 PM (your demo data peaks in the evening) with one clear DM or booking CTA.",
+        "Reuse the hook pattern from your top posts — local context (#Bhubaneswar) plus a specific offer beats generic captions.",
+        "Reply to story reactions and comments within 2 hours; treat quick replies as part of conversion, not optional."
+      ].join(" ");
 
   const recommendation = await prisma.recommendation.create({
     data: {
@@ -103,67 +145,12 @@ export async function generateWeeklyRecommendations(clientId: string) {
       priority: 1,
       text,
       sourceData: {
-        summary,
-        rules
+        legacy: true
       }
     }
   });
 
   return recommendation;
-}
-
-function buildDeterministicInsights(summary: Awaited<ReturnType<typeof getInstagramAnalyticsSummary>>) {
-  const lines: string[] = [];
-  const bestHour = summary.topHours[0];
-  const bestCaptionBucket = [...summary.captionPerformance].sort(
-    (a, b) => b.avgEngagementRate - a.avgEngagementRate
-  )[0];
-
-  if (bestHour) {
-    lines.push(`Your strongest posting window is around ${bestHour.hour}:00.`);
-  }
-
-  if (bestCaptionBucket) {
-    lines.push(`${capitalize(bestCaptionBucket.bucket)} captions currently perform best.`);
-  }
-
-  if (summary.averageEngagementRate > 0) {
-    lines.push(`Average engagement rate is ${summary.averageEngagementRate.toFixed(2)}.`);
-  }
-
-  return lines;
-}
-
-function buildRuleSignals(summary: Awaited<ReturnType<typeof getInstagramAnalyticsSummary>>) {
-  const signals: string[] = [];
-  const bestHour = summary.topHours[0];
-  const bestCaptionBucket = [...summary.captionPerformance].sort(
-    (a, b) => b.avgEngagementRate - a.avgEngagementRate
-  )[0];
-
-  if (bestHour) {
-    signals.push(`Schedule more posts around ${bestHour.hour}:00 because that hour performs best.`);
-  }
-
-  if (bestCaptionBucket) {
-    signals.push(`Lean into ${bestCaptionBucket.bucket} captions because they outperform other formats.`);
-  }
-
-  if (summary.worstPosts.length > 0) {
-    signals.push("Review your lowest-performing posts and avoid repeating their structure.");
-  }
-
-  return signals;
-}
-
-async function generateNarrative(
-  summary: Awaited<ReturnType<typeof getInstagramAnalyticsSummary>>,
-  deterministicInsights: string[]
-) {
-  return callOpenAI(
-    `Analyze this Instagram summary and convert it into a short business-friendly insight report.\nSummary: ${JSON.stringify(summary)}\nBase insights: ${deterministicInsights.join(" ")}`,
-    "You are a concise Instagram analyst for local businesses. Use only the provided data."
-  );
 }
 
 async function callOpenAI(prompt: string, system: string) {

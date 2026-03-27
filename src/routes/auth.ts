@@ -1,28 +1,114 @@
 import { Router } from "express";
 import { z } from "zod";
-import { signAccessToken } from "../auth/jwt";
+import { prisma } from "../lib/prisma";
+import { authenticate } from "../middleware/authenticate";
 import { issueOAuthState, consumeOAuthState } from "../services/oauthStateStore";
 import { exchangeInstagramCode } from "../services/instagramOAuthService";
 import { upsertSocialAccount } from "../services/socialAccountService";
 import { ingestionQueue } from "../queues/ingestionQueue";
+import { login, refresh, signup } from "../services/authService";
+import { buildInstagramBrowserOAuthUrl } from "../lib/instagramBrowserOAuth";
 
 export const authRouter = Router();
 
-authRouter.post("/login", (req, res) => {
-  const bodySchema = z.object({
-    userId: z.string().min(1),
-    role: z.enum(["AGENCY_ADMIN", "CLIENT_USER"]),
-    clientId: z.string().optional()
+authRouter.get("/me", authenticate, async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.auth!.userId },
+    select: { id: true, email: true, name: true, role: true, clientId: true }
   });
+  if (!user) {
+    res.status(404).json({ error: "User not found." });
+    return;
+  }
 
-  const payload = bodySchema.parse(req.body);
-  const token = signAccessToken({
-    sub: payload.userId,
-    role: payload.role,
-    clientId: payload.clientId
+  let instagramConnected = false;
+  if (user.clientId) {
+    const acc = await prisma.socialAccount.findFirst({
+      where: { clientId: user.clientId, platform: "INSTAGRAM" }
+    });
+    instagramConnected = !!acc;
+  }
+
+  res.json({ success: true, user, instagramConnected });
+});
+
+authRouter.get("/oauth/instagram/authorise", authenticate, async (req, res) => {
+  const auth = req.auth!;
+  const built = await buildInstagramBrowserOAuthUrl({
+    role: auth.role,
+    userId: auth.userId,
+    clientIdFromToken: auth.clientId,
+    query: req.query as Record<string, unknown>
   });
+  if (!built.ok) {
+    res.status(built.status).json({ error: built.message });
+    return;
+  }
+  res.json({ url: built.url });
+});
 
-  res.json({ token });
+/** Browser redirect variant (same OAuth URL as authorise). */
+authRouter.get("/instagram", authenticate, async (req, res) => {
+  const auth = req.auth!;
+  const built = await buildInstagramBrowserOAuthUrl({
+    role: auth.role,
+    userId: auth.userId,
+    clientIdFromToken: auth.clientId,
+    query: req.query as Record<string, unknown>
+  });
+  if (!built.ok) {
+    res.status(built.status).send(built.message);
+    return;
+  }
+  res.redirect(302, built.url);
+});
+
+authRouter.post("/signup", async (req, res) => {
+  try {
+    const payload = z.object({
+      email: z.string().email(),
+      password: z.string().min(8),
+      name: z.string().min(2),
+      role: z.enum(["AGENCY_ADMIN", "CLIENT_USER"]).optional(),
+      clientId: z.string().optional()
+    }).parse(req.body);
+
+    const result = await signup(payload);
+    res.status(201).json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Signup failed.";
+    const status = message.includes("already exists") ? 409 : 400;
+    res.status(status).json({ error: message });
+  }
+});
+
+authRouter.post("/login", async (req, res) => {
+  try {
+    const payload = z.object({
+      email: z.string().email(),
+      password: z.string().min(1)
+    }).parse(req.body);
+
+    const result = await login(payload);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Login failed.";
+    res.status(401).json({ error: message });
+  }
+});
+
+authRouter.post("/refresh", async (req, res) => {
+  try {
+    const payload = z.object({
+      refreshToken: z.string().min(1)
+    }).parse(req.body);
+
+    const result = await refresh(payload.refreshToken);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Refresh failed.";
+    res.status(401).json({ error: message });
+  }
 });
 
 authRouter.post("/oauth/state", async (req, res) => {

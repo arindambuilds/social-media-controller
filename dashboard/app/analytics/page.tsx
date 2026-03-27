@@ -24,6 +24,11 @@ type Overview = {
   totalReach: number;
   bestHour: number | null;
   timeSeries: { points: Array<{ date: string; engagementRate: number }> };
+  followerCount?: number | null;
+  instagramHandle?: string | null;
+  lastSyncedAt?: string | null;
+  followerGrowth?: { points: Array<{ date: string; followerCount: number }> };
+  cacheHit?: boolean;
 };
 
 type HourlyRow = { hour: number; postCount: number; avgEngagementRate: number };
@@ -165,11 +170,24 @@ export default function AnalyticsPage() {
       engagementPct: pt.engagementRate * 100
     })) ?? [];
 
+  const followerLine =
+    overview?.followerGrowth?.points?.map((pt) => ({
+      date: pt.date,
+      followers: pt.followerCount
+    })) ?? [];
+
   return (
     <div className="page-shell">
       <section className="panel span-12">
         <h2>Analytics</h2>
         {clientId ? <p className="muted">Client {clientId}</p> : null}
+        {overview?.instagramHandle ? (
+          <p className="muted">
+            @{overview.instagramHandle}
+            {overview.followerCount != null ? ` · ~${overview.followerCount.toLocaleString()} followers (snapshot)` : null}
+            {overview.cacheHit ? " · cached overview" : null}
+          </p>
+        ) : null}
       </section>
 
       <section className="section-grid">
@@ -193,6 +211,39 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+
+        {followerLine.length > 0 ? (
+          <div className="panel span-12">
+            <h3>Audience snapshot (seed / sync)</h3>
+            <p className="muted" style={{ marginBottom: 8 }}>
+              Daily follower counts when available from ingestion or seed — not live Meta unless connected.
+            </p>
+            <div style={{ width: "100%", height: 220 }}>
+              <ResponsiveContainer>
+                <LineChart data={followerLine}>
+                  <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} />
+                  <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--panel)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 12
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="followers"
+                    stroke="var(--accent-dark)"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Followers"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : null}
 
         <div className="panel span-12">
           <h3>Engagement rate over time</h3>

@@ -1,20 +1,26 @@
-# Implementation Roadmap
+# Implementation roadmap (Instagram-first)
 
-## Phase 1
+Aligned with **Instagram growth copilot** positioning — not a generic multi-network suite.
 
-- Stand up PostgreSQL, Redis, and the API server
-- Run Prisma migrations
-- Create agency admin and client records
-- Connect the first Facebook or Instagram account
+## Phase 1 — Pilot-ready core (now)
 
-## Phase 2
+- PostgreSQL + Redis + API + workers running reliably on Windows dev machines  
+- Prisma migrations + seed with **believable local-business demo data**  
+- Auth: signup / login / refresh + dashboard session  
+- Instagram OAuth + ingestion: **`INGESTION_MODE=mock`** for demos; **instagram** when Meta is configured  
+- Dashboard: analytics, insights, onboarding, captions  
 
-- Implement real OAuth code exchange handlers
-- Add scheduled ingestion and provider-specific sync adapters
-- Expand lead detection into NLP-backed classification
+## Phase 2 — Production hardening
 
-## Phase 3
+- Scheduled ingestion + token refresh reliability  
+- Stronger tenant isolation audits on all `clientId` routes  
+- Observability (Sentry, basic queue health)  
+- Lead detection improvements (optional NLP) — **only if pilots ask**  
 
-- Add dashboard APIs, reports, approvals, and export workflows
-- Add Sentry instrumentation and queue health dashboards
-- Introduce white-label client views and compliance workflows
+## Phase 3 — Scale & monetisation
+
+- Billing integration (subscription) when pilots convert  
+- Exports / reports for agencies  
+- White-label only if enterprise pull exists  
+
+**Explicitly deferred:** building parity features for every social network before Instagram is excellent.

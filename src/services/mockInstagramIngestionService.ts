@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
 
 type Rng = () => number;
 
@@ -28,8 +29,8 @@ export async function syncMockInstagramSocialAccount(socialAccountId: string) {
     const now = new Date();
     const today = startOfUtcDay(now);
 
-    // Create a realistic-ish pool of posts across last 30 days.
-    const postCount = 24 + Math.floor(rng() * 18); // 24..41
+    // Keep mock dataset small and deterministic for local dev.
+    const postCount = 5;
     const posts: Array<{ postId: string; publishedAt: Date; caption: string }> = [];
 
     for (let i = 0; i < postCount; i += 1) {
@@ -70,7 +71,7 @@ export async function syncMockInstagramSocialAccount(socialAccountId: string) {
       const captionLen = post.caption.length;
 
       // Bias: night posts do better, and shorter captions slightly better.
-      const nightBoost = hour >= 19 || hour <= 1 ? 1.25 : 1.0;
+      const nightBoost = hour >= 18 && hour <= 21 ? 1.55 : hour >= 12 && hour <= 14 ? 1.2 : 0.95;
       const captionBoost = captionLen < 90 ? 1.15 : captionLen < 180 ? 1.0 : 0.9;
       const quality = clamp(0.6 + rng() * 0.9, 0.6, 1.5) * nightBoost * captionBoost;
 
@@ -81,6 +82,21 @@ export async function syncMockInstagramSocialAccount(socialAccountId: string) {
       const shares = Math.floor(likes * clamp(0.02 + rng() * 0.06, 0.01, 0.12));
       const saves = Math.floor(likes * clamp(0.03 + rng() * 0.09, 0.01, 0.15));
       const engagementRate = reach > 0 ? (likes + commentsCount + shares + saves) / reach : null;
+
+      await prisma.post.update({
+        where: { id: post.postId },
+        data: {
+          engagementStats: {
+            likes,
+            commentsCount,
+            shares,
+            saves,
+            impressions,
+            reach,
+            engagementRate
+          }
+        }
+      });
 
       await prisma.postMetricDaily.upsert({
         where: {
@@ -114,10 +130,108 @@ export async function syncMockInstagramSocialAccount(socialAccountId: string) {
       recordsFetched += 1;
     }
 
-    await prisma.socialAccount.update({
-      where: { id: socialAccount.id },
-      data: { lastSyncedAt: new Date() }
-    });
+    // Seed some comments/messages so webhook + lead detection flows can be tested locally.
+    const commentTemplates = [
+      "What’s the price?",
+      "Is this available on weekend?",
+      "Location please",
+      "DM sent",
+      "Can you share package details?"
+    ];
+    for (const post of posts) {
+      const commentsToCreate = 3;
+      for (let i = 0; i < commentsToCreate; i += 1) {
+        const externalId = `mock_c_${hash(`${post.postId}:${i}`)}`;
+        await prisma.comment.upsert({
+          where: {
+            socialAccountId_platformCommentId: {
+              socialAccountId: socialAccount.id,
+              platformCommentId: externalId
+            }
+          },
+          update: {
+            postId: post.postId,
+            authorId: `u_${Math.floor(rng() * 5000)}`,
+            authorName: `LocalUser${Math.floor(rng() * 500)}`,
+            text: commentTemplates[Math.floor(rng() * commentTemplates.length)],
+            isLead: rng() < 0.35
+          },
+          create: {
+            socialAccountId: socialAccount.id,
+            platformCommentId: externalId,
+            postId: post.postId,
+            authorId: `u_${Math.floor(rng() * 5000)}`,
+            authorName: `LocalUser${Math.floor(rng() * 500)}`,
+            text: commentTemplates[Math.floor(rng() * commentTemplates.length)],
+            isLead: rng() < 0.35
+          }
+        });
+      }
+    }
+
+    const messagesToCreate = 2;
+    for (let i = 0; i < messagesToCreate; i += 1) {
+      const externalId = `mock_m_${hash(`${socialAccountId}:m:${i}`)}`;
+      await prisma.message.upsert({
+        where: {
+          socialAccountId_platformMessageId: {
+            socialAccountId: socialAccount.id,
+            platformMessageId: externalId
+          }
+        },
+        update: {
+          fromId: `u_${Math.floor(rng() * 5000)}`,
+          fromName: `LocalUser${Math.floor(rng() * 500)}`,
+          text: rng() < 0.4 ? "Hi, how much for haircut + spa?" : "Are you open today?",
+          isLead: rng() < 0.45
+        },
+        create: {
+          socialAccountId: socialAccount.id,
+          platformMessageId: externalId,
+          fromId: `u_${Math.floor(rng() * 5000)}`,
+          fromName: `LocalUser${Math.floor(rng() * 500)}`,
+          text: rng() < 0.4 ? "Hi, how much for haircut + spa?" : "Are you open today?",
+          isLead: rng() < 0.45
+        }
+      });
+    }
+
+    const baseFollowers = 1800 + Math.floor(rng() * 400);
+    try {
+      for (let d = 0; d < 30; d += 1) {
+        const day = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+        day.setUTCHours(0, 0, 0, 0);
+        const followerCount = baseFollowers + (30 - d) * 2 + Math.floor(rng() * 10);
+        await prisma.followerDaily.upsert({
+          where: {
+            socialAccountId_date: {
+              socialAccountId: socialAccount.id,
+              date: day
+            }
+          },
+          update: { followerCount },
+          create: {
+            socialAccountId: socialAccount.id,
+            date: day,
+            followerCount
+          }
+        });
+      }
+
+      await prisma.socialAccount.update({
+        where: { id: socialAccount.id },
+        data: { followerCount: baseFollowers + 55, lastSyncedAt: new Date() }
+      });
+    } catch (err) {
+      logger.warn("FollowerDaily / followerCount update skipped (run prisma migrate)", {
+        socialAccountId: socialAccount.id,
+        message: err instanceof Error ? err.message : String(err)
+      });
+      await prisma.socialAccount.update({
+        where: { id: socialAccount.id },
+        data: { lastSyncedAt: new Date() }
+      });
+    }
 
     await prisma.syncRun.update({
       where: { id: syncRun.id },
@@ -173,16 +287,14 @@ function randomPublishedAtLast30Days(rng: Rng, now: Date) {
   const daysBack = Math.floor(rng() * 30);
   const base = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
-  // Prefer posting windows: 12-14 and 19-22
+  // Strongly prefer posting windows: 18-21, then 12-14.
   const slot = rng();
   const hour =
-    slot < 0.15
-      ? 10 + Math.floor(rng() * 3) // 10-12
-      : slot < 0.45
+    slot < 0.2
         ? 12 + Math.floor(rng() * 3) // 12-14
-        : slot < 0.85
-          ? 19 + Math.floor(rng() * 4) // 19-22
-          : 16 + Math.floor(rng() * 2); // 16-17
+      : slot < 0.9
+        ? 18 + Math.floor(rng() * 4) // 18-21
+        : 10 + Math.floor(rng() * 2); // 10-11
 
   base.setHours(hour, Math.floor(rng() * 60), 0, 0);
   return base;

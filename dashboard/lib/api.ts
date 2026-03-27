@@ -1,4 +1,4 @@
-import { TOKEN_KEY } from "./auth-storage";
+import { CLIENT_ID_KEY, TOKEN_KEY } from "./auth-storage";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 export const API_BASE_URL = `${API}/api`;
@@ -24,7 +24,7 @@ export type CaptionCard = {
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : "";
-  return fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -33,6 +33,19 @@ export async function apiFetch(path: string, options?: RequestInit) {
     },
     cache: "no-store"
   });
+
+  if (
+    typeof window !== "undefined" &&
+    res.status === 401 &&
+    token &&
+    !path.startsWith("/auth/login")
+  ) {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(CLIENT_ID_KEY);
+    window.location.assign("/login");
+  }
+
+  return res;
 }
 
 async function requestWithToken<T>(path: string, token: string, init?: RequestInit): Promise<T> {

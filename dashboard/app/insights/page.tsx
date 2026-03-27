@@ -37,6 +37,8 @@ export default function InsightsPage() {
   const [captions, setCaptions] = useState<CaptionCard[]>([]);
   const [captionLoading, setCaptionLoading] = useState(false);
   const [billing, setBilling] = useState<{ generationsUsed: number; generationsLimit: number } | null>(null);
+  const [weeklyFocus, setWeeklyFocus] = useState<string | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
 
   const refreshLatest = useCallback(async (cid: string) => {
     const res = await apiFetch(`/insights/${encodeURIComponent(cid)}/content-performance/latest`);
@@ -104,22 +106,19 @@ export default function InsightsPage() {
         return;
       }
       if (!res.ok) {
-        setError(await res.text());
+        const raw = await res.text();
+        try {
+          const j = JSON.parse(raw) as { detail?: string; error?: string };
+          setError(j.detail ?? j.error ?? raw);
+        } catch {
+          setError(raw);
+        }
         return;
       }
-      let data = (await res.json()) as LatestResponse;
+      const data = (await res.json()) as LatestResponse;
       if (!data.insight) {
-        for (let i = 0; i < 10; i++) {
-          await new Promise((r) => setTimeout(r, 4000));
-          const poll = await apiFetch(`/insights/${encodeURIComponent(clientId)}/content-performance/latest`);
-          if (!poll.ok) continue;
-          data = (await poll.json()) as LatestResponse;
-          if (data.insight) break;
-        }
-        if (!data.insight) {
-          setError("Taking longer than expected — check back in a minute.");
-          return;
-        }
+        setError("Insight did not return data — try again.");
+        return;
       }
       setInsight(data.insight);
       setCooldownRemainingSeconds(data.cooldownRemainingSeconds);
@@ -143,6 +142,27 @@ export default function InsightsPage() {
     setInsight((prev) =>
       prev ? { ...prev, userFeedback: vote === "up" ? 1 : -1 } : prev
     );
+  }
+
+  async function generateWeeklyFocus() {
+    if (!clientId) return;
+    setWeeklyLoading(true);
+    setError("");
+    try {
+      const res = await apiFetch(`/ai/recommendations/weekly/${encodeURIComponent(clientId)}`, {
+        method: "POST"
+      });
+      if (!res.ok) {
+        setError(await res.text());
+        return;
+      }
+      const data = (await res.json()) as { text?: string };
+      setWeeklyFocus(typeof data.text === "string" ? data.text : "");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Weekly focus failed");
+    } finally {
+      setWeeklyLoading(false);
+    }
   }
 
   async function generateCaptions() {
@@ -279,6 +299,26 @@ export default function InsightsPage() {
               </div>
             </>
           ) : null}
+        </div>
+
+        <div className="panel span-12">
+          <h3>This week&apos;s focus</h3>
+          <p className="muted">
+            One plain-language priority line you can act on — generated from your client context (demo uses a
+            grounded fallback when no AI key is set).
+          </p>
+          <div className="actions" style={{ marginTop: 12 }}>
+            <button type="button" className="button secondary" onClick={generateWeeklyFocus} disabled={weeklyLoading}>
+              {weeklyLoading ? "Generating…" : "Get weekly focus"}
+            </button>
+          </div>
+          {weeklyFocus ? (
+            <p style={{ marginTop: 16, lineHeight: 1.5 }}>{weeklyFocus}</p>
+          ) : (
+            <p className="muted" style={{ marginTop: 12 }}>
+              Not generated yet — use after showing content performance.
+            </p>
+          )}
         </div>
 
         <div className="panel span-12">

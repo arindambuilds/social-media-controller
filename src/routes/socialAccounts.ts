@@ -14,10 +14,18 @@ const platformSchema = z.enum(["FACEBOOK", "INSTAGRAM", "TWITTER", "LINKEDIN", "
 
 socialAccountsRouter.use(authenticate);
 
-socialAccountsRouter.post("/instagram/start", requireRole("AGENCY_ADMIN"), async (req, res) => {
+socialAccountsRouter.post("/instagram/start", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
   const payload = z.object({
     clientId: z.string().min(1)
   }).parse(req.body);
+
+  const auth = req.auth!;
+  if (auth.role === "CLIENT_USER") {
+    if (!auth.clientId || auth.clientId !== payload.clientId) {
+      res.status(403).json({ error: "Forbidden for this client." });
+      return;
+    }
+  }
 
   const state = await issueOAuthState({
     clientId: payload.clientId,

@@ -16,6 +16,15 @@ type Lead = {
   source: string;
   status: LeadStatus;
   createdAt: string;
+  client?: {
+    id: string;
+    name: string;
+    socialAccounts: Array<{
+      platformUsername: string | null;
+      lastSyncedAt: string | null;
+      followerCount: number | null;
+    }>;
+  };
 };
 
 const statusColors: Record<LeadStatus, string> = {
@@ -31,8 +40,12 @@ export default function LeadsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (token: string, clientId: string) => {
-    const res = await apiFetch(`/leads?clientId=${encodeURIComponent(clientId)}`);
+  const load = useCallback(async (token: string, clientId: string | null) => {
+    const path =
+      clientId != null
+        ? `/leads?clientId=${encodeURIComponent(clientId)}&page=1&limit=50`
+        : `/leads?page=1&limit=50`;
+    const res = await apiFetch(path);
     if (!res.ok) {
       throw new Error(await res.text());
     }
@@ -49,18 +62,20 @@ export default function LeadsPage() {
 
     (async () => {
       try {
-        let cid: string | null = getStoredClientId();
-        if (!cid) {
-          const me = await fetchMe(token);
-          cid = me.user.clientId;
-          if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
+        const me = await fetchMe(token);
+        let cid: string | null = getStoredClientId() ?? me.user.clientId;
+        if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
+
+        if (me.user.role === "CLIENT_USER") {
+          if (!cid) {
+            setError("No client ID — log in with an account linked to a business.");
+            setLoading(false);
+            return;
+          }
+          await load(token, cid);
+        } else {
+          await load(token, cid);
         }
-        if (!cid) {
-          setError("No client ID — log in with an account linked to a business.");
-          setLoading(false);
-          return;
-        }
-        await load(token, cid);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load leads");
       } finally {
@@ -101,6 +116,9 @@ export default function LeadsPage() {
                   Contact
                 </th>
                 <th align="left" style={{ padding: "10px 8px", color: "var(--muted)", fontSize: "0.8125rem" }}>
+                  Business / IG
+                </th>
+                <th align="left" style={{ padding: "10px 8px", color: "var(--muted)", fontSize: "0.8125rem" }}>
                   Source
                 </th>
                 <th align="left" style={{ padding: "10px 8px", color: "var(--muted)", fontSize: "0.8125rem" }}>
@@ -114,21 +132,32 @@ export default function LeadsPage() {
             <tbody>
               {leads.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="muted" style={{ padding: 24 }}>
+                  <td colSpan={5} className="muted" style={{ padding: 24 }}>
                     No leads yet. When comments or DMs look like bookings, they will show here.
                   </td>
                 </tr>
               ) : (
-                leads.map((lead) => (
-                  <tr key={lead.id}>
-                    <td style={{ padding: "12px 8px" }}>{lead.contactName || lead.sourceId}</td>
-                    <td style={{ padding: "12px 8px" }}>{lead.source}</td>
-                    <td style={{ padding: "12px 8px" }}>
-                      <span style={{ color: statusColors[lead.status], fontWeight: 700 }}>{lead.status}</span>
-                    </td>
-                    <td style={{ padding: "12px 8px" }}>{new Date(lead.createdAt).toLocaleString()}</td>
-                  </tr>
-                ))
+                leads.map((lead) => {
+                  const ig = lead.client?.socialAccounts?.[0];
+                  const handle = ig?.platformUsername ? `@${ig.platformUsername}` : "—";
+                  const sync = ig?.lastSyncedAt ? "Connected" : "Pending";
+                  return (
+                    <tr key={lead.id}>
+                      <td style={{ padding: "12px 8px" }}>{lead.contactName || lead.sourceId}</td>
+                      <td style={{ padding: "12px 8px" }}>
+                        <div>{lead.client?.name ?? "—"}</div>
+                        <div className="muted" style={{ fontSize: "0.8125rem" }}>
+                          {handle} · {sync}
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>{lead.source}</td>
+                      <td style={{ padding: "12px 8px" }}>
+                        <span style={{ color: statusColors[lead.status], fontWeight: 700 }}>{lead.status}</span>
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>{new Date(lead.createdAt).toLocaleString()}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -8,15 +8,17 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  passwordHash String?
-  role         Role     @default(AGENCY_ADMIN)
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String?
+  role          Role     @default(AGENCY_ADMIN)
+  clientId      String?
+  client        Client?  @relation("ClientMembership", fields: [clientId], references: [id])
   agencyClients Client[] @relation("Agency")
-  ownedClients Client[] @relation("ClientOwner")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  ownedClients  Client[] @relation("ClientOwner")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Client {
@@ -26,6 +28,7 @@ model Client {
   owner           User             @relation("ClientOwner", fields: [ownerId], references: [id])
   agencyId        String?
   agency          User?            @relation("Agency", fields: [agencyId], references: [id])
+  users           User[]           @relation("ClientMembership")
   socialAccounts  SocialAccount[]
   campaigns       Campaign[]
   leads           Lead[]
@@ -55,10 +58,25 @@ model SocialAccount {
   comments              Comment[]
   messages              Message[]
   syncRuns              SyncRun[]
+  followerDailies       FollowerDaily[]
+  followerCount         Int?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
   @@unique([platform, platformUserId])
+}
+
+/// Daily follower snapshot for growth charts (sync / seed).
+model FollowerDaily {
+  id              String        @id @default(cuid())
+  socialAccountId String
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  date            DateTime
+  followerCount   Int
+  createdAt       DateTime      @default(now())
+
+  @@unique([socialAccountId, date])
+  @@index([socialAccountId])
 }
 
 model Campaign {
@@ -81,6 +99,7 @@ model Post {
   content          String?
   mediaUrl         String?
   publishedAt      DateTime
+  engagementStats  Json?
   insights         PostInsight[]
   dailyMetrics     PostMetricDaily[]
   comments         Comment[]
@@ -198,16 +217,30 @@ model SyncRun {
 }
 
 model AiInsight {
-  id          String   @id @default(cuid())
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
-  type        String
-  title       String
-  summary     String
-  payload     Json
-  periodStart DateTime?
-  periodEnd   DateTime?
-  createdAt   DateTime @default(now())
+  id              String   @id @default(cuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platform        String
+  summary         String
+  recommendations Json
+  keyInsights     Json?
+  warning         String?
+  userFeedback    Int?
+  generatedAt     DateTime @default(now())
+
+  @@index([clientId])
+}
+
+model AiMonthlyUsage {
+  id         String   @id @default(cuid())
+  clientId   String
+  monthKey   String
+  totalCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([clientId, monthKey])
+  @@index([clientId])
 }
 
 model Recommendation {

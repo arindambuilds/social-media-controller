@@ -1,65 +1,124 @@
-# Social Media Controller
+# Instagram Growth Copilot (MVP)
 
-Production-oriented backend starter for a multi-tenant social media controller platform.
+**Status:** **MVP release candidate** — frozen scope; prioritize demos, pilots, and smoke verification over new features.
 
-## What is included
+**What it is:** An **Instagram-first AI copilot** for **local businesses and creators in India** — connect Instagram, see clear performance signals, and get AI-backed insights and content help. Built for **demos, pilots, and early revenue**, not as an all-platform social suite.
 
-- Express API with JWT authentication middleware
-- Prisma schema for users, clients, social accounts, posts, comments, messages, leads, and audit logs
-- AES-256-GCM encryption helpers for social tokens at rest
-- BullMQ queue scaffolding for ingestion and token refresh
-- Redis-backed OAuth state validation flow to protect callbacks from CSRF
-- Winston logging, Docker, PM2, and local development setup files
+**Origin:** Product development from **Bhubaneswar, Odisha** — designed for realistic use by salons, cafés, gyms, boutiques, coaches, and neighbourhood service brands.
 
-## Project structure
+---
 
-```text
-social-media-controller/
-  prisma/
-  src/
-    auth/
-    config/
-    lib/
-    middleware/
-    queues/
-    routes/
-    scheduler/
-    services/
-    workers/
+## Product (one screen)
+
+| For | Promise |
+|-----|--------|
+| Salon / café / gym owner | “See what’s working on Instagram and what to post next — without a marketing team.” |
+| Creator | “Turn your IG data into simple next steps and caption ideas.” |
+
+**In scope (MVP):** Instagram connect (OAuth), ingestion (real or mock), analytics summaries, AI insights, recommendations, captions, dashboard.
+
+**Out of scope (for now):** Full multi-network publishing, ads management, enterprise SSO, mobile apps.
+
+---
+
+## Stack
+
+| Layer | Tech |
+|--------|------|
+| API | Node.js, Express 5, TypeScript |
+| Data | PostgreSQL, Prisma |
+| Jobs | Redis (e.g. Upstash), BullMQ |
+| Dashboard | Next.js 15 (see `dashboard/`) |
+
+---
+
+## Quick start (Windows-friendly)
+
+Full steps: **[docs/local-dev.md](docs/local-dev.md)** (Postgres local + **Upstash Redis**, no Docker required).
+
+```powershell
+copy .env.example .env
+# Edit .env: DATABASE_URL, REDIS_URL, JWT_*, ENCRYPTION_KEY, INGESTION_MODE=mock for demos
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
 ```
 
-## Local setup
+Terminal 1 — API:
 
-1. Copy `.env.example` to `.env`.
-2. Start infrastructure with `docker compose up -d postgres redis`.
-3. Install dependencies with `npm install`.
-4. Generate the Prisma client with `npm run prisma:generate`.
-5. Run migrations with `npm run prisma:migrate`.
-6. Start the API with `npm run dev`.
-7. Run workers in separate terminals with `npm run worker` and `npx tsx src/workers/tokenRefreshWorker.ts`.
+```powershell
+npm run dev
+```
 
-## Core API endpoints
+Terminal 2 — ingestion worker (required for sync jobs):
 
-- `GET /api/health`
-- `POST /api/auth/login`
-- `POST /api/auth/oauth/state`
-- `POST /api/auth/oauth/validate`
-- `GET /api/clients`
-- `POST /api/clients`
-- `POST /api/social-accounts`
-- `POST /api/webhooks/social/:platform`
+```powershell
+npm run worker
+```
 
-## Security notes
+Terminal 3 — dashboard:
 
-- JWT auth is enforced on client and social account routes
-- OAuth state values are issued and consumed through Redis
-- Access and refresh tokens are encrypted before persistence
-- Role checks are implemented for agency-only routes
+```powershell
+npm run dashboard:dev
+```
 
-## Next recommended build steps
+- API: `http://localhost:4000` · Dashboard: `http://localhost:3000`  
+- Demo logins (after seed): **`demo@agencyname.com` / `Demo1234!`** (agency on record) · **`admin@demo.com` / `admin123`** (owner) · **`salon@pilot.demo` / `pilot123`** (client manager)  
+- Set `NEXT_PUBLIC_API_URL=http://localhost:4000` in `dashboard/.env.local` if needed.
 
-1. Add a real user authentication flow with password hashing or SSO.
-2. Implement provider-specific OAuth exchange handlers for Facebook, Instagram, LinkedIn, TikTok, and X.
-3. Add tenant-aware query scoping for all reads and writes.
-4. Introduce Sentry SDK integration and structured metrics export.
-5. Add test coverage for auth middleware, webhook idempotency, and lead detection.
+**Mock vs real Instagram:** `INGESTION_MODE=mock` uses synthetic sync (best for investor/mentor demos without Meta app review). `INGESTION_MODE=instagram` uses the Instagram ingestion path when tokens and Graph API access are configured.
+
+---
+
+## Documentation map
+
+| Doc | Purpose |
+|-----|---------|
+| [docs/local-dev.md](docs/local-dev.md) | Env, migrations, seed, curl checks |
+| [docs/mvp-product.md](docs/mvp-product.md) | Positioning, MVP promise, what to ignore |
+| [docs/2-week-plan.md](docs/2-week-plan.md) | Founder-sized execution plan |
+| [docs/demo-script.md](docs/demo-script.md) | 8-step live demo story (local business) |
+| [docs/incubation-readiness.md](docs/incubation-readiness.md) | Metrics, language, pilot evidence (no hype) |
+| [docs/launch-checklist.md](docs/launch-checklist.md) | Pre-demo env + smoke + manual pass |
+| [docs/implementation-roadmap.md](docs/implementation-roadmap.md) | Longer-term phases |
+
+---
+
+## API surface (high level)
+
+- Auth: `POST /api/auth/signup`, `login`, `refresh`, `GET /api/auth/me`
+- Instagram OAuth: `GET /api/auth/oauth/instagram/authorise`, callback, plus `social-accounts/instagram/start`
+- Analytics: `/api/analytics/...` (overview, posts, insights — see app routes)
+- AI: `/api/ai/...`, `/api/insights/...`
+- Webhooks: ingestion enqueue under `/api/webhooks/...`
+
+---
+
+## Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | API dev |
+| `npm run worker` | Ingestion worker |
+| `npm run build` | Compile API |
+| `npm run lint` | Typecheck API |
+| `npm run prisma:seed` | Seed demo data |
+| `npm run dashboard:build` | Production build of dashboard |
+| `npm run smoke:demo` | Hit health, login, me, analytics, insights, leads (API must be up) |
+| `npm test` | Vitest API smoke (needs `DATABASE_URL` + `REDIS_URL` in env) |
+
+---
+
+## Security
+
+- JWT for API auth; refresh tokens supported  
+- OAuth `state` validated via Redis  
+- Social tokens encrypted at rest (see `src/lib/encryption.ts`)  
+- Role checks on agency-only routes  
+
+---
+
+## Licence
+
+Private / use per your team policy.
