@@ -62,6 +62,9 @@ Optional env: `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `SMOKE_CLIENT_I
 |------|--------|----------|
 | Admin / founder demo | `admin@demo.com` | `admin123` |
 | Client (pilot UX) | `salon@pilot.demo` | `pilot123` |
+| Agency admin (presentations / alternate demo) | `demo@agencyname.com` | `Demo1234!` |
+
+`npm run smoke:demo` defaults use **`admin@demo.com`** / **`admin123`** and **`demo-client`**.
 
 ## Manual 2-minute pass (before every demo)
 

@@ -64,7 +64,14 @@ npm run dashboard:dev
 ```
 
 - API: `http://localhost:4000` · Dashboard: `http://localhost:3000`  
-- Demo logins (after seed): **`demo@agencyname.com` / `Demo1234!`** (agency on record) · **`admin@demo.com` / `admin123`** (owner) · **`salon@pilot.demo` / `pilot123`** (client manager)  
+- Demo logins (after seed — same table as **`docs/launch-checklist.md`**):
+
+  | Role | Email | Password |
+  |------|--------|----------|
+  | Admin / founder demo | `admin@demo.com` | `admin123` |
+  | Client (pilot UX) | `salon@pilot.demo` | `pilot123` |
+  | Agency admin (presentations) | `demo@agencyname.com` | `Demo1234!` |
+
 - Set `NEXT_PUBLIC_API_URL=http://localhost:4000` in `dashboard/.env.local` if needed.
 
 **Mock vs real Instagram:** `INGESTION_MODE=mock` uses synthetic sync (best for investor/mentor demos without Meta app review). `INGESTION_MODE=instagram` uses the Instagram ingestion path when tokens and Graph API access are configured.
@@ -82,6 +89,7 @@ npm run dashboard:dev
 | [docs/incubation-readiness.md](docs/incubation-readiness.md) | Metrics, language, pilot evidence (no hype) |
 | [docs/launch-checklist.md](docs/launch-checklist.md) | Pre-demo env + smoke + manual pass |
 | [docs/implementation-roadmap.md](docs/implementation-roadmap.md) | Longer-term phases |
+| [docs/mvp-status-one-pager.md](docs/mvp-status-one-pager.md) | Status, investor/pilot outline, Phases 2–3 + GTM |
 
 ---
 
@@ -106,6 +114,7 @@ npm run dashboard:dev
 | `npm run prisma:seed` | Seed demo data |
 | `npm run dashboard:build` | Production build of dashboard |
 | `npm run smoke:demo` | Hit health, login, me, analytics, insights, leads (API must be up) |
+| `npm run pdf:mvp-one-pager` | Build `docs/mvp-status-one-pager.pdf` from the Markdown (uses Microsoft Edge) |
 | `npm test` | Vitest API smoke (needs `DATABASE_URL` + `REDIS_URL` in env) |
 
 ---

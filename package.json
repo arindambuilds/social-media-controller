@@ -24,7 +24,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dashboard:dev": "npm --prefix dashboard run dev",
-    "dashboard:build": "npm --prefix dashboard run build"
+    "dashboard:build": "npm --prefix dashboard run build",
+    "pdf:mvp-one-pager": "node scripts/generate-mvp-pdf.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",
@@ -55,6 +56,8 @@
     "supertest": "^7.2.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "marked": "^15.0.7",
+    "puppeteer-core": "^24.10.0"
   }
 }
