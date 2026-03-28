@@ -11,8 +11,19 @@ import { addIngestionJob } from "../queues/ingestionQueue";
 import { login, refresh, registerUserByAgency, signup } from "../services/authService";
 import { requireRole } from "../middleware/requireRole";
 import { buildInstagramBrowserOAuthUrl } from "../lib/instagramBrowserOAuth";
+import { isDatabaseConnectivityError } from "../lib/databaseErrors";
+import { logger } from "../lib/logger";
 
 export const authRouter = Router();
+
+function respondDbUnavailable(res: Response, err: unknown, context: string): boolean {
+  if (!isDatabaseConnectivityError(err)) return false;
+  logger.error(`Database unavailable: ${context}`, {
+    message: err instanceof Error ? err.message : String(err)
+  });
+  res.status(503).json({ error: "Service temporarily unavailable. Please try again shortly." });
+  return true;
+}
 
 authRouter.get("/me", authenticate, async (req, res) => {
   const user = await prisma.user.findUnique({
@@ -82,6 +93,7 @@ authRouter.post("/register", authenticate, requireRole("AGENCY_ADMIN"), async (r
     const result = await registerUserByAgency(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err) {
+    if (respondDbUnavailable(res, err, "POST /api/auth/register")) return;
     const message = err instanceof Error ? err.message : "Registration failed.";
     const status = message.includes("already exists") ? 409 : 400;
     res.status(status).json({ error: message });
@@ -101,6 +113,7 @@ authRouter.post("/signup", async (req, res) => {
     const result = await signup(payload);
     res.status(201).json(result);
   } catch (err) {
+    if (respondDbUnavailable(res, err, "POST /api/auth/signup")) return;
     const message = err instanceof Error ? err.message : "Signup failed.";
     const status = message.includes("already exists") ? 409 : 400;
     res.status(status).json({ error: message });
@@ -118,6 +131,11 @@ authRouter.post("/login", async (req, res) => {
     const { passwordHash: _p, ...user } = result.user as typeof result.user & { passwordHash?: string };
     res.json({ success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, user });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid request.", details: err.flatten() });
+      return;
+    }
+    if (respondDbUnavailable(res, err, "POST /api/auth/login")) return;
     const message = err instanceof Error ? err.message : "Login failed.";
     res.status(401).json({ error: message });
   }
@@ -132,6 +150,11 @@ authRouter.post("/refresh", async (req, res) => {
     const result = await refresh(payload.refreshToken);
     res.json(result);
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid request.", details: err.flatten() });
+      return;
+    }
+    if (respondDbUnavailable(res, err, "POST /api/auth/refresh")) return;
     const message = err instanceof Error ? err.message : "Refresh failed.";
     res.status(401).json({ error: message });
   }

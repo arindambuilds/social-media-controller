@@ -62,21 +62,26 @@ Redeploy the dashboard after changing variables.
 
 ## Environment checklist (Render API)
 
-- `DATABASE_URL`, `JWT_SECRET` (32+ chars), `JWT_REFRESH_SECRET` (32+ chars), `ENCRYPTION_KEY` (or derive path via JWT as in code).  
-- `NODE_ENV=production`  
+- **`DATABASE_URL` (required):** In Render, create a **PostgreSQL** instance, then on your **Web Service** → **Environment** add `DATABASE_URL` using the **Internal Database URL** from the database (or External URL if you connect from outside Render).  
+  - Do **not** leave the default `localhost` connection string — the API will **refuse to start** in `NODE_ENV=production` if `DATABASE_URL` still points at `localhost` / `127.0.0.1`.  
+- **`JWT_SECRET`** (32+ chars), **`JWT_REFRESH_SECRET`** (32+ chars), **`ENCRYPTION_KEY`** (32+ chars optional if you rely on JWT-derived encryption per code).  
+- **`NODE_ENV=production`**  
 - Optional: `REDIS_URL`, `OPENAI_API_KEY`, Meta app IDs/secrets.  
-- Optional: `RENDER_EXTERNAL_URL` is set automatically on Render and is used for `APP_BASE_URL` when unset.
+- **`RENDER_EXTERNAL_URL`** is set automatically on Render and is used for `APP_BASE_URL` when unset.
 
 ## Seeding production / Render
 
-From a machine that can reach the database (or Render shell):
+1. Fix `DATABASE_URL` and redeploy so the service can reach Postgres.  
+2. Open **Render Shell** (or any shell with the same `DATABASE_URL`):
 
 ```bash
 npx prisma migrate deploy
 npx prisma db seed
 ```
 
-Confirms demo data: users above, **Growth Agency** user, **Urban Glow** + **Coastal Cafe** clients, ~30 days of posts per seeded IG account, sample leads and insights.
+This creates demo users (`demo@demo.com`, `demo@agencyname.com`, etc.), **Urban Glow** + **Coastal Cafe** clients, ~30 days of posts per seeded IG account, sample leads, and stored insights.
+
+**Auth errors:** Login/signup return **503** with a generic message if the database is unreachable (no Prisma stack traces to the browser). Invalid credentials stay **401**.
 
 ## Known limitations
 
