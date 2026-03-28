@@ -3,26 +3,37 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/ui/page-header";
-import { fetchMe } from "../../lib/api";
-import { CLIENT_ID_KEY, TOKEN_KEY } from "../../lib/auth-storage";
+import { API_ORIGIN, fetchMe } from "../../lib/api";
+import { useAuth } from "../../context/auth-context";
+
+async function readLoginError(response: Response): Promise<string> {
+  const text = await response.text();
+  try {
+    const j = JSON.parse(text) as { error?: string };
+    if (j?.error) return j.error;
+  } catch {
+    /* plain text */
+  }
+  return text || `Sign-in failed (${response.status})`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@demo.com");
-  const [password, setPassword] = useState("admin123");
+  const { setSession } = useAuth();
+  const [email, setEmail] = useState("demo@demo.com");
+  const [password, setPassword] = useState("Demo1234!");
   const [error, setError] = useState("");
 
   async function onLogin() {
     setError("");
-    const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-    const response = await fetch(`${API}/api/auth/login`, {
+    const response = await fetch(`${API_ORIGIN}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
     });
 
     if (!response.ok) {
-      setError(await response.text());
+      setError(await readLoginError(response));
       return;
     }
 
@@ -32,16 +43,10 @@ export default function LoginPage() {
       user: { clientId?: string | null };
     };
 
-    localStorage.setItem(TOKEN_KEY, payload.accessToken);
-
     const me = await fetchMe(payload.accessToken);
-    if (me.user.clientId) {
-      localStorage.setItem(CLIENT_ID_KEY, me.user.clientId);
-    } else {
-      localStorage.removeItem(CLIENT_ID_KEY);
-    }
+    setSession(payload.accessToken, me.user.clientId ?? null);
 
-    router.push("/analytics");
+    router.push("/dashboard");
   }
 
   return (

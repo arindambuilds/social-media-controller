@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 import { PageHeader } from "../../components/ui/page-header";
@@ -23,7 +23,7 @@ function msUntil(iso: string | null): string {
   return d > 0 ? `${d}d ${h}h` : `${h}h`;
 }
 
-export default function AccountsPage() {
+function AccountsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [clientId, setClientId] = useState<string | null>(null);
@@ -179,5 +179,19 @@ export default function AccountsPage() {
         </table>
       </div>
     </div>
+  );
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="page-shell">
+          <div className="skeleton" style={{ height: 120 }} />
+        </div>
+      }
+    >
+      <AccountsPageContent />
+    </Suspense>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { apiFetch, fetchMe } from "../../lib/api";
+import { API_ORIGIN, apiFetch, fetchMe } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 
 export default function OnboardingPage() {
@@ -24,8 +24,7 @@ export default function OnboardingPage() {
 
     (async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-        const healthRes = await fetch(`${apiBase}/health`, { cache: "no-store" });
+        const healthRes = await fetch(`${API_ORIGIN}/health`, { cache: "no-store" });
         if (healthRes.ok) {
           const h = (await healthRes.json()) as {
             ingestionMode?: string;
@@ -71,7 +70,13 @@ export default function OnboardingPage() {
       `/auth/oauth/instagram/authorise?clientId=${encodeURIComponent(clientId)}`
     );
     if (!res.ok) {
-      setError(await res.text());
+      const text = await res.text();
+      try {
+        const j = JSON.parse(text) as { error?: string };
+        setError(j.error ?? text);
+      } catch {
+        setError(text || "Could not start Instagram OAuth.");
+      }
       return;
     }
     const data = (await res.json()) as { url: string };

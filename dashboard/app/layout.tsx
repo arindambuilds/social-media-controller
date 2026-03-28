@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Sora } from "next/font/google";
 import { AppProviders } from "../components/app-providers";
+import { AuthProvider } from "../context/auth-context";
 import { DashboardNav } from "../components/dashboard-nav";
 import "./globals.css";
 
@@ -28,8 +29,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <body>
         <AppProviders>
-          <DashboardNav />
-          <main className="app-main">{children}</main>
+          <AuthProvider>
+            <DashboardNav />
+            <main className="app-main">{children}</main>
+          </AuthProvider>
         </AppProviders>
       </body>
     </html>

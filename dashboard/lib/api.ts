@@ -1,7 +1,8 @@
 import { CLIENT_ID_KEY, TOKEN_KEY } from "./auth-storage";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-export const API_BASE_URL = `${API}/api`;
+/** API origin without `/api` — same as `NEXT_PUBLIC_API_URL`. */
+export const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export const API_BASE_URL = `${API_ORIGIN}/api`;
 
 export type AnalyticsSummary = {
   success?: boolean;

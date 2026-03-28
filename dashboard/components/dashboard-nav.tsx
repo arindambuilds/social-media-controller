@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { clearAuthStorage, getStoredToken } from "../lib/auth-storage";
+import { useAuth } from "../context/auth-context";
 import { ThemeToggle } from "./theme-toggle";
 
 const growLinks = [
@@ -15,6 +14,7 @@ const connectLinks = [{ href: "/onboarding", label: "Connect" }] as const;
 
 const moreLinks = [
   { href: "/", label: "Home" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/posts", label: "Posts" },
   { href: "/accounts", label: "Accounts" },
   { href: "/leads", label: "Leads" },
@@ -30,15 +30,11 @@ function isActive(pathname: string, href: string) {
 export function DashboardNav() {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
-  const [hasToken, setHasToken] = useState(false);
-
-  useEffect(() => {
-    setHasToken(!!getStoredToken());
-  }, [pathname]);
+  const { token, isReady, clearSession } = useAuth();
+  const hasToken = isReady && !!token;
 
   function signOut() {
-    clearAuthStorage();
-    setHasToken(false);
+    clearSession();
     router.push("/login");
   }
 
