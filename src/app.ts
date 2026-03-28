@@ -9,6 +9,7 @@ import { env } from "./config/env";
 import { getDetailedHealth } from "./lib/healthCheck";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
 import { logger } from "./lib/logger";
+import { prisma } from "./lib/prisma";
 import { authenticate } from "./middleware/authenticate";
 import { errorHandler } from "./middleware/errorHandler";
 import { aiRouter } from "./routes/ai";
@@ -156,6 +157,18 @@ export function createApp() {
         timestamp: new Date().toISOString(),
         message: err instanceof Error ? err.message : String(err)
       });
+    }
+  });
+
+  /** DB connectivity probe (Prisma). Use after fixing DATABASE_URL on Render. */
+  app.get("/api/health/db", async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ status: "ok", timestamp: new Date().toISOString() });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      logger.warn("/api/health/db failed", { message: detail });
+      res.status(503).json({ status: "error", detail });
     }
   });
 

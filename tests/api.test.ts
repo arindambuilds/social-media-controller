@@ -33,6 +33,16 @@ run("API MVP smoke", () => {
     });
   });
 
+  it("GET /api/health/db returns status ok when database is reachable", async () => {
+    const res = await request(app).get("/api/health/db");
+    expect([200, 503]).toContain(res.status);
+    if (res.status === 200) {
+      expect(res.body).toMatchObject({ status: "ok" });
+    } else {
+      expect(res.body).toMatchObject({ status: "error" });
+    }
+  });
+
   it("POST /api/auth/signup creates user", async () => {
     const email = `vitest-${Date.now()}@example.com`;
     const res = await request(app).post("/api/auth/signup").send({

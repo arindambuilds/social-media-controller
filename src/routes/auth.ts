@@ -159,6 +159,7 @@ authRouter.post("/login", async (req, res) => {
       password: z.string().min(1)
     }).parse(req.body);
 
+    // Prisma/DB connectivity → respondDbUnavailable (503). Bad credentials → 401 below. No silent catch.
     const result = await login(payload);
     const { passwordHash: _p, ...user } = result.user as typeof result.user & { passwordHash?: string };
     res.json({ success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, user });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Sora } from "next/font/google";
 import { AppProviders } from "../components/app-providers";
+import { AuthReadyGate } from "../components/auth-ready-gate";
 import { AuthProvider } from "../context/auth-context";
 import { DashboardNav } from "../components/dashboard-nav";
 import "./globals.css";
@@ -31,8 +32,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AppProviders>
           <AuthProvider>
             <DashboardNav />
-            {/* Errors in route segments are caught by app/error.tsx (Next.js error boundary). */}
-            <main className="app-main">{children}</main>
+            <AuthReadyGate>
+              {/* Errors in route segments are caught by app/error.tsx (Next.js error boundary). */}
+              <main className="app-main">{children}</main>
+            </AuthReadyGate>
           </AuthProvider>
         </AppProviders>
       </body>

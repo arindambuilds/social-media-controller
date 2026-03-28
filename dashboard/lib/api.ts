@@ -3,6 +3,15 @@ import { CLIENT_ID_KEY, TOKEN_KEY } from "./auth-storage";
 /** Default request timeout (ms). Login uses a longer override for Render cold starts. */
 export const DEFAULT_API_TIMEOUT_MS = 10_000;
 
+if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
+  const v = process.env.NEXT_PUBLIC_API_URL;
+  if (v == null || String(v).trim() === "") {
+    throw new Error(
+      "NEXT_PUBLIC_API_URL is missing. Set it in Vercel (e.g. https://your-api.onrender.com — origin only, no /api)."
+    );
+  }
+}
+
 const raw = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
 /** Base URL for `/api/*` routes — always ends with `/api` (append paths like `/auth/login`). */

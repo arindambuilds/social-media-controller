@@ -25,6 +25,7 @@
     "smoke:demo": "tsx scripts/smoke-demo.ts",
     "smoke:local": "tsx scripts/smoke-demo.ts --url http://localhost:4000",
     "smoke:render": "tsx scripts/smoke-demo.ts --url https://social-media-controller.onrender.com",
+    "smoke:test": "node scripts/smoke-test.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "dashboard:dev": "npm --prefix dashboard run dev",
