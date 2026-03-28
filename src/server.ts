@@ -1,3 +1,4 @@
+import http from "http";
 import * as Sentry from "@sentry/node";
 import { env } from "./config/env";
 import { logger } from "./lib/logger";
@@ -12,10 +13,12 @@ if (env.SENTRY_DSN) {
 }
 
 const app = createApp();
+const PORT = parseInt(process.env.PORT || "4000", 10) || 4000;
 
-const PORT = Number(process.env.PORT) || 4000;
+const server = http.createServer(app);
 
-app.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
   logger.info("API server started", {
     port: PORT,
     environment: env.NODE_ENV
