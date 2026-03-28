@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch, fetchMe, type CaptionCard } from "../../lib/api";
+import { apiFetch, apiFetchResponse, fetchMe, type CaptionCard } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 
 type InsightPayload = {
@@ -41,9 +41,9 @@ export default function InsightsPage() {
   const [weeklyLoading, setWeeklyLoading] = useState(false);
 
   const refreshLatest = useCallback(async (cid: string) => {
-    const res = await apiFetch(`/insights/${encodeURIComponent(cid)}/content-performance/latest`);
-    if (!res.ok) throw new Error(await res.text());
-    const data = (await res.json()) as LatestResponse;
+    const data = await apiFetch<LatestResponse>(
+      `/insights/${encodeURIComponent(cid)}/content-performance/latest`
+    );
     setInsight(data.insight);
     setCooldownRemainingSeconds(data.cooldownRemainingSeconds);
   }, []);
@@ -70,10 +70,13 @@ export default function InsightsPage() {
         }
         setClientId(cid);
         await refreshLatest(cid);
-        const bill = await apiFetch(`/billing/${encodeURIComponent(cid)}/status`);
-        if (bill.ok) {
-          const b = (await bill.json()) as { generationsUsed: number; generationsLimit: number };
+        try {
+          const b = await apiFetch<{ generationsUsed: number; generationsLimit: number }>(
+            `/billing/${encodeURIComponent(cid)}/status`
+          );
           setBilling(b);
+        } catch {
+          setBilling(null);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load");
@@ -96,26 +99,34 @@ export default function InsightsPage() {
     setError("");
     setGenerating(true);
     try {
-      const res = await apiFetch(`/insights/${encodeURIComponent(clientId)}/content-performance/generate`, {
-        method: "POST",
-        body: JSON.stringify({})
-      });
+      const res = await apiFetchResponse(
+        `/insights/${encodeURIComponent(clientId)}/content-performance/generate`,
+        {
+          method: "POST",
+          body: JSON.stringify({})
+        }
+      );
+      const raw = await res.text();
+      let body: Record<string, unknown> = {};
+      if (raw) {
+        try {
+          body = JSON.parse(raw) as Record<string, unknown>;
+        } catch {
+          body = {};
+        }
+      }
       if (res.status === 429) {
-        const body = (await res.json()) as { cooldownRemainingSeconds?: number };
-        setCooldownRemainingSeconds(body.cooldownRemainingSeconds ?? 0);
+        const c = body.cooldownRemainingSeconds;
+        setCooldownRemainingSeconds(typeof c === "number" ? c : 0);
         return;
       }
       if (!res.ok) {
-        const raw = await res.text();
-        try {
-          const j = JSON.parse(raw) as { detail?: string; error?: string };
-          setError(j.detail ?? j.error ?? raw);
-        } catch {
-          setError(raw);
-        }
+        const detail = typeof body.detail === "string" ? body.detail : undefined;
+        const err = typeof body.error === "string" ? body.error : undefined;
+        setError((detail ?? err ?? raw.slice(0, 200)) || `HTTP ${res.status}`);
         return;
       }
-      const data = (await res.json()) as LatestResponse;
+      const data = body as unknown as LatestResponse;
       if (!data.insight) {
         setError("Insight did not return data — try again.");
         return;
@@ -131,12 +142,13 @@ export default function InsightsPage() {
 
   async function postFeedback(vote: "up" | "down") {
     if (!clientId || !insight) return;
-    const res = await apiFetch(`/insights/${encodeURIComponent(clientId)}/${encodeURIComponent(insight.id)}/feedback`, {
-      method: "POST",
-      body: JSON.stringify({ vote })
-    });
-    if (!res.ok) {
-      setError(await res.text());
+    try {
+      await apiFetch(`/insights/${encodeURIComponent(clientId)}/${encodeURIComponent(insight.id)}/feedback`, {
+        method: "POST",
+        body: JSON.stringify({ vote })
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Feedback failed");
       return;
     }
     setInsight((prev) =>
@@ -149,14 +161,12 @@ export default function InsightsPage() {
     setWeeklyLoading(true);
     setError("");
     try {
-      const res = await apiFetch(`/ai/recommendations/weekly/${encodeURIComponent(clientId)}`, {
-        method: "POST"
-      });
-      if (!res.ok) {
-        setError(await res.text());
-        return;
-      }
-      const data = (await res.json()) as { text?: string };
+      const data = await apiFetch<{ text?: string }>(
+        `/ai/recommendations/weekly/${encodeURIComponent(clientId)}`,
+        {
+          method: "POST"
+        }
+      );
       setWeeklyFocus(typeof data.text === "string" ? data.text : "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Weekly focus failed");
@@ -171,20 +181,21 @@ export default function InsightsPage() {
     setCaptions([]);
     setError("");
     try {
-      const res = await apiFetch(`/ai/${encodeURIComponent(clientId)}/captions/generate`, {
-        method: "POST",
-        body: JSON.stringify({ tone, goal, offer: offer || undefined })
-      });
-      if (!res.ok) {
-        setError(await res.text());
-        return;
-      }
-      const data = (await res.json()) as { captions: CaptionCard[] };
+      const data = await apiFetch<{ captions: CaptionCard[] }>(
+        `/ai/${encodeURIComponent(clientId)}/captions/generate`,
+        {
+          method: "POST",
+          body: JSON.stringify({ tone, goal, offer: offer || undefined })
+        }
+      );
       setCaptions(Array.isArray(data.captions) ? data.captions : []);
-      const bill = await apiFetch(`/billing/${encodeURIComponent(clientId)}/status`);
-      if (bill.ok) {
-        const b = (await bill.json()) as { generationsUsed: number; generationsLimit: number };
+      try {
+        const b = await apiFetch<{ generationsUsed: number; generationsLimit: number }>(
+          `/billing/${encodeURIComponent(clientId)}/status`
+        );
         setBilling(b);
+      } catch {
+        /* billing optional */
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Caption generation failed");

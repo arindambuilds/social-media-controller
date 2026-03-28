@@ -43,15 +43,11 @@ export default function PostsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async (token: string, cid: string) => {
-    const [aRes, pRes] = await Promise.all([
-      apiFetch(`/social-accounts?clientId=${encodeURIComponent(cid)}`),
-      apiFetch(`/posts?clientId=${encodeURIComponent(cid)}`)
+  const load = useCallback(async (_token: string, cid: string) => {
+    const [aJson, pJson] = await Promise.all([
+      apiFetch<{ accounts: SocialAcc[] }>(`/social-accounts?clientId=${encodeURIComponent(cid)}`),
+      apiFetch<{ posts: ScheduledRow[] }>(`/posts?clientId=${encodeURIComponent(cid)}`)
     ]);
-    if (!aRes.ok) throw new Error(await aRes.text());
-    if (!pRes.ok) throw new Error(await pRes.text());
-    const aJson = (await aRes.json()) as { accounts: SocialAcc[] };
-    const pJson = (await pRes.json()) as { posts: ScheduledRow[] };
     const accs = aJson.accounts ?? [];
     setAccounts(accs);
     setPosts(pJson.posts ?? []);
@@ -112,11 +108,10 @@ export default function PostsPage() {
         status
       };
       if (scheduleAt) body.scheduledAt = new Date(scheduleAt).toISOString();
-      const res = await apiFetch("/posts", {
+      await apiFetch("/posts", {
         method: "POST",
         body: JSON.stringify(body)
       });
-      if (!res.ok) throw new Error(await res.text());
       setCaption("");
       setMediaUrls([""]);
       setHashtags("");
@@ -134,9 +129,10 @@ export default function PostsPage() {
     const token = getStoredToken();
     if (!token) return;
     if (!confirm("Delete this post?")) return;
-    const res = await apiFetch(`/posts/${encodeURIComponent(id)}`, { method: "DELETE" });
-    if (!res.ok) {
-      setError(await res.text());
+    try {
+      await apiFetch(`/posts/${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
       return;
     }
     await load(token, clientId);

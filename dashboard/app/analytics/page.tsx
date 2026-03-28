@@ -77,20 +77,12 @@ export default function AnalyticsPage() {
 
   const load = useCallback(async (cid: string) => {
     setError("");
-    const [oRes, hRes, mRes, pRes] = await Promise.all([
-      apiFetch(`/analytics/${encodeURIComponent(cid)}/overview?days=30`),
-      apiFetch(`/analytics/${encodeURIComponent(cid)}/insights/hourly`),
-      apiFetch(`/analytics/${encodeURIComponent(cid)}/insights/media-type`),
-      apiFetch(`/analytics/${encodeURIComponent(cid)}/posts?limit=5&sort=engagement`)
+    const [o, h, m, p] = await Promise.all([
+      apiFetch<Overview>(`/analytics/${encodeURIComponent(cid)}/overview?days=30`),
+      apiFetch<{ hours: HourlyRow[] }>(`/analytics/${encodeURIComponent(cid)}/insights/hourly`),
+      apiFetch<{ types: MediaRow[] }>(`/analytics/${encodeURIComponent(cid)}/insights/media-type`),
+      apiFetch<{ posts: PostRow[] }>(`/analytics/${encodeURIComponent(cid)}/posts?limit=5&sort=engagement`)
     ]);
-    if (!oRes.ok) throw new Error(await oRes.text());
-    if (!hRes.ok) throw new Error(await hRes.text());
-    if (!mRes.ok) throw new Error(await mRes.text());
-    if (!pRes.ok) throw new Error(await pRes.text());
-    const o = (await oRes.json()) as Overview;
-    const h = (await hRes.json()) as { hours: HourlyRow[] };
-    const m = (await mRes.json()) as { types: MediaRow[] };
-    const p = (await pRes.json()) as { posts: PostRow[] };
     setOverview(o);
     setHourly(h.hours ?? []);
     setMediaTypes(m.types ?? []);
@@ -119,11 +111,10 @@ export default function AnalyticsPage() {
           return;
         }
         setClientId(cid);
-        const sumRes = await apiFetch(`/analytics/INSTAGRAM/${encodeURIComponent(cid)}/summary`);
-        if (!sumRes.ok) {
-          throw new Error((await sumRes.text()) || `Summary ${sumRes.status}`);
-        }
-        setSummary((await sumRes.json()) as AnalyticsSummary);
+        const sum = await apiFetch<AnalyticsSummary>(
+          `/analytics/INSTAGRAM/${encodeURIComponent(cid)}/summary`
+        );
+        setSummary(sum);
         await load(cid);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load analytics");

@@ -82,7 +82,7 @@ Copy `.env.example` to `.env` at the **repo root** and set:
 
 | Variable | Notes |
 |----------|--------|
-| `DATABASE_URL` | `postgresql://user:pass@localhost:5432/social_media_controller?schema=public` |
+| `DATABASE_URL` | Local: `postgresql://user:pass@localhost:5432/social_media_controller?schema=public`. Render (external URL from dashboard, for Prisma on your PC): e.g. `postgresql://smc_user_v2:YOUR_PASSWORD@dpg-d73u2k5m5p6s73eueaug-a.oregon-postgres.render.com/smc_db_s2vr?sslmode=require` |
 | `REDIS_URL` | Upstash `rediss://...` |
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | Long random strings (16+ chars) |
 | `ENCRYPTION_KEY` | At least **32 characters** (token encryption) |
@@ -95,7 +95,7 @@ Copy `.env.example` to `.env` at the **repo root** and set:
 **Dashboard:** create `dashboard/.env.local`:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ```
 
 ---
@@ -147,8 +147,16 @@ Client ID for both is seeded as **`demo-client`** (Urban Glow Studio).
 ### 7b) Smoke test (API must be running)
 
 ```powershell
-npm run smoke:demo
+npm run smoke:local
 ```
+
+Against production API:
+
+```powershell
+npm run smoke:render
+```
+
+(`npm run smoke:demo` also runs the same script with default base URL `http://localhost:4000`.)
 
 ---
 

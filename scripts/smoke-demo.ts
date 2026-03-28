@@ -2,165 +2,111 @@
  * API smoke test. Requires: API + DB seeded (demo@demo.com / Demo1234!).
  *
  * Usage:
- *   npx tsx scripts/smoke-demo.ts
- *   npx tsx scripts/smoke-demo.ts --url https://social-media-controller.onrender.com
- *   SMOKE_BASE_URL=http://localhost:4000 npx tsx scripts/smoke-demo.ts
+ *   npm run smoke:local
+ *   npm run smoke:render
+ *   npx tsx scripts/smoke-demo.ts --url https://your-api.example.com
  */
 
-type Row = { name: string; ok: boolean; detail: string };
+import { parseArgs } from "node:util";
 
-function parseArgs(): { base: string; email: string; password: string; clientId: string } {
-  const args = process.argv.slice(2);
-  let base = process.env.SMOKE_BASE_URL ?? "http://localhost:4000";
-  let email = process.env.SMOKE_EMAIL ?? "demo@demo.com";
-  let password = process.env.SMOKE_PASSWORD ?? "Demo1234!";
-  let clientId = process.env.SMOKE_CLIENT_ID ?? "demo-client";
-  for (let i = 0; i < args.length; i += 1) {
-    if (args[i] === "--url" && args[i + 1]) {
-      base = args[i + 1]!;
-      i += 1;
-    }
-  }
-  base = base.replace(/\/$/, "");
-  return { base, email, password, clientId };
-}
+const { values } = parseArgs({
+  args: process.argv.slice(2),
+  options: { url: { type: "string", default: "http://localhost:4000" } },
+  strict: false
+});
 
 async function main() {
-  const { base, email, password, clientId } = parseArgs();
-  const rows: Row[] = [];
+  const BASE = (values.url ?? "http://localhost:4000").replace(/\/$/, "");
+  const results: { name: string; passed: boolean; duration: number; error?: string }[] = [];
 
-  const push = (name: string, ok: boolean, detail: string) => rows.push({ name, ok, detail });
-
-  try {
-    const health = await fetch(`${base}/api/health`);
-    const healthJson = (await health.json().catch(() => ({}))) as { status?: string };
-    push(
-      "GET /api/health",
-      health.ok && healthJson.status === "ok",
-      health.ok ? JSON.stringify(healthJson) : `${health.status}`
-    );
-  } catch (e) {
-    push("GET /api/health", false, e instanceof Error ? e.message : String(e));
+  async function check(name: string, fn: () => Promise<void>) {
+    const start = Date.now();
+    try {
+      await fn();
+      results.push({ name, passed: true, duration: Date.now() - start });
+    } catch (err) {
+      results.push({ name, passed: false, duration: Date.now() - start, error: String(err) });
+    }
   }
 
   let token = "";
-  try {
-    const loginRes = await fetch(`${base}/api/auth/login`, {
+  let clientId = "";
+
+  await check("Health", async () => {
+    const r = await fetch(`${BASE}/api/health`);
+    const d = (await r.json().catch(() => ({}))) as { status?: string };
+    if (!r.ok || d.status !== "ok") throw new Error(`status=${d.status ?? r.status}`);
+  });
+
+  await check("Login", async () => {
+    const r = await fetch(`${BASE}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email: "demo@demo.com", password: "Demo1234!" })
     });
-    const loginText = await loginRes.text();
-    const loginJson = JSON.parse(loginText) as { accessToken?: string; success?: boolean };
-    token = loginJson.accessToken ?? "";
-    push(
-      "POST /api/auth/login",
-      loginRes.ok && !!token,
-      loginRes.ok ? "token received" : `${loginRes.status} ${loginText.slice(0, 200)}`
-    );
-  } catch (e) {
-    push("POST /api/auth/login", false, e instanceof Error ? e.message : String(e));
-  }
+    const d = (await r.json().catch(() => ({}))) as {
+      accessToken?: string;
+      user?: { clientId?: string | null };
+    };
+    if (!r.ok || !d.accessToken) throw new Error("No accessToken in response");
+    token = d.accessToken;
+    clientId = d.user?.clientId ?? "";
+  });
 
-  const authHeaders = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json"
-  };
+  await check("Analytics", async () => {
+    if (!clientId) throw new Error("No clientId from login");
+    const r = await fetch(`${BASE}/api/analytics/INSTAGRAM/${encodeURIComponent(clientId)}/summary`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const d = (await r.json().catch(() => ({}))) as { postsAnalyzed?: unknown };
+    if (!r.ok || typeof d.postsAnalyzed !== "number") throw new Error("No postsAnalyzed number");
+  });
 
-  if (token) {
-    try {
-      const summaryRes = await fetch(
-        `${base}/api/analytics/INSTAGRAM/${encodeURIComponent(clientId)}/summary`,
-        { headers: authHeaders }
-      );
-      const summaryJson = (await summaryRes.json().catch(() => ({}))) as {
-        postsAnalyzed?: number;
-      };
-      push(
-        "GET /api/analytics/INSTAGRAM/:clientId/summary",
-        summaryRes.ok && (summaryJson.postsAnalyzed ?? 0) > 0,
-        summaryRes.ok
-          ? `postsAnalyzed=${summaryJson.postsAnalyzed ?? 0}`
-          : `${summaryRes.status}`
-      );
-    } catch (e) {
-      push(
-        "GET /api/analytics/INSTAGRAM/:clientId/summary",
-        false,
-        e instanceof Error ? e.message : String(e)
-      );
+  await check("AI Insights", async () => {
+    if (!clientId) throw new Error("No clientId from login");
+    const r = await fetch(`${BASE}/api/ai/insights/content-performance/${encodeURIComponent(clientId)}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ platform: "INSTAGRAM" })
+    });
+    const d = (await r.json().catch(() => ({}))) as { summary?: unknown };
+    if (!r.ok || typeof d.summary !== "string" || !d.summary.trim()) throw new Error("No summary in response");
+  });
+
+  await check("Leads", async () => {
+    const r = await fetch(`${BASE}/api/leads?clientId=${encodeURIComponent(clientId)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const d = (await r.json().catch(() => ({}))) as { leads?: unknown };
+    if (!r.ok || !Array.isArray(d.leads)) throw new Error("leads is not an array");
+  });
+
+  await check("Posts", async () => {
+    if (!clientId) throw new Error("No clientId from login");
+    const r = await fetch(`${BASE}/api/posts?clientId=${encodeURIComponent(clientId)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const d = (await r.json().catch(() => ({}))) as { posts?: unknown };
+    if (!r.ok || !Array.isArray(d.posts)) throw new Error("posts is not an array");
+  });
+
+  console.log("\n┌─────────────────────┬────────┬──────────┐");
+  console.log("│ Check               │ Status │ Duration │");
+  console.log("├─────────────────────┼────────┼──────────┤");
+  for (const row of results) {
+    const name = row.name.padEnd(19);
+    const status = row.passed ? "  ✅   " : "  ❌   ";
+    const duration = `${row.duration}ms`.padStart(6);
+    console.log(`│ ${name} │${status}│ ${duration}   │`);
+    if (!row.passed && row.error) {
+      const errLine = `  ↳ ${row.error.slice(0, 60)}`;
+      console.log(`│ ${errLine.padEnd(60)} │`);
     }
-
-    try {
-      const insightRes = await fetch(
-        `${base}/api/ai/insights/content-performance/${encodeURIComponent(clientId)}`,
-        {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify({ platform: "INSTAGRAM" })
-        }
-      );
-      const insightJson = (await insightRes.json().catch(() => ({}))) as { summary?: string };
-      const hasSummary =
-        typeof insightJson.summary === "string" && insightJson.summary.trim().length > 0;
-      push(
-        "POST /api/ai/insights/content-performance/:clientId",
-        insightRes.ok && hasSummary,
-        insightRes.ok ? `summary len=${insightJson.summary?.length ?? 0}` : `${insightRes.status}`
-      );
-    } catch (e) {
-      push(
-        "POST /api/ai/insights/content-performance/:clientId",
-        false,
-        e instanceof Error ? e.message : String(e)
-      );
-    }
-
-    try {
-      const leadsRes = await fetch(`${base}/api/leads?clientId=${encodeURIComponent(clientId)}`, {
-        headers: authHeaders
-      });
-      const leadsJson = (await leadsRes.json().catch(() => ({}))) as { leads?: unknown[] };
-      const n = Array.isArray(leadsJson.leads) ? leadsJson.leads.length : 0;
-      push("GET /api/leads", leadsRes.ok && n > 0, leadsRes.ok ? `${n} leads` : `${leadsRes.status}`);
-    } catch (e) {
-      push("GET /api/leads", false, e instanceof Error ? e.message : String(e));
-    }
-
-    try {
-      const postsRes = await fetch(
-        `${base}/api/analytics/${encodeURIComponent(clientId)}/posts?limit=20&sort=engagement`,
-        { headers: authHeaders }
-      );
-      const postsJson = (await postsRes.json().catch(() => ({}))) as { posts?: unknown[] };
-      const n = Array.isArray(postsJson.posts) ? postsJson.posts.length : 0;
-      push(
-        "GET /api/analytics/:clientId/posts",
-        postsRes.ok && n > 0,
-        postsRes.ok ? `${n} posts` : `${postsRes.status}`
-      );
-    } catch (e) {
-      push("GET /api/analytics/:clientId/posts", false, e instanceof Error ? e.message : String(e));
-    }
-  } else {
-    push("GET /api/analytics/INSTAGRAM/:clientId/summary", false, "skipped (no token)");
-    push("POST /api/ai/insights/content-performance/:clientId", false, "skipped (no token)");
-    push("GET /api/leads", false, "skipped (no token)");
-    push("GET /api/analytics/:clientId/posts", false, "skipped (no token)");
   }
-
-  console.log("\nSmoke demo results\n");
-  console.log("| Step | Pass | Detail |");
-  console.log("|------|------|--------|");
-  for (const r of rows) {
-    console.log(`| ${r.name} | ${r.ok ? "PASS" : "FAIL"} | ${r.detail.replace(/\|/g, "/")} |`);
-  }
-  const failed = rows.filter((r) => !r.ok);
-  if (failed.length > 0) {
-    console.error(`\n${failed.length} check(s) failed.`);
-    process.exit(1);
-  }
-  console.log("\nAll checks passed.\n");
+  console.log("└─────────────────────┴────────┴──────────┘");
+  const passed = results.filter((r) => r.passed).length;
+  console.log(`\nOverall: ${passed}/${results.length} passed`);
+  process.exit(passed === results.length ? 0 : 1);
 }
 
 main().catch((err) => {

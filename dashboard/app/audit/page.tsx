@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch, fetchMe } from "../../lib/api";
+import { apiFetchResponse, fetchMe, parseApiErrorMessage } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 import { PageHeader } from "../../components/ui/page-header";
 
@@ -35,10 +35,19 @@ export default function AuditPage() {
       perPage: String(perPage)
     });
     if (act) q.set("action", act);
-    const res = await apiFetch(`/audit-logs?${q.toString()}`);
+    const res = await apiFetchResponse(`/audit-logs?${q.toString()}`);
+    const text = await res.text();
+    let body: unknown = {};
+    if (text) {
+      try {
+        body = JSON.parse(text) as unknown;
+      } catch {
+        body = { _raw: text };
+      }
+    }
     if (res.status === 403) throw new Error("Agency admin only.");
-    if (!res.ok) throw new Error(await res.text());
-    const data = (await res.json()) as { logs: AuditRow[]; pagination: { total: number } };
+    if (!res.ok) throw new Error(parseApiErrorMessage(body) || text.slice(0, 200) || `HTTP ${res.status}`);
+    const data = body as { logs: AuditRow[]; pagination: { total: number } };
     setLogs(data.logs ?? []);
     setTotal(data.pagination?.total ?? 0);
   }, []);

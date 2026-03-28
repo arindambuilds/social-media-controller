@@ -3,20 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/ui/page-header";
-import { API_ORIGIN, fetchMe, parseApiErrorMessage } from "../../lib/api";
+import { apiFetch, fetchMe } from "../../lib/api";
 import { useAuth } from "../../context/auth-context";
-
-async function readLoginError(response: Response): Promise<string> {
-  const text = await response.text();
-  try {
-    const j = JSON.parse(text) as unknown;
-    const msg = parseApiErrorMessage(j);
-    if (msg !== "Request failed") return msg;
-  } catch {
-    /* plain text */
-  }
-  return text || `Sign-in failed (${response.status})`;
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,22 +18,14 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      const response = await fetch(`${API_ORIGIN}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-
-      if (!response.ok) {
-        setError(await readLoginError(response));
-        return;
-      }
-
-      const payload = (await response.json()) as {
+      const payload = await apiFetch<{
         success: boolean;
         accessToken: string;
         user: { clientId?: string | null };
-      };
+      }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
 
       const me = await fetchMe(payload.accessToken);
       setSession(payload.accessToken, me.user.clientId ?? null);

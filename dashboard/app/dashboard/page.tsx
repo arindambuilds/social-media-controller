@@ -33,19 +33,14 @@ export default function DashboardHomePage() {
           setClientLabel(me.user.clientId);
           setStatsLoading(true);
           try {
-            const oRes = await apiFetch(
-              `/analytics/${encodeURIComponent(me.user.clientId)}/overview?days=30`
+            const o = await apiFetch<{
+              followerCount?: number | null;
+              avgEngagementRate?: number;
+            }>(`/analytics/${encodeURIComponent(me.user.clientId)}/overview?days=30`);
+            setFollowerCount(o.followerCount ?? null);
+            setAvgEngagementRate(
+              typeof o.avgEngagementRate === "number" ? o.avgEngagementRate : null
             );
-            if (oRes.ok) {
-              const o = (await oRes.json()) as {
-                followerCount?: number | null;
-                avgEngagementRate?: number;
-              };
-              setFollowerCount(o.followerCount ?? null);
-              setAvgEngagementRate(
-                typeof o.avgEngagementRate === "number" ? o.avgEngagementRate : null
-              );
-            }
           } finally {
             setStatsLoading(false);
           }

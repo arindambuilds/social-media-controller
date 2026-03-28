@@ -44,8 +44,9 @@ export default function OnboardingPage() {
         }
         localStorage.setItem(CLIENT_ID_KEY, clientId);
 
-        const syncRes = await apiFetch(`/clients/${encodeURIComponent(clientId)}/sync-status`);
-        const sync = syncRes.ok ? ((await syncRes.json()) as { postsSynced?: number }) : { postsSynced: 0 };
+        const sync = await apiFetch<{ postsSynced?: number }>(
+          `/clients/${encodeURIComponent(clientId)}/sync-status`
+        );
         setPostsSynced(sync.postsSynced ?? 0);
 
         if (me.instagramConnected) {
@@ -84,21 +85,14 @@ export default function OnboardingPage() {
         return;
       }
 
-      const res2 = await apiFetch(
-        `/auth/oauth/instagram/authorise?clientId=${encodeURIComponent(clientId)}`
-      );
-      if (!res2.ok) {
-        const text = await res2.text();
-        try {
-          const j = JSON.parse(text) as { error?: string };
-          setError(j.error ?? text);
-        } catch {
-          setError(text || "Could not start Instagram OAuth.");
-        }
-        return;
+      try {
+        const data = await apiFetch<{ url: string }>(
+          `/auth/oauth/instagram/authorise?clientId=${encodeURIComponent(clientId)}`
+        );
+        window.location.href = data.url;
+      } catch (e2) {
+        setError(e2 instanceof Error ? e2.message : "Could not start Instagram OAuth.");
       }
-      const data = (await res2.json()) as { url: string };
-      window.location.href = data.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start Instagram OAuth.");
     } finally {

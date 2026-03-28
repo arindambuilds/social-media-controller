@@ -45,11 +45,7 @@ export default function LeadsPage() {
       clientId != null
         ? `/leads?clientId=${encodeURIComponent(clientId)}&page=1&limit=50`
         : `/leads?page=1&limit=50`;
-    const res = await apiFetch(path);
-    if (!res.ok) {
-      throw new Error(await res.text());
-    }
-    const data = (await res.json()) as { success: boolean; leads: Lead[] };
+    const data = await apiFetch<{ success: boolean; leads: Lead[] }>(path);
     setLeads(data.leads ?? []);
   }, []);
 

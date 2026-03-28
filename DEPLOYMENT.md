@@ -70,7 +70,7 @@ On a host or second container:
 ```bash
 cd dashboard
 cp .env.local.example .env.local
-# Set NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+# Set NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
 npm ci
 npm run build
 npm start
@@ -99,7 +99,7 @@ npm start
    **Start command:** `npx prisma migrate deploy && node dist/server.js`  
    (Use `npm run prisma:migrate:deploy` if you prefer the npm script alias.)
 7. **Worker service** (duplicate repo, same env): start command `node dist/workers/ingestionWorker.js`. Add another service for **`node dist/workers/postPublishWorker.js`** and **`node dist/workers/tokenRefreshWorker.js`** if you use scheduled posts and token refresh jobs.
-8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API origin (e.g. `https://social-media-controller.onrender.com`).
+8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API **including `/api`** (e.g. `https://social-media-controller.onrender.com/api`).
 
 Register OAuth redirect URLs with Meta/LinkedIn to match `OAUTH_REDIRECT_BASE_URL` (e.g. `https://api…/api/oauth/facebook/callback`).
 
@@ -107,10 +107,14 @@ Register OAuth redirect URLs with Meta/LinkedIn to match `OAUTH_REDIRECT_BASE_UR
 
 ### Internal vs external `DATABASE_URL`
 
-- **Internal Database URL** — use on your **Render Web Service** in the same region/account so the API can reach Postgres over Render’s private network (hostname like `dpg-xxxx.REGION-postgres.render.com`).
-- **External URL** — for tools running **outside** Render (your laptop, CI, etc.).
+- **Internal Database URL** — use on your **Render Web Service** in the same region/account so the API can reach Postgres over Render’s private network (hostname like `dpg-xxxx.REGION-postgres.render.com`). **Do not** use the external URL for the web service.
+- **External URL** — for tools running **outside** Render (your laptop, CI, Prisma CLI, `npx prisma migrate deploy`, etc.). Add `?sslmode=require` when connecting from your machine.
+- **Credentials:** the older DB user `smc_user` was replaced by **`smc_user_v2`** for new passwords; your connection string must use the active user from the Render Postgres dashboard.
+- **Local development** still uses a normal local Postgres URL, e.g. `postgresql://...@localhost:5432/...`.
 
 If `DATABASE_URL` still points at `localhost` while `NODE_ENV=production`, the API **exits immediately** with a fatal log (misconfiguration guard).
+
+**If you create a new Render Postgres credential or rotate the password:** update `DATABASE_URL` in **Web Service → Environment** to match (prefer the **internal** URL on the service), then trigger a **manual redeploy** so the process picks up the new value.
 
 ### Rotate Postgres password from Windows (`psql`)
 
@@ -131,19 +135,33 @@ Then update **`DATABASE_URL`** in Render → Web Service → **Environment** wit
 
 `db:deploy:seed` runs `prisma migrate deploy` then `prisma db seed` (seed uses upserts; safe to re-run for demos). For large production datasets, run migrate in build and seed **once** from **Render Shell** instead.
 
-### Environment checklist (API)
+### Render Web Service — Required Environment Variables
 
-| Variable | Required | Notes |
-|----------|----------|--------|
-| `DATABASE_URL` | Yes | From Render Postgres (internal URL on the web service). |
-| `NODE_ENV` | Yes | `production` |
-| `JWT_SECRET` | Yes | 32+ chars |
-| `JWT_REFRESH_SECRET` | Yes | 32+ chars |
-| `ENCRYPTION_KEY` | Recommended | 32+ chars (or rely on JWT-derived key per app logic). |
-| `REDIS_URL` | Optional | Upstash `rediss://…` for BullMQ/cache. |
-| `CORS_ORIGIN` or `CORS_ORIGINS` | Optional | Comma-separated origins; both names are supported in code. |
+| Variable | Value | Notes |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://smc_user_v2:PASSWORD@dpg-xxx/smc_db_s2vr` | Use **Internal** Database URL on the web service |
+| `NODE_ENV` | `production` | Required for production DB guard |
+| `JWT_SECRET` | (from local `.env`) | Min 32 chars |
+| `JWT_REFRESH_SECRET` | (from local `.env`) | Min 32 chars |
+| `ENCRYPTION_KEY` | (from local `.env`) | 64 hex chars (32 bytes) recommended; min 32 chars accepted |
+| `REDIS_URL` | `rediss://default:xxx@xxx.upstash.io:6379` | Upstash URL |
+| `CORS_ORIGINS` or `CORS_ORIGIN` | `https://your-dashboard.vercel.app` | Comma-separated; no trailing slash |
+| `PORT` | `4000` | Render injects `PORT`; ensure app listens on it |
+| `OPENAI_API_KEY` | (optional) | Falls back to rule-based insights |
+| `SENTRY_DSN` | (optional) | Error tracking |
+| `META_APP_ID` | (optional) | Facebook/Instagram OAuth |
+| `META_APP_SECRET` | (optional) | Facebook/Instagram OAuth |
+| `LINKEDIN_CLIENT_ID` | (optional) | LinkedIn OAuth |
+| `LINKEDIN_CLIENT_SECRET` | (optional) | LinkedIn OAuth |
+| `INGESTION_MODE` | `mock` | For testing without live platform sync |
 
-**Vercel dashboard:** set `NEXT_PUBLIC_API_URL` to the API **origin only** (no `/api` suffix), e.g. `https://social-media-controller.onrender.com`.
+### Vercel Dashboard — Required Environment Variables
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://your-api.onrender.com/api` |
+
+The dashboard builds request URLs as `${NEXT_PUBLIC_API_URL}/auth/…`, so the value **must include the `/api` suffix** (or set `NEXT_PUBLIC_API_URL` to `https://host/api` and keep paths as today).
 
 ## 11. Operational notes
 

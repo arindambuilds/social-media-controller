@@ -33,9 +33,9 @@ function AccountsPageContent() {
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async (cid: string) => {
-    const res = await apiFetch(`/social-accounts?clientId=${encodeURIComponent(cid)}`);
-    if (!res.ok) throw new Error(await res.text());
-    const data = (await res.json()) as { accounts: AccountRow[] };
+    const data = await apiFetch<{ accounts: AccountRow[] }>(
+      `/social-accounts?clientId=${encodeURIComponent(cid)}`
+    );
     setAccounts(data.accounts ?? []);
   }, []);
 
@@ -83,12 +83,10 @@ function AccountsPageContent() {
     setBusy(path);
     setError("");
     try {
-      const res = await apiFetch(path, {
+      const data = await apiFetch<{ authUrl: string }>(path, {
         method: "POST",
         body: JSON.stringify({ clientId })
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { authUrl: string };
       window.location.href = data.authUrl;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Connect failed");
@@ -98,9 +96,10 @@ function AccountsPageContent() {
 
   async function revoke(id: string) {
     if (!confirm("Remove this connected account?")) return;
-    const res = await apiFetch(`/social-accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
-    if (!res.ok) {
-      setError(await res.text());
+    try {
+      await apiFetch(`/social-accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
       return;
     }
     if (clientId) await load(clientId);

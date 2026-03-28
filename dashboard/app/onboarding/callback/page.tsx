@@ -41,26 +41,26 @@ function CallbackInner() {
 
     (async () => {
       try {
-        const res = await apiFetch(
-          `/auth/oauth/instagram/callback?${new URLSearchParams({ code, state }).toString()}`
-        );
-        if (!res.ok) {
-          const t = await res.text();
+        try {
+          await apiFetch(
+            `/auth/oauth/instagram/callback?${new URLSearchParams({ code, state }).toString()}`
+          );
+        } catch (err) {
           if (!cancelled) {
             setPhase("error");
-            setMessage(t || "OAuth callback failed.");
+            setMessage(err instanceof Error ? err.message : "OAuth callback failed.");
           }
           return;
         }
 
         const poll = async () => {
           pollCount += 1;
-          const s = await apiFetch(`/clients/${encodeURIComponent(clientId)}/sync-status`);
-          if (!s.ok) return;
-          const data = (await s.json()) as {
-            status: string;
-            postsSynced: number;
-          };
+          let data: { status: string; postsSynced: number };
+          try {
+            data = await apiFetch(`/clients/${encodeURIComponent(clientId)}/sync-status`);
+          } catch {
+            return;
+          }
           if (!cancelled) {
             setPostsSynced(data.postsSynced);
             if (data.status !== "syncing" || pollCount >= 40) {
