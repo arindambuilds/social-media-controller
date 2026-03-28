@@ -109,10 +109,12 @@ async function fetchWithTimeout(url: string, init: ApiFetchInit | undefined, tim
     if (parent.aborted) controller.abort();
     else parent.addEventListener("abort", () => controller.abort(), { once: true });
   }
-  const { timeoutMs: _drop, ...rest } = init ?? {};
+  const { timeoutMs: _timeoutIgnored, signal: _signalIgnored, ...passThrough } = init ?? {};
+  void _timeoutIgnored;
+  void _signalIgnored;
   try {
     return await fetch(url, {
-      ...rest,
+      ...passThrough,
       signal: controller.signal
     });
   } catch (e) {
