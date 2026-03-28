@@ -16,12 +16,15 @@ import { insightsRouter } from "./routes/insights";
 import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { errorHandler } from "./middleware/errorHandler";
 
+const VERCEL_DASHBOARD_ORIGIN = "https://social-media-controller.vercel.app";
+
 function corsOrigin(): boolean | string[] {
   if (env.CORS_ORIGIN === "*") return true;
   const list = env.CORS_ORIGIN.split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  return list.length ? list : true;
+  const merged = [...new Set([...list, VERCEL_DASHBOARD_ORIGIN])];
+  return merged.length ? merged : true;
 }
 
 export function createApp() {
