@@ -8,10 +8,13 @@ import { getDetailedHealth } from "./lib/healthCheck";
 import { logger } from "./lib/logger";
 import { authenticate } from "./middleware/authenticate";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
+import { setupExpressErrorHandler } from "@sentry/node";
 import { apiRouter } from "./routes";
 import { analyticsRouter } from "./routes/analytics";
 import { aiInsightsRouter } from "./routes/aiInsights";
 import { insightsRouter } from "./routes/insights";
+import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
+import { errorHandler } from "./middleware/errorHandler";
 
 function corsOrigin(): boolean | string[] {
   if (env.CORS_ORIGIN === "*") return true;
@@ -70,15 +73,16 @@ export function createApp() {
     res.redirect(302, built.url);
   });
 
+  app.use("/api/oauth", oauthCallbacksRouter);
   app.use("/api", apiRouter);
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/ai/insights", aiInsightsRouter);
   app.use("/api/insights", insightsRouter);
 
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    logger.error("Unhandled request error", { message: err.message, stack: err.stack });
-    res.status(500).json({ error: "Internal server error." });
-  });
+  if (env.SENTRY_DSN) {
+    setupExpressErrorHandler(app);
+  }
+  app.use(errorHandler);
 
   return app;
 }

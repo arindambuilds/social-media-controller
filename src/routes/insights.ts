@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { resolveTenant } from "../middleware/resolveTenant";
+import { tenantRateLimit } from "../middleware/tenantRateLimit";
 import {
   cooldownRemainingSeconds,
   generateInsight,
@@ -13,6 +14,7 @@ import {
 export const insightsRouter = Router();
 
 insightsRouter.use(authenticate);
+insightsRouter.use(tenantRateLimit);
 
 insightsRouter.get("/:clientId/content-performance/latest", resolveTenant, async (req, res) => {
   const { clientId } = z.object({ clientId: z.string().min(1) }).parse(req.params);

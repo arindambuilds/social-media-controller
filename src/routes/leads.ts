@@ -4,10 +4,12 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
+import { tenantRateLimit } from "../middleware/tenantRateLimit";
 
 export const leadsRouter = Router();
 
 leadsRouter.use(authenticate);
+leadsRouter.use(tenantRateLimit);
 
 leadsRouter.get("/", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
   const qClientId = z.string().optional().parse(req.query.clientId);

@@ -1,11 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { env } from "../config/env";
+import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
 import { issueOAuthState } from "../services/oauthStateStore";
 import { exchangeInstagramCode } from "../services/instagramOAuthService";
 import { upsertSocialAccount } from "../services/socialAccountService";
+import { buildAuthUrl as buildMetaAuthUrl } from "../services/oauth/metaOAuth";
+import { buildAuthUrl as buildLinkedInAuthUrl } from "../services/oauth/linkedinOAuth";
 import { ingestionQueue } from "../queues/ingestionQueue";
 import { tokenRefreshQueue } from "../queues/tokenRefreshQueue";
 
@@ -13,6 +16,102 @@ export const socialAccountsRouter = Router();
 const platformSchema = z.enum(["FACEBOOK", "INSTAGRAM", "TWITTER", "LINKEDIN", "TIKTOK"]);
 
 socialAccountsRouter.use(authenticate);
+
+function oauthCallbackBase(): string {
+  return env.OAUTH_REDIRECT_BASE_URL.replace(/\/$/, "");
+}
+
+function canAccessClient(
+  auth: { role: string; clientId?: string },
+  clientId: string
+): boolean {
+  if (auth.role === "AGENCY_ADMIN") return true;
+  return auth.clientId === clientId;
+}
+
+socialAccountsRouter.get("/", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
+  const clientId = z.string().min(1).parse(req.query.clientId);
+  if (!req.auth || !canAccessClient(req.auth, clientId)) {
+    res.status(403).json({ error: "Forbidden for this client." });
+    return;
+  }
+
+  const rows = await prisma.socialAccount.findMany({
+    where: { clientId },
+    orderBy: { createdAt: "desc" }
+  });
+
+  const safe = rows.map(
+    ({ encryptedToken: _e, encryptedRefreshToken: _r, ...account }) => account
+  );
+  res.json({ success: true, accounts: safe });
+});
+
+socialAccountsRouter.delete("/:id", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
+  const id = z.string().min(1).parse(req.params.id);
+  const existing = await prisma.socialAccount.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ error: "Not found." });
+    return;
+  }
+  if (!req.auth || !canAccessClient(req.auth, existing.clientId)) {
+    res.status(403).json({ error: "Forbidden for this client." });
+    return;
+  }
+
+  await prisma.socialAccount.delete({ where: { id } });
+  res.status(204).send();
+});
+
+const connectBody = z.object({ clientId: z.string().min(1) });
+
+socialAccountsRouter.post("/connect/facebook", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
+  const { clientId } = connectBody.parse(req.body);
+  if (!req.auth || !canAccessClient(req.auth, clientId)) {
+    res.status(403).json({ error: "Forbidden for this client." });
+    return;
+  }
+  const state = await issueOAuthState({
+    clientId,
+    platform: "FACEBOOK",
+    initiatedBy: req.auth.userId
+  });
+  const redirectUri = `${oauthCallbackBase()}/api/oauth/facebook/callback`;
+  const authUrl = buildMetaAuthUrl(state, redirectUri);
+  res.json({ state, authUrl, redirectUri });
+});
+
+socialAccountsRouter.post("/connect/instagram", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
+  const { clientId } = connectBody.parse(req.body);
+  if (!req.auth || !canAccessClient(req.auth, clientId)) {
+    res.status(403).json({ error: "Forbidden for this client." });
+    return;
+  }
+  const state = await issueOAuthState({
+    clientId,
+    platform: "INSTAGRAM",
+    initiatedBy: req.auth.userId
+  });
+  const redirectUri = `${oauthCallbackBase()}/api/oauth/instagram/callback`;
+  const authUrl = buildMetaAuthUrl(state, redirectUri);
+  res.json({ state, authUrl, redirectUri });
+});
+
+socialAccountsRouter.post("/connect/linkedin", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
+  const { clientId } = connectBody.parse(req.body);
+  if (!req.auth || !canAccessClient(req.auth, clientId)) {
+    res.status(403).json({ error: "Forbidden for this client." });
+    return;
+  }
+  const state = await issueOAuthState({
+    clientId,
+    platform: "LINKEDIN",
+    initiatedBy: req.auth.userId
+  });
+  const redirectUri = `${oauthCallbackBase()}/api/oauth/linkedin/callback`;
+  const authUrl = buildLinkedInAuthUrl(state, redirectUri);
+  res.json({ state, authUrl, redirectUri });
+});
 
 socialAccountsRouter.post("/instagram/start", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
   const payload = z.object({

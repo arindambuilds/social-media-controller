@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authenticate } from "../middleware/authenticate";
 import { assertTenantAccess } from "../middleware/assertTenantAccess";
+import { tenantRateLimit } from "../middleware/tenantRateLimit";
 import { analyticsOverviewCacheKey, cacheGet, cacheSet } from "../lib/cache";
 import {
   getClientOverview,
@@ -17,6 +18,7 @@ import {
 export const analyticsRouter = Router();
 
 analyticsRouter.use(authenticate);
+analyticsRouter.use(tenantRateLimit);
 
 analyticsRouter.get("/:clientId/overview", assertTenantAccess, async (req, res) => {
   const { clientId } = z.object({ clientId: z.string().min(1) }).parse(req.params);

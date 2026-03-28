@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authenticate } from "../middleware/authenticate";
 import { resolveTenant, resolveTenantFromBody } from "../middleware/resolveTenant";
+import { tenantRateLimit } from "../middleware/tenantRateLimit";
 import { generateInsight } from "../services/aiInsightService";
 import {
   generateCaptions,
@@ -11,6 +12,7 @@ import {
 export const aiRouter = Router();
 
 aiRouter.use(authenticate);
+aiRouter.use(tenantRateLimit);
 
 aiRouter.get("/", (_req, res) => {
   res.json({

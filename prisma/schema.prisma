@@ -30,6 +30,7 @@ model Client {
   agency          User?            @relation("Agency", fields: [agencyId], references: [id])
   users           User[]           @relation("ClientMembership")
   socialAccounts  SocialAccount[]
+  scheduledPosts  ScheduledPost[]
   campaigns       Campaign[]
   leads           Lead[]
   auditLogs       AuditLog[]
@@ -55,6 +56,7 @@ model SocialAccount {
   clientId              String
   client                Client        @relation(fields: [clientId], references: [id])
   posts                 Post[]
+  scheduledPosts        ScheduledPost[]
   comments              Comment[]
   messages              Message[]
   syncRuns              SyncRun[]
@@ -64,6 +66,30 @@ model SocialAccount {
   updatedAt             DateTime      @updatedAt
 
   @@unique([platform, platformUserId])
+}
+
+/// Composer / scheduled outbound content (distinct from ingested `Post` rows).
+model ScheduledPost {
+  id               String              @id @default(cuid())
+  clientId         String
+  client           Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  socialAccountId  String
+  socialAccount    SocialAccount       @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  caption          String              @default("")
+  mediaUrls        Json                @default("[]")
+  hashtags         Json                @default("[]")
+  status           OutboundPostStatus  @default(DRAFT)
+  scheduledAt      DateTime?
+  publishedAt      DateTime?
+  platformPostId   String?
+  failureReason    String?
+  engagementStats  Json?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([clientId])
+  @@index([socialAccountId])
+  @@index([status])
 }
 
 /// Daily follower snapshot for growth charts (sync / seed).
@@ -197,6 +223,7 @@ model AuditLog {
   entityType String
   entityId   String
   metadata   Json?
+  ipAddress  String?
   createdAt  DateTime @default(now())
 }
 
@@ -294,4 +321,11 @@ enum SyncTrigger {
   WEBHOOK
   OAUTH_CONNECT
   SCHEDULED
+}
+
+enum OutboundPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
 }

@@ -16,6 +16,13 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(32),
   SENTRY_DSN: z.string().optional().default(""),
   APP_BASE_URL: z.string().url(),
+  /** Meta app (falls back to FACEBOOK_APP_ID / INSTAGRAM_APP_ID when empty). */
+  META_APP_ID: z.string().optional().default(""),
+  META_APP_SECRET: z.string().optional().default(""),
+  /** Base URL for OAuth API callback paths (register with each provider). */
+  OAUTH_REDIRECT_BASE_URL: z.string().url().optional().default("http://localhost:4000"),
+  LINKEDIN_CLIENT_ID: z.string().optional().default(""),
+  LINKEDIN_CLIENT_SECRET: z.string().optional().default(""),
   FACEBOOK_APP_ID: z.string().optional().default(""),
   FACEBOOK_APP_SECRET: z.string().optional().default(""),
   INSTAGRAM_APP_ID: z.string().optional().default(""),

@@ -1,11 +1,11 @@
-import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import { encrypt } from "../src/lib/encryption";
+import { hashPassword } from "../src/services/authService";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const demoAgencyHash = await bcrypt.hash("Demo1234!", 12);
+  const demoAgencyHash = await hashPassword("Demo1234!");
   const demoAgency = await prisma.user.upsert({
     where: { email: "demo@agencyname.com" },
     update: {
@@ -21,7 +21,7 @@ async function main() {
     }
   });
 
-  const passwordHash = await bcrypt.hash("admin123", 12);
+  const passwordHash = await hashPassword("admin123");
   const admin = await prisma.user.upsert({
     where: { email: "admin@demo.com" },
     update: { name: "Founder (demo)", passwordHash, role: "AGENCY_ADMIN" },
@@ -53,7 +53,7 @@ async function main() {
     data: { clientId: client.id }
   });
 
-  const pilotHash = await bcrypt.hash("pilot123", 12);
+  const pilotHash = await hashPassword("pilot123");
   await prisma.user.upsert({
     where: { email: "salon@pilot.demo" },
     update: {

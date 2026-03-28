@@ -15,7 +15,10 @@ const connectLinks = [{ href: "/onboarding", label: "Connect" }] as const;
 
 const moreLinks = [
   { href: "/", label: "Home" },
+  { href: "/posts", label: "Posts" },
+  { href: "/accounts", label: "Accounts" },
   { href: "/leads", label: "Leads" },
+  { href: "/audit", label: "Audit" },
   { href: "/login", label: "Login" }
 ] as const;
 

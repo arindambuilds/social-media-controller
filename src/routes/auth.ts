@@ -6,7 +6,8 @@ import { issueOAuthState, consumeOAuthState } from "../services/oauthStateStore"
 import { exchangeInstagramCode } from "../services/instagramOAuthService";
 import { upsertSocialAccount } from "../services/socialAccountService";
 import { ingestionQueue } from "../queues/ingestionQueue";
-import { login, refresh, signup } from "../services/authService";
+import { login, refresh, registerUserByAgency, signup } from "../services/authService";
+import { requireRole } from "../middleware/requireRole";
 import { buildInstagramBrowserOAuthUrl } from "../lib/instagramBrowserOAuth";
 
 export const authRouter = Router();
@@ -63,6 +64,28 @@ authRouter.get("/instagram", authenticate, async (req, res) => {
   res.redirect(302, built.url);
 });
 
+/** Agency-only: create another user (staff / client login). */
+authRouter.post("/register", authenticate, requireRole("AGENCY_ADMIN"), async (req, res) => {
+  try {
+    const payload = z
+      .object({
+        email: z.string().email(),
+        password: z.string().min(8),
+        role: z.enum(["AGENCY_ADMIN", "CLIENT_USER"]),
+        clientId: z.string().optional(),
+        name: z.string().min(2).optional()
+      })
+      .parse(req.body);
+
+    const result = await registerUserByAgency(payload);
+    res.status(201).json({ success: true, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Registration failed.";
+    const status = message.includes("already exists") ? 409 : 400;
+    res.status(status).json({ error: message });
+  }
+});
+
 authRouter.post("/signup", async (req, res) => {
   try {
     const payload = z.object({
@@ -90,7 +113,8 @@ authRouter.post("/login", async (req, res) => {
     }).parse(req.body);
 
     const result = await login(payload);
-    res.json({ success: true, ...result });
+    const { passwordHash: _p, ...user } = result.user as typeof result.user & { passwordHash?: string };
+    res.json({ success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, user });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Login failed.";
     res.status(401).json({ error: message });

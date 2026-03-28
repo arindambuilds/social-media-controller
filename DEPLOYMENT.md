@@ -88,7 +88,26 @@ npm start
 3. Set `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET` (or `FACEBOOK_*` equivalents used by the code).
 4. Set `INGESTION_MODE=instagram` and run the **ingestion worker** (`npm run worker`) with the same Redis as the API.
 
-## 9. Operational notes
+## 9. Railway.app (API + Redis/Postgres + workers + dashboard)
+
+1. Push the repo to GitHub (if not already).
+2. In [Railway](https://railway.app), create a project → **Deploy from GitHub repo** and select this repository.
+3. Add the **PostgreSQL** plugin; copy `DATABASE_URL` into the API service variables.
+4. Add **Redis** (Railway plugin) or paste an **Upstash** `REDIS_URL` (`rediss://…`) into variables.
+5. Set all required variables from root `.env.example` (`JWT_*`, `ENCRYPTION_KEY`, `APP_BASE_URL`, `CORS_ORIGIN`, `INGESTION_MODE`, optional Meta/LinkedIn keys, `OAUTH_REDIRECT_BASE_URL` pointing at your public API URL, `SENTRY_DSN` optional).
+6. **API service** — install/build: `npm ci && npm run build && npx prisma migrate deploy`  
+   **Start command:** `npx prisma migrate deploy && node dist/server.js`  
+   (Use `npm run prisma:migrate:deploy` if you prefer the npm script alias.)
+7. **Worker service** (duplicate repo, same env): start command `node dist/workers/ingestionWorker.js`. Add another service for **`node dist/workers/postPublishWorker.js`** and **`node dist/workers/tokenRefreshWorker.js`** if you use scheduled posts and token refresh jobs.
+8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API origin (e.g. `https://your-api.up.railway.app`).
+
+Register OAuth redirect URLs with Meta/LinkedIn to match `OAUTH_REDIRECT_BASE_URL` (e.g. `https://api…/api/oauth/facebook/callback`).
+
+## 10. Operational notes
 
 - Run **worker** alongside API for BullMQ jobs (`docker-compose` can add a `worker` service using the same image and `command: npm run worker` after copying source — adjust image if you only ship `dist/`).
 - Never commit `.env` or `dashboard/.env.local`.
+
+### PM2 (optional)
+
+See `ecosystem.config.js` at the repo root for API + ingestion + post-publish + token-refresh workers. After `npm run build`, run `pm2 start ecosystem.config.js`.
