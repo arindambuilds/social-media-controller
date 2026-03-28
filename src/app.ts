@@ -2,7 +2,6 @@ import * as Sentry from "@sentry/node";
 import { setupExpressErrorHandler } from "@sentry/node";
 import cors from "cors";
 import express from "express";
-import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env";
@@ -12,6 +11,7 @@ import { logger } from "./lib/logger";
 import { prisma } from "./lib/prisma";
 import { authenticate } from "./middleware/authenticate";
 import { errorHandler } from "./middleware/errorHandler";
+import { globalApiLimiter } from "./middleware/rateLimiter";
 import { aiRouter } from "./routes/ai";
 import { aiInsightsRouter } from "./routes/aiInsights";
 import { analyticsRouter } from "./routes/analytics";
@@ -37,12 +37,33 @@ const DEFAULT_CORS_ORIGINS = [
 ] as const;
 
 function corsOrigin(): boolean | string[] {
+  // Production forbids * in env schema — keep runtime guard for defense in depth.
   if (env.CORS_ORIGIN === "*") return true;
   const list = env.CORS_ORIGIN.split(",")
     .map((s) => s.trim())
     .filter(Boolean);
   const merged = [...new Set([...list, ...DEFAULT_CORS_ORIGINS])];
   return merged.length ? merged : [...DEFAULT_CORS_ORIGINS];
+}
+
+/** Tight Helmet defaults for JSON API — explicit CSP / Referrer-Policy / HSTS in prod. */
+function securityHelmet() {
+  return helmet({
+    referrerPolicy: { policy: "no-referrer" },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        baseUri: ["'none'"],
+        formAction: ["'none'"],
+        frameAncestors: ["'none'"]
+      }
+    },
+    crossOriginEmbedderPolicy: false,
+    strictTransportSecurity:
+      env.NODE_ENV === "production"
+        ? { maxAge: 31_536_000, includeSubDomains: true }
+        : false
+  });
 }
 
 function buildApiRouter(): express.Router {
@@ -78,35 +99,25 @@ export function createApp() {
 
   const app = express();
 
+  app.use(securityHelmet());
+  app.use(
+    cors({
+      origin: corsOrigin(),
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      exposedHeaders: ["Location"]
+    })
+  );
+  app.use(express.json({ limit: "1mb" }));
+  app.use(globalApiLimiter);
+
   app.get("/", (_req, res) => {
     res.json({
       message: "Instagram Growth Copilot API",
       version: "1.0.0",
       status: "running"
     });
-  });
-
-  app.use(helmet());
-  app.use(
-    cors({
-      origin: corsOrigin(),
-      credentials: true,
-      exposedHeaders: ["Location"]
-    })
-  );
-  app.use(express.json({ limit: "1mb" }));
-
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 60,
-    standardHeaders: true,
-    legacyHeaders: false
-  });
-  app.use("/api/auth", (req, res, next) => {
-    if (req.method === "POST" && ["/login", "/signup", "/refresh"].includes(req.path)) {
-      return authLimiter(req, res, next);
-    }
-    next();
   });
 
   app.use(
@@ -155,7 +166,12 @@ export function createApp() {
       res.status(503).json({
         status: "error",
         timestamp: new Date().toISOString(),
-        message: err instanceof Error ? err.message : String(err)
+        message:
+          env.NODE_ENV === "production"
+            ? "Health check dependency error."
+            : err instanceof Error
+              ? err.message
+              : String(err)
       });
     }
   });
@@ -168,7 +184,10 @@ export function createApp() {
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       logger.warn("/api/health/db failed", { message: detail });
-      res.status(503).json({ status: "error", detail });
+      res.status(503).json({
+        status: "error",
+        ...(env.NODE_ENV === "production" ? {} : { detail })
+      });
     }
   });
 

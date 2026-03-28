@@ -1,6 +1,6 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createApp } from "../src/app";
+import { createApp } from "../src/app.ts";
 import { prisma } from "../src/lib/prisma";
 import { redisConnection } from "../src/lib/redis";
 
@@ -40,6 +40,9 @@ run("API MVP smoke", () => {
       expect(res.body).toMatchObject({ status: "ok" });
     } else {
       expect(res.body).toMatchObject({ status: "error" });
+      if (process.env.NODE_ENV !== "production") {
+        expect(res.body).toHaveProperty("detail");
+      }
     }
   });
 
@@ -66,6 +69,39 @@ run("API MVP smoke", () => {
     }
     expect(res.status).toBe(200);
     expect(res.body.accessToken).toBeTruthy();
+  });
+
+  it("POST /api/auth/login returns the sanitized auth contract", async () => {
+    const email = `auth-login-${Date.now()}@example.com`;
+    const password = "Demo1234!";
+
+    const signup = await request(app).post("/api/auth/signup").send({
+      email,
+      password,
+      name: "Auth Login Contract"
+    });
+
+    expect(signup.status).toBe(201);
+
+    const res = await request(app).post("/api/auth/login").send({
+      email,
+      password
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(typeof res.body.accessToken).toBe("string");
+    expect(typeof res.body.refreshToken).toBe("string");
+    expect(res.body.user).toEqual({
+      id: expect.any(String),
+      email,
+      role: expect.any(String),
+      clientId: null
+    });
+    expect(Object.keys(res.body.user).sort()).toEqual(["clientId", "email", "id", "role"]);
+    expect(res.body.user.passwordHash).toBeUndefined();
+
+    await prisma.user.deleteMany({ where: { email } });
   });
 
   it("GET /api/analytics/:clientId/overview returns 401 without token", async () => {

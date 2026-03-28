@@ -1,3 +1,7 @@
+/**
+ * SECURITY: Tokens in localStorage are readable by any XSS payload on this origin.
+ * Prefer httpOnly + Secure + SameSite=strict cookies for production hardening.
+ */
 export const TOKEN_KEY = "smc_token";
 export const CLIENT_ID_KEY = "smc_client_id";
 

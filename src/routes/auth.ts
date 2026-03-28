@@ -13,6 +13,7 @@ import { requireRole } from "../middleware/requireRole";
 import { buildInstagramBrowserOAuthUrl } from "../lib/instagramBrowserOAuth";
 import { isDatabaseConnectivityError } from "../lib/databaseErrors";
 import { logger } from "../lib/logger";
+import { loginAuthLimiter, registerAuthLimiter } from "../middleware/rateLimiter";
 
 export const authRouter = Router();
 
@@ -23,6 +24,20 @@ const SERVICE_UNAVAILABLE_BODY = {
     message: "Service temporarily unavailable. Please try again shortly."
   }
 } as const;
+
+function toAuthUserResponse(user: {
+  id: string;
+  email: string;
+  role: string;
+  clientId?: string | null;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    clientId: user.clientId ?? null
+  };
+}
 
 function respondValidationErrors(res: Response, err: z.ZodError): void {
   res.status(400).json({
@@ -96,7 +111,7 @@ authRouter.get("/instagram", authenticate, async (req, res) => {
 });
 
 /** Agency-only: create another user (staff / client login). */
-authRouter.post("/register", authenticate, requireRole("AGENCY_ADMIN"), async (req, res) => {
+authRouter.post("/register", registerAuthLimiter, authenticate, requireRole("AGENCY_ADMIN"), async (req, res) => {
   try {
     const payload = z
       .object({
@@ -109,7 +124,12 @@ authRouter.post("/register", authenticate, requireRole("AGENCY_ADMIN"), async (r
       .parse(req.body);
 
     const result = await registerUserByAgency(payload);
-    res.status(201).json({ success: true, ...result });
+    res.status(201).json({
+      success: true,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: toAuthUserResponse(result.user)
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       respondValidationErrors(res, err);
@@ -136,7 +156,12 @@ authRouter.post("/signup", async (req, res) => {
     }).parse(req.body);
 
     const result = await signup(payload);
-    res.status(201).json(result);
+    res.status(201).json({
+      success: true,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: toAuthUserResponse(result.user)
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       respondValidationErrors(res, err);
@@ -152,17 +177,21 @@ authRouter.post("/signup", async (req, res) => {
   }
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", loginAuthLimiter, async (req, res) => {
   try {
     const payload = z.object({
       email: z.string().email(),
-      password: z.string().min(1)
+      password: z.string().min(8)
     }).parse(req.body);
 
     // Prisma/DB connectivity → respondDbUnavailable (503). Bad credentials → 401 below. No silent catch.
     const result = await login(payload);
-    const { passwordHash: _p, ...user } = result.user as typeof result.user & { passwordHash?: string };
-    res.json({ success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, user });
+    res.json({
+      success: true,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: toAuthUserResponse(result.user)
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       respondValidationErrors(res, err);
@@ -184,7 +213,12 @@ authRouter.post("/refresh", async (req, res) => {
     }).parse(req.body);
 
     const result = await refresh(payload.refreshToken);
-    res.json(result);
+    res.json({
+      success: true,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: toAuthUserResponse(result.user)
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       respondValidationErrors(res, err);
