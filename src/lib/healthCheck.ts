@@ -23,11 +23,13 @@ export async function getDetailedHealth(): Promise<HealthStatus> {
     database = "error";
   }
 
-  try {
-    const pong = await redisConnection.ping();
-    if (pong !== "PONG") redis = "error";
-  } catch {
-    redis = "error";
+  if (redisConnection) {
+    try {
+      const pong = await redisConnection.ping();
+      if (pong !== "PONG") redis = "error";
+    } catch {
+      redis = "error";
+    }
   }
 
   const status = database === "ok" && redis === "ok" ? "ok" : "degraded";

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
-import { ingestionQueue } from "../queues/ingestionQueue";
+import { addIngestionJob } from "../queues/ingestionQueue";
 
 export const instagramRouter = Router();
 
@@ -30,7 +30,7 @@ instagramRouter.post("/sync", async (req, res) => {
     return;
   }
 
-  await ingestionQueue.add(
+  await addIngestionJob(
     "instagram-manual-api",
     {
       socialAccountId: ig.id,

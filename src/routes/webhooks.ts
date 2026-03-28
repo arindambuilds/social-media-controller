@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { detectLeadIntent } from "../services/leadDetection";
-import { ingestionQueue } from "../queues/ingestionQueue";
+import { addIngestionJob } from "../queues/ingestionQueue";
 import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
 import { env } from "../config/env";
@@ -23,7 +23,7 @@ webhookRouter.post("/ingestion", authenticate, requireRole("AGENCY_ADMIN"), asyn
 
   const payload = bodySchema.parse(req.body);
 
-  await ingestionQueue.add(
+  await addIngestionJob(
     "manual-mock-ingestion",
     {
       socialAccountId: payload.socialAccountId,
@@ -129,7 +129,7 @@ webhookRouter.post("/social/:platform", async (req, res) => {
     });
   }
 
-  await ingestionQueue.add(
+  await addIngestionJob(
     "ingest-event",
     {
       socialAccountId: payload.socialAccountId,

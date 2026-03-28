@@ -9,6 +9,12 @@ import { refreshInstagramLongLivedToken } from "../services/instagramOAuthServic
 import { getLongLivedToken } from "../services/oauth/metaOAuth";
 import { refreshAccessToken as refreshLinkedInAccessToken } from "../services/oauth/linkedinOAuth";
 
+if (!redisConnection) {
+  logger.error("Token refresh worker requires REDIS_URL");
+  process.exit(1);
+}
+const redis = redisConnection;
+
 async function processTokenRefresh(job: Job<TokenRefreshJob>) {
   const account = await prisma.socialAccount.findUnique({
     where: { id: job.data.socialAccountId }
@@ -108,7 +114,7 @@ async function processTokenRefresh(job: Job<TokenRefreshJob>) {
 }
 
 new Worker<TokenRefreshJob>(queueNames.tokenRefresh, processTokenRefresh, {
-  connection: redisConnection,
+  connection: redis,
   concurrency: 3
 });
 

@@ -8,6 +8,12 @@ import { env } from "../config/env";
 import { syncInstagramSocialAccount } from "../services/instagramIngestionService";
 import { syncMockInstagramSocialAccount } from "../services/mockInstagramIngestionService";
 
+if (!redisConnection) {
+  logger.error("Ingestion worker requires REDIS_URL");
+  process.exit(1);
+}
+const redis = redisConnection;
+
 async function processJob(job: Job<IngestionJob>) {
   logger.info("Processing ingestion job", job.data);
 
@@ -42,7 +48,7 @@ async function processJob(job: Job<IngestionJob>) {
 }
 
 new Worker<IngestionJob>(queueNames.ingestion, processJob, {
-  connection: redisConnection,
+  connection: redis,
   concurrency: 5
 });
 

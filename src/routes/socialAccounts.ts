@@ -9,8 +9,8 @@ import { exchangeInstagramCode } from "../services/instagramOAuthService";
 import { upsertSocialAccount } from "../services/socialAccountService";
 import { buildAuthUrl as buildMetaAuthUrl } from "../services/oauth/metaOAuth";
 import { buildAuthUrl as buildLinkedInAuthUrl } from "../services/oauth/linkedinOAuth";
-import { ingestionQueue } from "../queues/ingestionQueue";
-import { tokenRefreshQueue } from "../queues/tokenRefreshQueue";
+import { addIngestionJob } from "../queues/ingestionQueue";
+import { addTokenRefreshJob } from "../queues/tokenRefreshQueue";
 
 export const socialAccountsRouter = Router();
 const platformSchema = z.enum(["FACEBOOK", "INSTAGRAM", "TWITTER", "LINKEDIN", "TIKTOK"]);
@@ -164,7 +164,7 @@ socialAccountsRouter.post("/", requireRole("AGENCY_ADMIN"), async (req, res) => 
     tokenExpiresAt: payload.tokenExpiresAt ? new Date(payload.tokenExpiresAt) : undefined
   });
 
-  await tokenRefreshQueue.add(
+  await addTokenRefreshJob(
     "refresh-token",
     { socialAccountId: socialAccount.id },
     {
@@ -193,7 +193,7 @@ socialAccountsRouter.post("/instagram/exchange", requireRole("AGENCY_ADMIN"), as
     tokenExpiresAt: result.expiresAt ?? undefined
   });
 
-  await ingestionQueue.add(
+  await addIngestionJob(
     "instagram-manual-connect",
     {
       socialAccountId: socialAccount.id,

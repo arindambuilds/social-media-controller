@@ -7,7 +7,7 @@ import { authenticate } from "../middleware/authenticate";
 import { issueOAuthState, consumeOAuthState } from "../services/oauthStateStore";
 import { exchangeInstagramCode } from "../services/instagramOAuthService";
 import { upsertSocialAccount } from "../services/socialAccountService";
-import { ingestionQueue } from "../queues/ingestionQueue";
+import { addIngestionJob } from "../queues/ingestionQueue";
 import { login, refresh, registerUserByAgency, signup } from "../services/authService";
 import { requireRole } from "../middleware/requireRole";
 import { buildInstagramBrowserOAuthUrl } from "../lib/instagramBrowserOAuth";
@@ -190,7 +190,7 @@ async function handleBrowserInstagramOAuthCallback(req: Request, res: Response) 
     tokenExpiresAt: result.expiresAt ?? undefined
   });
 
-  await ingestionQueue.add(
+  await addIngestionJob(
     "instagram-oauth-connect",
     {
       socialAccountId: socialAccount.id,

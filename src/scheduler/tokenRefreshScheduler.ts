@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
-import { tokenRefreshQueue } from "../queues/tokenRefreshQueue";
+import { addTokenRefreshJob } from "../queues/tokenRefreshQueue";
 
 async function scheduleExpiringTokens() {
   const threshold = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -18,7 +18,7 @@ async function scheduleExpiringTokens() {
 
   await Promise.all(
     accounts.map((account: { id: string }) =>
-      tokenRefreshQueue.add(
+      addTokenRefreshJob(
         "scheduled-token-refresh",
         { socialAccountId: account.id },
         { jobId: `token-refresh:${account.id}` }

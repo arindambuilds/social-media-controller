@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { tenantRateLimit } from "../middleware/tenantRateLimit";
-import { postPublishQueue } from "../queues/postPublishQueue";
+import { addPostPublishJob } from "../queues/postPublishQueue";
 
 export const postsRouter = Router();
 
@@ -73,7 +73,7 @@ postsRouter.post("/", async (req, res) => {
 
   if (body.status === "SCHEDULED") {
     const delay = scheduledAt ? Math.max(0, scheduledAt.getTime() - Date.now()) : 0;
-    await postPublishQueue.add(
+    await addPostPublishJob(
       "publish",
       { scheduledPostId: row.id },
       { delay, jobId: `scheduled-post:${row.id}` }

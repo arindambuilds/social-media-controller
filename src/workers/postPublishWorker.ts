@@ -13,6 +13,12 @@ import {
   publishToLinkedIn
 } from "../services/publishOutboundPost";
 
+if (!redisConnection) {
+  logger.error("Post publish worker requires REDIS_URL");
+  process.exit(1);
+}
+const redis = redisConnection;
+
 async function handlePublish(job: Job<PostPublishJob>): Promise<void> {
   const row = await prisma.scheduledPost.findUnique({
     where: { id: job.data.scheduledPostId },
@@ -56,7 +62,7 @@ async function handlePublish(job: Job<PostPublishJob>): Promise<void> {
 }
 
 new Worker<PostPublishJob>(queueNames.postPublish, handlePublish, {
-  connection: redisConnection,
+  connection: redis,
   concurrency: 2
 });
 

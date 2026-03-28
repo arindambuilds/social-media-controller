@@ -10,7 +10,7 @@ import {
 import { pickPageForInstagram } from "../services/oauth/instagramOAuth";
 import { exchangeCode as exchangeLinkedInCode, getProfile } from "../services/oauth/linkedinOAuth";
 import { upsertSocialAccount } from "../services/socialAccountService";
-import { ingestionQueue } from "../queues/ingestionQueue";
+import { addIngestionJob } from "../queues/ingestionQueue";
 
 export const oauthCallbacksRouter = Router();
 
@@ -80,7 +80,7 @@ async function runInstagramOAuth(code: string, state: string): Promise<string> {
     tokenExpiresAt: expiresAt
   });
 
-  await ingestionQueue.add(
+  await addIngestionJob(
     "instagram-oauth-connect",
     {
       socialAccountId: social.id,

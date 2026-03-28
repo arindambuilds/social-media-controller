@@ -19,7 +19,7 @@ run("API MVP smoke", () => {
 
   afterAll(async () => {
     await prisma.$disconnect().catch(() => {});
-    await redisConnection.quit().catch(() => {});
+    await redisConnection?.quit().catch(() => {});
   });
 
   it("GET /health returns database, redis, timestamp", async () => {
