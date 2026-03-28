@@ -4,7 +4,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env";
-import { getDetailedHealth, getPublicApiHealth } from "./lib/healthCheck";
+import { getDetailedHealth } from "./lib/healthCheck";
 import { logger } from "./lib/logger";
 import { authenticate } from "./middleware/authenticate";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
@@ -74,10 +74,24 @@ export function createApp() {
     res.status(body.database === "error" ? 503 : 200).json(body);
   });
 
-  app.get("/api/health", async (_req, res) => {
-    const body = await getPublicApiHealth();
-    const ok = body.database === "connected" && body.redis === "connected";
-    res.status(ok ? 200 : 503).json(body);
+  /** Liveness for Railway: instant 200, no DB/Redis wait. Optional: ?deps=1 includes dependency checks. */
+  app.get("/api/health", async (req, res) => {
+    const payload: Record<string, unknown> = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV === "production" ? "production" : env.NODE_ENV
+    };
+    const wantDeps = req.query.deps === "1" || req.query.deps === "true";
+    if (!wantDeps) {
+      res.json(payload);
+      return;
+    }
+    const detailed = await getDetailedHealth();
+    payload.dependencies = {
+      database: detailed.database === "ok" ? "connected" : "disconnected",
+      redis: detailed.redis === "ok" ? "connected" : "disconnected"
+    };
+    res.json(payload);
   });
 
   /** Alias: same OAuth redirect as `GET /api/auth/instagram` (Meta must allow frontend redirect URI). */
