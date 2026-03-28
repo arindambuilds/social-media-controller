@@ -3,8 +3,8 @@ import { z } from "zod";
 
 dotenv.config();
 
-/** Public API URL when `APP_BASE_URL` is unset (e.g. Railway without the variable). */
-const DEFAULT_APP_BASE_URL = "https://social-media-controller-production.up.railway.app";
+/** Public API URL when `APP_BASE_URL` is unset (e.g. Render without the variable). */
+const DEFAULT_APP_BASE_URL = "https://social-media-controller.onrender.com";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -50,6 +50,8 @@ const parsed = envSchema.parse(process.env);
 
 function resolveAppBaseUrl(): string {
   if (parsed.APP_BASE_URL) return parsed.APP_BASE_URL;
+  const render = process.env.RENDER_EXTERNAL_URL?.trim();
+  if (render) return render.replace(/\/$/, "");
   const railway = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
   if (railway) return `https://${railway}`;
   return DEFAULT_APP_BASE_URL;

@@ -1,3 +1,5 @@
+# Legacy Nixpacks config (Railway). Production API: https://social-media-controller.onrender.com
+
 [build]
 builder = "nixpacks"
 buildCommand = "npx prisma generate && npm run build"

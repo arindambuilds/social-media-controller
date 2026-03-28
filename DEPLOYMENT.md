@@ -99,7 +99,7 @@ npm start
    **Start command:** `npx prisma migrate deploy && node dist/server.js`  
    (Use `npm run prisma:migrate:deploy` if you prefer the npm script alias.)
 7. **Worker service** (duplicate repo, same env): start command `node dist/workers/ingestionWorker.js`. Add another service for **`node dist/workers/postPublishWorker.js`** and **`node dist/workers/tokenRefreshWorker.js`** if you use scheduled posts and token refresh jobs.
-8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API origin (e.g. `https://your-api.up.railway.app`).
+8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API origin (e.g. `https://social-media-controller.onrender.com`).
 
 Register OAuth redirect URLs with Meta/LinkedIn to match `OAUTH_REDIRECT_BASE_URL` (e.g. `https://api…/api/oauth/facebook/callback`).
 
