@@ -5,7 +5,8 @@ dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  PORT: z.coerce.number().int().positive().default(4000),
+  /** Set by the host (e.g. Railway). Parsed for any code that reads env.PORT; listen binding uses process.env.PORT in server.ts. */
+  PORT: z.coerce.number().optional(),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
   INGESTION_MODE: z.enum(["instagram", "mock"]).default("mock"),

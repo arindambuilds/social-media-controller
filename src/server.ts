@@ -13,11 +13,11 @@ if (env.SENTRY_DSN) {
 }
 
 const app = createApp();
-const PORT = parseInt(process.env.PORT || "4000", 10) || 4000;
+const PORT = parseInt(process.env.PORT || "8080", 10);
 
-const server = http.createServer(app);
+const httpServer = http.createServer(app);
 
-server.listen(PORT, "0.0.0.0", () => {
+httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
   logger.info("API server started", {
     port: PORT,
