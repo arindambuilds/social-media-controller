@@ -6,6 +6,11 @@ dotenv.config();
 /** Public API URL when `APP_BASE_URL` is unset (e.g. Render without the variable). */
 const DEFAULT_APP_BASE_URL = "https://social-media-controller.onrender.com";
 
+const processEnv = { ...process.env };
+if (!processEnv.CORS_ORIGIN?.trim() && processEnv.CORS_ORIGINS?.trim()) {
+  processEnv.CORS_ORIGIN = processEnv.CORS_ORIGINS;
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().optional(),
@@ -46,7 +51,7 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().optional().default("*")
 });
 
-const parsed = envSchema.parse(process.env);
+const parsed = envSchema.parse(processEnv);
 
 function resolveAppBaseUrl(): string {
   if (parsed.APP_BASE_URL) return parsed.APP_BASE_URL;

@@ -6,11 +6,13 @@ export function isDatabaseConnectivityError(err: unknown): boolean {
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     return err.code === "P1001" || err.code === "P1017";
   }
-  if (err instanceof Error) {
-    const m = err.message;
-    if (m.includes("Can't reach database server")) return true;
-    if (m.includes("ECONNREFUSED")) return true;
-    if (m.includes("ETIMEDOUT")) return true;
-  }
-  return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("P1001") ||
+    msg.includes("P1017") ||
+    msg.includes("ECONNREFUSED") ||
+    msg.includes("connect ETIMEDOUT") ||
+    msg.includes("ETIMEDOUT") ||
+    msg.includes("Can't reach database server")
+  );
 }

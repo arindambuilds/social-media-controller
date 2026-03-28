@@ -1,70 +1,169 @@
 /**
- * Quick API smoke test for demos and CI-style checks.
- * Requires: API running, DB seeded (admin@demo.com), migrations applied.
+ * API smoke test. Requires: API + DB seeded (demo@demo.com / Demo1234!).
  *
- * Usage: SMOKE_BASE_URL=http://localhost:4000 npx tsx scripts/smoke-demo.ts
+ * Usage:
+ *   npx tsx scripts/smoke-demo.ts
+ *   npx tsx scripts/smoke-demo.ts --url https://social-media-controller.onrender.com
+ *   SMOKE_BASE_URL=http://localhost:4000 npx tsx scripts/smoke-demo.ts
  */
 
-const base = (process.env.SMOKE_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
-const email = process.env.SMOKE_EMAIL ?? "admin@demo.com";
-const password = process.env.SMOKE_PASSWORD ?? "admin123";
-const clientId = process.env.SMOKE_CLIENT_ID ?? "demo-client";
+type Row = { name: string; ok: boolean; detail: string };
+
+function parseArgs(): { base: string; email: string; password: string; clientId: string } {
+  const args = process.argv.slice(2);
+  let base = process.env.SMOKE_BASE_URL ?? "http://localhost:4000";
+  let email = process.env.SMOKE_EMAIL ?? "demo@demo.com";
+  let password = process.env.SMOKE_PASSWORD ?? "Demo1234!";
+  let clientId = process.env.SMOKE_CLIENT_ID ?? "demo-client";
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "--url" && args[i + 1]) {
+      base = args[i + 1]!;
+      i += 1;
+    }
+  }
+  base = base.replace(/\/$/, "");
+  return { base, email, password, clientId };
+}
 
 async function main() {
-  const steps: string[] = [];
+  const { base, email, password, clientId } = parseArgs();
+  const rows: Row[] = [];
 
-  const health = await fetch(`${base}/health`);
-  if (!health.ok) throw new Error(`GET /health → ${health.status}`);
-  steps.push("GET /health OK");
+  const push = (name: string, ok: boolean, detail: string) => rows.push({ name, ok, detail });
 
-  const loginRes = await fetch(`${base}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
-  if (!loginRes.ok) throw new Error(`POST /api/auth/login → ${loginRes.status} ${await loginRes.text()}`);
-  const login = (await loginRes.json()) as { accessToken?: string };
-  if (!login.accessToken) throw new Error("Login response missing accessToken");
-  steps.push("POST /api/auth/login OK");
+  try {
+    const health = await fetch(`${base}/api/health`);
+    const healthJson = (await health.json().catch(() => ({}))) as { status?: string };
+    push(
+      "GET /api/health",
+      health.ok && healthJson.status === "ok",
+      health.ok ? JSON.stringify(healthJson) : `${health.status}`
+    );
+  } catch (e) {
+    push("GET /api/health", false, e instanceof Error ? e.message : String(e));
+  }
 
-  const token = login.accessToken;
-  const authHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  let token = "";
+  try {
+    const loginRes = await fetch(`${base}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const loginText = await loginRes.text();
+    const loginJson = JSON.parse(loginText) as { accessToken?: string; success?: boolean };
+    token = loginJson.accessToken ?? "";
+    push(
+      "POST /api/auth/login",
+      loginRes.ok && !!token,
+      loginRes.ok ? "token received" : `${loginRes.status} ${loginText.slice(0, 200)}`
+    );
+  } catch (e) {
+    push("POST /api/auth/login", false, e instanceof Error ? e.message : String(e));
+  }
 
-  const meRes = await fetch(`${base}/api/auth/me`, { headers: authHeaders });
-  if (!meRes.ok) throw new Error(`GET /api/auth/me → ${meRes.status}`);
-  steps.push("GET /api/auth/me OK");
+  const authHeaders = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json"
+  };
 
-  const overview = await fetch(`${base}/api/analytics/${encodeURIComponent(clientId)}/overview?days=30`, {
-    headers: authHeaders
-  });
-  if (!overview.ok) throw new Error(`GET /analytics/.../overview → ${overview.status} ${await overview.text()}`);
-  steps.push("GET /api/analytics/:clientId/overview OK");
+  if (token) {
+    try {
+      const summaryRes = await fetch(
+        `${base}/api/analytics/INSTAGRAM/${encodeURIComponent(clientId)}/summary`,
+        { headers: authHeaders }
+      );
+      const summaryJson = (await summaryRes.json().catch(() => ({}))) as {
+        postsAnalyzed?: number;
+      };
+      push(
+        "GET /api/analytics/INSTAGRAM/:clientId/summary",
+        summaryRes.ok && (summaryJson.postsAnalyzed ?? 0) > 0,
+        summaryRes.ok
+          ? `postsAnalyzed=${summaryJson.postsAnalyzed ?? 0}`
+          : `${summaryRes.status}`
+      );
+    } catch (e) {
+      push(
+        "GET /api/analytics/INSTAGRAM/:clientId/summary",
+        false,
+        e instanceof Error ? e.message : String(e)
+      );
+    }
 
-  const summary = await fetch(`${base}/api/analytics/INSTAGRAM/${encodeURIComponent(clientId)}/summary`, {
-    headers: authHeaders
-  });
-  if (!summary.ok) throw new Error(`GET /analytics/INSTAGRAM/.../summary → ${summary.status}`);
-  steps.push("GET /api/analytics/INSTAGRAM/:clientId/summary OK");
+    try {
+      const insightRes = await fetch(
+        `${base}/api/ai/insights/content-performance/${encodeURIComponent(clientId)}`,
+        {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({ platform: "INSTAGRAM" })
+        }
+      );
+      const insightJson = (await insightRes.json().catch(() => ({}))) as { summary?: string };
+      const hasSummary =
+        typeof insightJson.summary === "string" && insightJson.summary.trim().length > 0;
+      push(
+        "POST /api/ai/insights/content-performance/:clientId",
+        insightRes.ok && hasSummary,
+        insightRes.ok ? `summary len=${insightJson.summary?.length ?? 0}` : `${insightRes.status}`
+      );
+    } catch (e) {
+      push(
+        "POST /api/ai/insights/content-performance/:clientId",
+        false,
+        e instanceof Error ? e.message : String(e)
+      );
+    }
 
-  const insights = await fetch(
-    `${base}/api/insights/${encodeURIComponent(clientId)}/content-performance/latest`,
-    { headers: authHeaders }
-  );
-  if (!insights.ok) throw new Error(`GET /api/insights/.../latest → ${insights.status}`);
-  steps.push("GET /api/insights/:clientId/content-performance/latest OK");
+    try {
+      const leadsRes = await fetch(`${base}/api/leads?clientId=${encodeURIComponent(clientId)}`, {
+        headers: authHeaders
+      });
+      const leadsJson = (await leadsRes.json().catch(() => ({}))) as { leads?: unknown[] };
+      const n = Array.isArray(leadsJson.leads) ? leadsJson.leads.length : 0;
+      push("GET /api/leads", leadsRes.ok && n > 0, leadsRes.ok ? `${n} leads` : `${leadsRes.status}`);
+    } catch (e) {
+      push("GET /api/leads", false, e instanceof Error ? e.message : String(e));
+    }
 
-  const leads = await fetch(`${base}/api/leads?clientId=${encodeURIComponent(clientId)}`, {
-    headers: authHeaders
-  });
-  if (!leads.ok) throw new Error(`GET /api/leads → ${leads.status}`);
-  const leadsJson = (await leads.json()) as { leads?: unknown[]; pagination?: unknown };
-  if (!Array.isArray(leadsJson.leads)) throw new Error("GET /api/leads response missing leads array");
-  steps.push(`GET /api/leads OK (${leadsJson.leads.length} rows, paginated)`);
+    try {
+      const postsRes = await fetch(
+        `${base}/api/analytics/${encodeURIComponent(clientId)}/posts?limit=20&sort=engagement`,
+        { headers: authHeaders }
+      );
+      const postsJson = (await postsRes.json().catch(() => ({}))) as { posts?: unknown[] };
+      const n = Array.isArray(postsJson.posts) ? postsJson.posts.length : 0;
+      push(
+        "GET /api/analytics/:clientId/posts",
+        postsRes.ok && n > 0,
+        postsRes.ok ? `${n} posts` : `${postsRes.status}`
+      );
+    } catch (e) {
+      push("GET /api/analytics/:clientId/posts", false, e instanceof Error ? e.message : String(e));
+    }
+  } else {
+    push("GET /api/analytics/INSTAGRAM/:clientId/summary", false, "skipped (no token)");
+    push("POST /api/ai/insights/content-performance/:clientId", false, "skipped (no token)");
+    push("GET /api/leads", false, "skipped (no token)");
+    push("GET /api/analytics/:clientId/posts", false, "skipped (no token)");
+  }
 
-  console.log("Smoke demo passed:\n", steps.map((s) => `  • ${s}`).join("\n"));
+  console.log("\nSmoke demo results\n");
+  console.log("| Step | Pass | Detail |");
+  console.log("|------|------|--------|");
+  for (const r of rows) {
+    console.log(`| ${r.name} | ${r.ok ? "PASS" : "FAIL"} | ${r.detail.replace(/\|/g, "/")} |`);
+  }
+  const failed = rows.filter((r) => !r.ok);
+  if (failed.length > 0) {
+    console.error(`\n${failed.length} check(s) failed.`);
+    process.exit(1);
+  }
+  console.log("\nAll checks passed.\n");
 }
 
 main().catch((err) => {
-  console.error("Smoke demo failed:", err instanceof Error ? err.message : err);
+  console.error(err);
   process.exit(1);
 });

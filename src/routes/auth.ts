@@ -16,12 +16,30 @@ import { logger } from "../lib/logger";
 
 export const authRouter = Router();
 
+const SERVICE_UNAVAILABLE_BODY = {
+  success: false,
+  error: {
+    code: "SERVICE_UNAVAILABLE",
+    message: "Service temporarily unavailable. Please try again shortly."
+  }
+} as const;
+
+function respondValidationErrors(res: Response, err: z.ZodError): void {
+  res.status(400).json({
+    success: false,
+    error: {
+      code: "VALIDATION_ERROR",
+      fieldErrors: err.flatten().fieldErrors
+    }
+  });
+}
+
 function respondDbUnavailable(res: Response, err: unknown, context: string): boolean {
   if (!isDatabaseConnectivityError(err)) return false;
   logger.error(`Database unavailable: ${context}`, {
     message: err instanceof Error ? err.message : String(err)
   });
-  res.status(503).json({ error: "Service temporarily unavailable. Please try again shortly." });
+  res.status(503).json(SERVICE_UNAVAILABLE_BODY);
   return true;
 }
 
@@ -93,10 +111,17 @@ authRouter.post("/register", authenticate, requireRole("AGENCY_ADMIN"), async (r
     const result = await registerUserByAgency(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      respondValidationErrors(res, err);
+      return;
+    }
     if (respondDbUnavailable(res, err, "POST /api/auth/register")) return;
     const message = err instanceof Error ? err.message : "Registration failed.";
     const status = message.includes("already exists") ? 409 : 400;
-    res.status(status).json({ error: message });
+    res.status(status).json({
+      success: false,
+      error: { code: status === 409 ? "CONFLICT" : "BAD_REQUEST", message }
+    });
   }
 });
 
@@ -113,10 +138,17 @@ authRouter.post("/signup", async (req, res) => {
     const result = await signup(payload);
     res.status(201).json(result);
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      respondValidationErrors(res, err);
+      return;
+    }
     if (respondDbUnavailable(res, err, "POST /api/auth/signup")) return;
     const message = err instanceof Error ? err.message : "Signup failed.";
     const status = message.includes("already exists") ? 409 : 400;
-    res.status(status).json({ error: message });
+    res.status(status).json({
+      success: false,
+      error: { code: status === 409 ? "CONFLICT" : "BAD_REQUEST", message }
+    });
   }
 });
 
@@ -132,12 +164,15 @@ authRouter.post("/login", async (req, res) => {
     res.json({ success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, user });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      res.status(400).json({ error: "Invalid request.", details: err.flatten() });
+      respondValidationErrors(res, err);
       return;
     }
     if (respondDbUnavailable(res, err, "POST /api/auth/login")) return;
     const message = err instanceof Error ? err.message : "Login failed.";
-    res.status(401).json({ error: message });
+    res.status(401).json({
+      success: false,
+      error: { code: "UNAUTHORIZED", message }
+    });
   }
 });
 
@@ -151,12 +186,15 @@ authRouter.post("/refresh", async (req, res) => {
     res.json(result);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      res.status(400).json({ error: "Invalid request.", details: err.flatten() });
+      respondValidationErrors(res, err);
       return;
     }
     if (respondDbUnavailable(res, err, "POST /api/auth/refresh")) return;
     const message = err instanceof Error ? err.message : "Refresh failed.";
-    res.status(401).json({ error: message });
+    res.status(401).json({
+      success: false,
+      error: { code: "UNAUTHORIZED", message }
+    });
   }
 });
 

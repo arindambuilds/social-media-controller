@@ -3,9 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "description": "Instagram growth copilot API — analytics, AI insights, and tools for local businesses (MVP)",
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -26,6 +23,7 @@
     "scheduler": "tsx src/scheduler/tokenRefreshScheduler.ts",
     "lint": "tsc -p tsconfig.json --noEmit",
     "smoke:demo": "tsx scripts/smoke-demo.ts",
+    "smoke:render": "tsx scripts/smoke-demo.ts --url https://social-media-controller.onrender.com",
     "test": "vitest run",
     "test:watch": "vitest",
     "dashboard:dev": "npm --prefix dashboard run dev",

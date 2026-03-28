@@ -5,19 +5,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/auth-context";
 import { ThemeToggle } from "./theme-toggle";
 
-const growLinks = [
+/** Primary MVP nav (5 pages). */
+const primaryLinks = [
   { href: "/analytics", label: "Analytics" },
-  { href: "/insights", label: "Insights" }
+  { href: "/insights", label: "Insights" },
+  { href: "/leads", label: "Leads" },
+  { href: "/posts", label: "Posts" },
+  { href: "/accounts", label: "Accounts" }
 ] as const;
 
-const connectLinks = [{ href: "/onboarding", label: "Connect" }] as const;
-
-const moreLinks = [
+const secondaryLinks = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/posts", label: "Posts" },
-  { href: "/accounts", label: "Accounts" },
-  { href: "/leads", label: "Leads" },
+  { href: "/onboarding", label: "Connect" },
   { href: "/audit", label: "Audit" },
   { href: "/login", label: "Login" }
 ] as const;
@@ -52,8 +52,8 @@ export function DashboardNav() {
 
         <nav className="app-nav-center" aria-label="Primary">
           <div className="app-nav-group">
-            <span className="app-nav-group-label">Grow</span>
-            {growLinks.map(({ href, label }) => (
+            <span className="app-nav-group-label">App</span>
+            {primaryLinks.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
@@ -65,26 +65,11 @@ export function DashboardNav() {
             ))}
           </div>
 
-          {hasToken ? (
-            <div className="app-nav-group">
-              <span className="app-nav-group-label">Link</span>
-              {connectLinks.map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="app-nav-link"
-                  data-active={isActive(pathname, href) ? "true" : undefined}
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
-          ) : null}
-
           <div className="app-nav-group">
             <span className="app-nav-group-label">More</span>
-            {moreLinks.map(({ href, label }) => {
+            {secondaryLinks.map(({ href, label }) => {
               if (href === "/login" && hasToken) return null;
+              if (href === "/onboarding" && !hasToken) return null;
               return (
                 <Link
                   key={href}

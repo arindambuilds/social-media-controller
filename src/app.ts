@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/node";
 import { setupExpressErrorHandler } from "@sentry/node";
 import cors from "cors";
-import express, { type Router } from "express";
+import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -11,6 +11,21 @@ import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
 import { logger } from "./lib/logger";
 import { authenticate } from "./middleware/authenticate";
 import { errorHandler } from "./middleware/errorHandler";
+import { aiRouter } from "./routes/ai";
+import { aiInsightsRouter } from "./routes/aiInsights";
+import { analyticsRouter } from "./routes/analytics";
+import { auditLogsRouter } from "./routes/auditLogs";
+import { authRouter } from "./routes/auth";
+import { billingRouter } from "./routes/billing";
+import { clientsRouter } from "./routes/clients";
+import { healthRouter } from "./routes/health";
+import { insightsRouter } from "./routes/insights";
+import { instagramRouter } from "./routes/instagram";
+import { leadsRouter } from "./routes/leads";
+import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
+import { postsRouter } from "./routes/posts";
+import { socialAccountsRouter } from "./routes/socialAccounts";
+import { webhookRouter } from "./routes/webhooks";
 
 /** Always allowed in addition to CORS_ORIGIN (when not *). */
 const DEFAULT_CORS_ORIGINS = [
@@ -29,53 +44,19 @@ function corsOrigin(): boolean | string[] {
   return merged.length ? merged : [...DEFAULT_CORS_ORIGINS];
 }
 
-/**
- * Load a route module with `require` so a broken submodule does not crash the whole process.
- * Paths are relative to compiled `dist/*.js` (same as `src/` layout).
- */
-function tryUseRouter(
-  parent: express.Application | express.Router,
-  mountPath: string,
-  relModule: string,
-  exportName: string,
-  label: string
-): void {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require(relModule) as Record<string, Router>;
-    const router = mod[exportName];
-    if (!router) {
-      logger.warn(`[routes] ${label}: missing export ${exportName}`);
-      return;
-    }
-    // Express 5 typings: Router sub-mount is valid at runtime
-    (parent as express.Application).use(mountPath, router);
-    logger.info(`[routes] mounted ${label}`);
-  } catch (err) {
-    logger.warn(`[routes] ${label} failed to load`, {
-      message: err instanceof Error ? err.message : String(err)
-    });
-  }
-}
-
-function buildApiRouterSafely(): express.Router {
+function buildApiRouter(): express.Router {
   const api = express.Router();
-  const routes: Array<[string, string, string, string]> = [
-    ["/health", "./routes/health", "healthRouter", "api/health (detailed)"],
-    ["/auth", "./routes/auth", "authRouter", "auth"],
-    ["/instagram", "./routes/instagram", "instagramRouter", "instagram"],
-    ["/ai", "./routes/ai", "aiRouter", "ai"],
-    ["/billing", "./routes/billing", "billingRouter", "billing"],
-    ["/clients", "./routes/clients", "clientsRouter", "clients"],
-    ["/leads", "./routes/leads", "leadsRouter", "leads"],
-    ["/posts", "./routes/posts", "postsRouter", "posts"],
-    ["/audit-logs", "./routes/auditLogs", "auditLogsRouter", "audit-logs"],
-    ["/social-accounts", "./routes/socialAccounts", "socialAccountsRouter", "social-accounts"],
-    ["/webhooks", "./routes/webhooks", "webhookRouter", "webhooks"]
-  ];
-  for (const [path, mod, exp, label] of routes) {
-    tryUseRouter(api, path, mod, exp, label);
-  }
+  api.use("/health", healthRouter);
+  api.use("/auth", authRouter);
+  api.use("/instagram", instagramRouter);
+  api.use("/ai", aiRouter);
+  api.use("/billing", billingRouter);
+  api.use("/clients", clientsRouter);
+  api.use("/leads", leadsRouter);
+  api.use("/posts", postsRouter);
+  api.use("/audit-logs", auditLogsRouter);
+  api.use("/social-accounts", socialAccountsRouter);
+  api.use("/webhooks", webhookRouter);
   return api;
 }
 
@@ -147,7 +128,7 @@ export function createApp() {
     }
   });
 
-  /** Liveness for Railway: instant 200, no DB/Redis wait. Optional: ?deps=1 includes dependency checks. */
+  /** Liveness: instant 200 without DB. Optional: ?deps=1 includes dependency checks. */
   app.get("/api/health", async (req, res) => {
     try {
       const payload: Record<string, unknown> = {
@@ -201,11 +182,11 @@ export function createApp() {
     }
   });
 
-  tryUseRouter(app, "/api/oauth", "./routes/oauthCallbacks", "oauthCallbacksRouter", "oauth callbacks");
-  app.use("/api", buildApiRouterSafely());
-  tryUseRouter(app, "/api/analytics", "./routes/analytics", "analyticsRouter", "analytics");
-  tryUseRouter(app, "/api/ai/insights", "./routes/aiInsights", "aiInsightsRouter", "ai insights");
-  tryUseRouter(app, "/api/insights", "./routes/insights", "insightsRouter", "insights");
+  app.use("/api/oauth", oauthCallbacksRouter);
+  app.use("/api", buildApiRouter());
+  app.use("/api/analytics", analyticsRouter);
+  app.use("/api/ai/insights", aiInsightsRouter);
+  app.use("/api/insights", insightsRouter);
 
   if (env.SENTRY_DSN) {
     try {

@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/ui/page-header";
-import { API_ORIGIN, fetchMe } from "../../lib/api";
+import { API_ORIGIN, fetchMe, parseApiErrorMessage } from "../../lib/api";
 import { useAuth } from "../../context/auth-context";
 
 async function readLoginError(response: Response): Promise<string> {
   const text = await response.text();
   try {
-    const j = JSON.parse(text) as { error?: string };
-    if (j?.error) return j.error;
+    const j = JSON.parse(text) as unknown;
+    const msg = parseApiErrorMessage(j);
+    if (msg !== "Request failed") return msg;
   } catch {
     /* plain text */
   }
@@ -49,7 +50,7 @@ export default function LoginPage() {
       const me = await fetchMe(payload.accessToken);
       setSession(payload.accessToken, me.user.clientId ?? null);
 
-      router.push("/dashboard");
+      router.push("/analytics");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign-in failed.");
     } finally {

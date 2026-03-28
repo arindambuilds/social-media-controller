@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, type AnalyticsSummary } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 
 type Overview = {
@@ -53,6 +53,17 @@ function formatEr(r: number): string {
   return `${(r * 100).toFixed(1)}%`;
 }
 
+function statTriple(stats: unknown): { likes: number; comments: number; published: string } {
+  if (!stats || typeof stats !== "object") {
+    return { likes: 0, comments: 0, published: "—" };
+  }
+  const s = stats as { likes?: number; comments?: number; commentsCount?: number };
+  const likes = typeof s.likes === "number" ? s.likes : 0;
+  const comments =
+    typeof s.comments === "number" ? s.comments : typeof s.commentsCount === "number" ? s.commentsCount : 0;
+  return { likes, comments, published: "—" };
+}
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const [clientId, setClientId] = useState<string | null>(null);
@@ -62,6 +73,7 @@ export default function AnalyticsPage() {
   const [hourly, setHourly] = useState<HourlyRow[]>([]);
   const [mediaTypes, setMediaTypes] = useState<MediaRow[]>([]);
   const [topPosts, setTopPosts] = useState<PostRow[]>([]);
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
 
   const load = useCallback(async (cid: string) => {
     setError("");
@@ -107,6 +119,11 @@ export default function AnalyticsPage() {
           return;
         }
         setClientId(cid);
+        const sumRes = await apiFetch(`/analytics/INSTAGRAM/${encodeURIComponent(cid)}/summary`);
+        if (!sumRes.ok) {
+          throw new Error((await sumRes.text()) || `Summary ${sumRes.status}`);
+        }
+        setSummary((await sumRes.json()) as AnalyticsSummary);
         await load(cid);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load analytics");
@@ -150,7 +167,10 @@ export default function AnalyticsPage() {
     );
   }
 
-  const empty = overview && overview.totalPosts === 0;
+  const empty =
+    overview &&
+    overview.totalPosts === 0 &&
+    (!summary || summary.postsAnalyzed === 0);
 
   if (empty) {
     return (
@@ -193,6 +213,126 @@ export default function AnalyticsPage() {
           </p>
         ) : null}
       </section>
+
+      {summary ? (
+        <section className="section-grid">
+          <div className="panel span-12">
+            <h3>Instagram summary (30-day sample)</h3>
+            <p className="muted" style={{ marginBottom: 16 }}>
+              Platform <strong>INSTAGRAM</strong> — metrics from synced/seeded posts (not live Meta unless connected).
+            </p>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-label">Posts analyzed</div>
+                <div className="stat-value">{summary.postsAnalyzed}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Avg engagement (composite)</div>
+                <div className="stat-value">{summary.averageEngagementRate.toFixed(2)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Best posting hour</div>
+                <div className="stat-value">{formatHour(summary.bestPostingHour)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Top caption (truncated)</div>
+                <div className="stat-value" style={{ fontSize: 14, lineHeight: 1.35 }}>
+                  {(summary.captionWinner ?? "").slice(0, 60)}
+                  {(summary.captionWinner ?? "").length > 60 ? "…" : ""}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {summary.likesByHour && summary.likesByHour.length > 0 ? (
+            <div className="panel span-12">
+              <h3>Avg likes by hour (0–23)</h3>
+              <div style={{ width: "100%", height: 280 }}>
+                <ResponsiveContainer>
+                  <BarChart data={summary.likesByHour}>
+                    <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" tick={{ fill: "var(--muted)", fontSize: 10 }} />
+                    <YAxis tick={{ fill: "var(--muted)", fontSize: 10 }} />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--panel)",
+                        border: "1px solid var(--line)",
+                        borderRadius: 12
+                      }}
+                    />
+                    <Bar dataKey="avgLikes" fill="var(--accent)" radius={[6, 6, 0, 0]} name="Avg likes" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="panel span-6">
+            <h3>Top posts (by likes)</h3>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {(summary.topPosts ?? []).map((p) => {
+                const st = statTriple(p.engagementStats);
+                const cap = (p.content ?? p.platformPostId ?? "").slice(0, 60);
+                const pub =
+                  p.publishedAt != null
+                    ? new Date(p.publishedAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })
+                    : "—";
+                return (
+                  <li
+                    key={p.id}
+                    style={{
+                      padding: "12px 0",
+                      borderBottom: "1px solid var(--line)",
+                      fontSize: 14
+                    }}
+                  >
+                    <div>{cap}{((p.content ?? "").length > 60 ? "…" : "")}</div>
+                    <div className="muted" style={{ marginTop: 6 }}>
+                      {pub} · {st.likes} likes · {st.comments} comments
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="panel span-6">
+            <h3>Worst posts (by likes)</h3>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {(summary.worstPosts ?? []).map((p) => {
+                const st = statTriple(p.engagementStats);
+                const cap = (p.content ?? p.platformPostId ?? "").slice(0, 60);
+                const pub =
+                  p.publishedAt != null
+                    ? new Date(p.publishedAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })
+                    : "—";
+                return (
+                  <li
+                    key={p.id}
+                    style={{
+                      padding: "12px 0",
+                      borderBottom: "1px solid var(--line)",
+                      fontSize: 14
+                    }}
+                  >
+                    <div>{cap}{((p.content ?? "").length > 60 ? "…" : "")}</div>
+                    <div className="muted" style={{ marginTop: 6 }}>
+                      {pub} · {st.likes} likes · {st.comments} comments
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      ) : null}
 
       <section className="section-grid">
         <div className="panel span-12">

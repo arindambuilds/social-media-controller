@@ -62,6 +62,12 @@ export async function getPlatformSummary(clientId: string, platform: string) {
     if (!buckets.has(p.hour)) buckets.set(p.hour, []);
     buckets.get(p.hour)!.push(p.likes);
   }
+  const likesByHour = Array.from({ length: 24 }, (_, hour) => {
+    const values = buckets.get(hour) ?? [];
+    const avgLikes = values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+    return { hour, avgLikes };
+  });
+
   const topHours = [...buckets.entries()]
     .map(([hour, values]) => ({
       hour,
@@ -95,6 +101,7 @@ export async function getPlatformSummary(clientId: string, platform: string) {
     bestPostingHour,
     captionWinner,
     topHours,
+    likesByHour,
     captionPerformance: {
       avgLikes,
       avgComments,

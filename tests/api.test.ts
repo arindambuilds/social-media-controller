@@ -5,9 +5,8 @@ import { prisma } from "../src/lib/prisma";
 import { redisConnection } from "../src/lib/redis";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
-const hasRedis = Boolean(process.env.REDIS_URL);
 
-const run = hasDb && hasRedis ? describe : describe.skip;
+const run = hasDb ? describe : describe.skip;
 
 run("API MVP smoke", () => {
   const app = createApp();

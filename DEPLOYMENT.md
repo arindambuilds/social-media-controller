@@ -103,7 +103,49 @@ npm start
 
 Register OAuth redirect URLs with Meta/LinkedIn to match `OAUTH_REDIRECT_BASE_URL` (e.g. `https://api…/api/oauth/facebook/callback`).
 
-## 10. Operational notes
+## 10. Render.com (Web Service + PostgreSQL)
+
+### Internal vs external `DATABASE_URL`
+
+- **Internal Database URL** — use on your **Render Web Service** in the same region/account so the API can reach Postgres over Render’s private network (hostname like `dpg-xxxx.REGION-postgres.render.com`).
+- **External URL** — for tools running **outside** Render (your laptop, CI, etc.).
+
+If `DATABASE_URL` still points at `localhost` while `NODE_ENV=production`, the API **exits immediately** with a fatal log (misconfiguration guard).
+
+### Rotate Postgres password from Windows (`psql`)
+
+Use the installed binary, e.g.:
+
+```powershell
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" "postgresql://USER:OLD_PASSWORD@HOST:5432/DBNAME" -c "ALTER USER your_user WITH PASSWORD 'SecureNewPass2024!';"
+```
+
+Then update **`DATABASE_URL`** in Render → Web Service → **Environment** with the new password and **redeploy**.
+
+### Suggested Render Web Service commands
+
+| Field | Example |
+|-------|---------|
+| **Build Command** | `npm install && npm run build && npm run db:deploy:seed` |
+| **Start Command** | `node dist/server.js` |
+
+`db:deploy:seed` runs `prisma migrate deploy` then `prisma db seed` (seed uses upserts; safe to re-run for demos). For large production datasets, run migrate in build and seed **once** from **Render Shell** instead.
+
+### Environment checklist (API)
+
+| Variable | Required | Notes |
+|----------|----------|--------|
+| `DATABASE_URL` | Yes | From Render Postgres (internal URL on the web service). |
+| `NODE_ENV` | Yes | `production` |
+| `JWT_SECRET` | Yes | 32+ chars |
+| `JWT_REFRESH_SECRET` | Yes | 32+ chars |
+| `ENCRYPTION_KEY` | Recommended | 32+ chars (or rely on JWT-derived key per app logic). |
+| `REDIS_URL` | Optional | Upstash `rediss://…` for BullMQ/cache. |
+| `CORS_ORIGIN` or `CORS_ORIGINS` | Optional | Comma-separated origins; both names are supported in code. |
+
+**Vercel dashboard:** set `NEXT_PUBLIC_API_URL` to the API **origin only** (no `/api` suffix), e.g. `https://social-media-controller.onrender.com`.
+
+## 11. Operational notes
 
 - Run **worker** alongside API for BullMQ jobs (`docker-compose` can add a `worker` service using the same image and `command: npm run worker` after copying source — adjust image if you only ship `dist/`).
 - Never commit `.env` or `dashboard/.env.local`.

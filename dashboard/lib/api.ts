@@ -11,9 +11,22 @@ export type AnalyticsSummary = {
   bestPostingHour: number | null;
   captionWinner: string;
   topHours: number[];
+  likesByHour?: Array<{ hour: number; avgLikes: number }>;
   captionPerformance: { avgLikes: number; avgComments: number; avgShares: number };
-  topPosts: Array<{ id: string; content?: string | null; platformPostId: string }>;
-  worstPosts: Array<{ id: string; content?: string | null; platformPostId: string }>;
+  topPosts: Array<{
+    id: string;
+    content?: string | null;
+    platformPostId: string;
+    publishedAt?: Date | string;
+    engagementStats?: unknown;
+  }>;
+  worstPosts: Array<{
+    id: string;
+    content?: string | null;
+    platformPostId: string;
+    publishedAt?: Date | string;
+    engagementStats?: unknown;
+  }>;
 };
 
 export type CaptionCard = {
@@ -22,6 +35,38 @@ export type CaptionCard = {
   cta: string;
   hashtags: string[];
 };
+
+/** Parse API error payloads (string `error` or nested `{ error: { message, fieldErrors } }`). */
+export function parseApiErrorMessage(body: unknown): string {
+  if (!body || typeof body !== "object") return "Request failed";
+  const b = body as Record<string, unknown>;
+  if (typeof b.error === "string") return b.error;
+  if (b.error && typeof b.error === "object") {
+    const e = b.error as { message?: string; fieldErrors?: Record<string, string[] | undefined> };
+    if (typeof e.message === "string") return e.message;
+    if (e.fieldErrors && Object.keys(e.fieldErrors).length) {
+      return Object.entries(e.fieldErrors)
+        .flatMap(([k, arr]) => (arr ?? []).map((x) => `${k}: ${x}`))
+        .join("; ");
+    }
+  }
+  return "Request failed";
+}
+
+export async function apiRequestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await apiFetch(path, init);
+  const text = await res.text();
+  let parsed: unknown = {};
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    parsed = {};
+  }
+  if (!res.ok) {
+    throw new Error(parseApiErrorMessage(parsed) || `HTTP ${res.status}`);
+  }
+  return parsed as T;
+}
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : "";
@@ -61,7 +106,13 @@ async function requestWithToken<T>(path: string, token: string, init?: RequestIn
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Request failed: ${response.status}`);
+    let parsed: unknown = {};
+    try {
+      parsed = text ? JSON.parse(text) : {};
+    } catch {
+      parsed = {};
+    }
+    throw new Error(parseApiErrorMessage(parsed) || text || `Request failed: ${response.status}`);
   }
   return response.json() as Promise<T>;
 }
