@@ -4,7 +4,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env";
-import { getDetailedHealth } from "./lib/healthCheck";
+import { getDetailedHealth, getPublicApiHealth } from "./lib/healthCheck";
 import { logger } from "./lib/logger";
 import { authenticate } from "./middleware/authenticate";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
@@ -16,19 +16,33 @@ import { insightsRouter } from "./routes/insights";
 import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { errorHandler } from "./middleware/errorHandler";
 
-const VERCEL_DASHBOARD_ORIGIN = "https://social-media-controller.vercel.app";
+/** Always allowed in addition to CORS_ORIGIN (when not *). */
+const DEFAULT_CORS_ORIGINS = [
+  "https://social-media-controller.vercel.app",
+  "https://social-media-controller-production.up.railway.app",
+  "http://localhost:3000",
+  "http://localhost:3002"
+] as const;
 
 function corsOrigin(): boolean | string[] {
   if (env.CORS_ORIGIN === "*") return true;
   const list = env.CORS_ORIGIN.split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const merged = [...new Set([...list, VERCEL_DASHBOARD_ORIGIN])];
-  return merged.length ? merged : true;
+  const merged = [...new Set([...list, ...DEFAULT_CORS_ORIGINS])];
+  return merged.length ? merged : [...DEFAULT_CORS_ORIGINS];
 }
 
 export function createApp() {
   const app = express();
+
+  app.get("/", (_req, res) => {
+    res.json({
+      message: "Instagram Growth Copilot API",
+      version: "1.0.0",
+      status: "running"
+    });
+  });
 
   app.use(helmet());
   app.use(cors({ origin: corsOrigin(), credentials: true }));
@@ -58,6 +72,12 @@ export function createApp() {
   app.get("/health", async (_req, res) => {
     const body = await getDetailedHealth();
     res.status(body.database === "error" ? 503 : 200).json(body);
+  });
+
+  app.get("/api/health", async (_req, res) => {
+    const body = await getPublicApiHealth();
+    const ok = body.database === "connected" && body.redis === "connected";
+    res.status(ok ? 200 : 503).json(body);
   });
 
   /** Alias: same OAuth redirect as `GET /api/auth/instagram` (Meta must allow frontend redirect URI). */

@@ -1,5 +1,7 @@
 import { Router } from "express";
+import type { Request, Response } from "express";
 import { z } from "zod";
+import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { issueOAuthState, consumeOAuthState } from "../services/oauthStateStore";
@@ -163,7 +165,7 @@ authRouter.post("/oauth/validate", async (req, res) => {
   res.json({ valid: true, context: stateContext });
 });
 
-authRouter.get("/oauth/instagram/callback", async (req, res) => {
+async function handleBrowserInstagramOAuthCallback(req: Request, res: Response) {
   const query = z.object({
     code: z.string().min(1),
     state: z.string().min(1)
@@ -175,7 +177,7 @@ authRouter.get("/oauth/instagram/callback", async (req, res) => {
     return;
   }
 
-  const result = await exchangeInstagramCode(query.code);
+  const result = await exchangeInstagramCode(query.code, env.INSTAGRAM_FRONTEND_REDIRECT_URI);
   const socialAccount = await upsertSocialAccount({
     clientId: context.clientId,
     platform: "INSTAGRAM",
@@ -205,4 +207,8 @@ authRouter.get("/oauth/instagram/callback", async (req, res) => {
     socialAccountId: socialAccount.id,
     platformUserId: socialAccount.platformUserId
   });
-});
+}
+
+authRouter.get("/oauth/instagram/callback", handleBrowserInstagramOAuthCallback);
+/** Alias for Meta “Valid OAuth Redirect URIs” (same handler as `/oauth/instagram/callback`). */
+authRouter.get("/instagram/callback", handleBrowserInstagramOAuthCallback);

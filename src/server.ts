@@ -13,11 +13,11 @@ if (env.SENTRY_DSN) {
 
 const app = createApp();
 
-const port = Number(process.env.PORT) || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 
-app.listen(port, () => {
+app.listen(PORT, "0.0.0.0", () => {
   logger.info("API server started", {
-    port,
+    port: PORT,
     environment: env.NODE_ENV
   });
 });

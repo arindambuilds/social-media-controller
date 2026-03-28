@@ -18,6 +18,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "seed:railway": "railway run tsx prisma/seed.ts",
+    "seed:prod": "railway run tsx prisma/seed.ts",
+    "railway:deploy": "npx prisma migrate deploy && npx prisma db seed",
     "worker": "tsx src/workers/ingestionWorker.ts",
     "worker:publish": "tsx src/workers/postPublishWorker.ts",
     "scheduler": "tsx src/scheduler/tokenRefreshScheduler.ts",

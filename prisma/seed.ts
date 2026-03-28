@@ -194,13 +194,13 @@ async function main() {
   const clientCafe = await prisma.client.upsert({
     where: { id: "client-cafe" },
     update: {
-      name: "Coastal Café Co.",
+      name: "Coastal Cafe Co",
       ownerId: admin.id,
       agencyId: demoAgency.id
     },
     create: {
       id: "client-cafe",
-      name: "Coastal Café Co.",
+      name: "Coastal Cafe Co",
       ownerId: admin.id,
       agencyId: demoAgency.id
     }
@@ -287,7 +287,7 @@ async function main() {
       clientId: clientCafe.id,
       platformUsername: "coastal.cafe.bbsr",
       pageId: "cafe-page",
-      pageName: "Coastal Café Co.",
+      pageName: "Coastal Cafe Co",
       encryptedToken: encrypt("demo-cafe-token"),
       tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       lastSyncedAt: new Date()
@@ -298,7 +298,7 @@ async function main() {
       platformUserId: "cafe-ig-user-001",
       platformUsername: "coastal.cafe.bbsr",
       pageId: "cafe-page",
-      pageName: "Coastal Café Co.",
+      pageName: "Coastal Cafe Co",
       encryptedToken: encrypt("demo-cafe-token"),
       tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       lastSyncedAt: new Date()
@@ -422,7 +422,7 @@ async function main() {
         clientId: clientCafe.id,
         platform: "INSTAGRAM",
         summary:
-          "Morning and mid-afternoon posts for Coastal Café get the most saves and DMs. Short hooks about seasonal drinks and limited pastries outperform generic “open now” posts.",
+          "Morning and mid-afternoon posts for Coastal Cafe Co get the most saves and DMs. Short hooks about seasonal drinks and limited pastries outperform generic “open now” posts.",
         recommendations: [
           "Post 2–3 morning stories with today’s pastry case and a one-line CTA (e.g. “First 10 get upsize”).",
           "Batch Reels on pour-over and latte art — tag the neighbourhood for discovery.",
