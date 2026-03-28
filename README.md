@@ -88,6 +88,7 @@ npm run dashboard:dev
 | [docs/demo-script.md](docs/demo-script.md) | 8-step live demo story (local business) |
 | [docs/incubation-readiness.md](docs/incubation-readiness.md) | Metrics, language, pilot evidence (no hype) |
 | [docs/launch-checklist.md](docs/launch-checklist.md) | Pre-demo env + smoke + manual pass |
+| [docs/completion-report.md](docs/completion-report.md) | Endpoints, workers, founder Done / next (repo-aligned) |
 | [docs/implementation-roadmap.md](docs/implementation-roadmap.md) | Longer-term phases |
 | [docs/mvp-status-one-pager.md](docs/mvp-status-one-pager.md) | Status, investor/pilot outline, Phases 2–3 + GTM |
 

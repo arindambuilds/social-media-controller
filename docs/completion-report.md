@@ -2,6 +2,34 @@
 
 Generated for the **social-media-controller** repo after the production-hardening pass (OAuth callbacks, outbound posts, workers, dashboard pages, rate limits, Sentry hooks, deployment docs).
 
+## Founder status snapshot (merged + repo-corrected)
+
+This section folds the founder checklist into this doc and **fixes items that were already shipped** on `main` (so you don’t plan duplicate work).
+
+### What’s effectively done
+
+- **Infrastructure:** Full scaffold; Docker + Compose; PostgreSQL + Redis; GitHub repo live (`arindambuilds/social-media-controller`).
+- **Backend:** JWT auth (**signup, login, refresh, `me`**), **`POST /api/auth/register`** (agency-only), **bcrypt** via `hashPassword` / `authService`, **role middleware** (`AGENCY_ADMIN`, `CLIENT_USER`), Prisma schema + **migrations**, **seed** (Urban Glow, leads, demo logins), **BullMQ** queues, route surface including **analytics, AI, leads, health, posts, social-accounts, `/api/oauth/*` callbacks, audit-logs**.
+- **Security / validation (baseline):** **Helmet**, **CORS**, **Zod** on inputs, **per-tenant rate limits** on analytics, leads, AI, insights, posts, audit-logs (see `tenantRateLimit.ts`).
+- **Frontend:** Next.js dashboard — **Analytics, Insights, Leads, Login, Onboarding, Posts, Accounts, Audit**, nav, theme toggle, shared UI patterns, auth storage.
+- **Ops / docs:** **`DEPLOYMENT.md`** (Docker + **Railway** + PM2 note), **`ecosystem.config.js`**, optional **Sentry** (`SENTRY_DSN`), **`npm test`** (Vitest API smoke when `DATABASE_URL` + `REDIS_URL` are set).
+- **Meta / Instagram (your side):** Developer app, App ID, App Secret, Instagram product — **you’ve created these**; the repo expects them in **`.env`** and matching **redirect URIs**.
+
+### What’s ~60–70% (code exists — needs your keys + E2E proof)
+
+- **Instagram / Meta integration:** OAuth **is wired** (`/api/social-accounts/connect/*`, `/api/oauth/instagram/callback` GET+POST). **Remaining:** put credentials in `.env`, register redirect URLs (`OAUTH_REDIRECT_BASE_URL`, legacy `INSTAGRAM_REDIRECT_URI` if still used), run **connect → callback → sync** with a real test user on the Meta app.
+- **`INGESTION_MODE`:** **`mock`** is demo-safe; **`instagram`** + real tokens still needs a full verification pass.
+- **Dashboard:** Pages are **API-backed** for core flows; **polish** loading/error/empty states where you still feel gaps.
+- **Analytics cache:** Redis-backed cache exists — **confirm** behavior under your env (keys, TTL) if you need guarantees.
+
+### What’s still “not done” or launch-adjacent
+
+- **Immediate:** Fill **`.env`** with Meta (and optional LinkedIn) values; add **Instagram test account** in Meta; run **smoke + manual demo** (`docs/launch-checklist.md`).
+- **Short term:** End-to-end **real Graph sync** with `INGESTION_MODE=instagram`; optional **OpenAI** for richer AI (fallbacks work without key).
+- **Before wider launch:** **TLS / reverse proxy** (nginx or host default), **more audit log writers** if you need compliance-style trails, **broader automated tests**, pilot-specific seed narrative tweaks.
+
+For **pre-demo steps** and logins, use **`docs/launch-checklist.md`**.
+
 ## Overall completion (rough)
 
 | Category | Estimate | Notes |

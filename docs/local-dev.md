@@ -4,6 +4,51 @@ Backend: **local PostgreSQL** + **hosted Upstash Redis** (or any `rediss://` Red
 
 ---
 
+### Docker Compose (optional)
+
+If [Docker Desktop](https://www.docker.com/products/docker-desktop/) is installed and on your `PATH`:
+
+```powershell
+# Postgres + Redis only (use this when you run the API on the host with `npm run dev` — avoids port 4000 conflicting with the compose `api` service)
+docker compose up -d postgres redis
+
+# Check health (compose defines healthchecks; wait until STATUS is healthy)
+docker compose ps
+```
+
+Full stack (API runs **inside** Docker on port 4000 — do **not** also run `npm run dev` on the host):
+
+```powershell
+docker compose up -d
+```
+
+The `api` service waits until Postgres and Redis report **healthy**.
+
+For containers on localhost, typical URLs are:
+
+- `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/social_media_controller?schema=public`
+- `REDIS_URL=redis://localhost:6379` (plain Redis; use `rediss://` only for TLS services like Upstash)
+
+---
+
+### Correct API paths (common mistakes)
+
+| What | URL |
+|------|-----|
+| Signup | `POST http://localhost:4000/api/auth/signup` |
+| Login | `POST http://localhost:4000/api/auth/login` |
+| Me | `GET http://localhost:4000/api/auth/me` + `Authorization: Bearer …` |
+| Analytics overview | `GET http://localhost:4000/api/analytics/{clientId}/overview?days=30` + Bearer |
+| Instagram summary | `GET http://localhost:4000/api/analytics/INSTAGRAM/{clientId}/summary` + Bearer |
+| Insights (latest) | `GET http://localhost:4000/api/insights/{clientId}/content-performance/latest` + Bearer |
+| Leads | `GET http://localhost:4000/api/leads?clientId={clientId}` + Bearer |
+
+There is **no** top-level `GET /analytics` or `POST /auth/login` — routes live under **`/api/...`** except the browser Instagram alias:
+
+- **Instagram OAuth redirect (browser):** `GET http://localhost:4000/auth/instagram?clientId=demo-client` — requires **Bearer token** (log in first). For `AGENCY_ADMIN`, **`clientId` query is required**; `CLIENT_USER` uses the token’s client. Returns **302** to Meta when the app id is configured.
+
+---
+
 ### 1) Install PostgreSQL
 
 ```powershell
@@ -148,7 +193,8 @@ curl.exe http://localhost:4000/health
 ```
 
 ```powershell
-curl.exe -X POST http://localhost:4000/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"admin@demo.com\",\"password\":\"admin123\"}"
+$body = '{"email":"admin@demo.com","password":"admin123"}'
+Invoke-RestMethod -Uri "http://localhost:4000/api/auth/login" -Method POST -Body $body -ContentType "application/json; charset=utf-8"
 ```
 
-Use the returned `accessToken` as `Authorization: Bearer <token>` for protected routes.
+Use the returned `accessToken` as `Authorization: Bearer <token>` for protected routes. (Raw `curl.exe -d "{...}"` often breaks JSON escaping in PowerShell.)
