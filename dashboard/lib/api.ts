@@ -1,6 +1,9 @@
 import { CLIENT_ID_KEY, TOKEN_KEY } from "./auth-storage";
 
-const raw = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api").replace(/\/$/, "");
+/** Default request timeout (ms). Login uses a longer override for Render cold starts. */
+export const DEFAULT_API_TIMEOUT_MS = 10_000;
+
+const raw = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
 /** Base URL for `/api/*` routes — always ends with `/api` (append paths like `/auth/login`). */
 export const API_URL = raw.endsWith("/api") ? raw : `${raw}/api`;
@@ -83,30 +86,65 @@ export function parseApiErrorMessage(body: unknown): string {
   return "Request failed";
 }
 
-function isLoginPost(path: string, init?: RequestInit): boolean {
+type ApiFetchInit = RequestInit & { timeoutMs?: number };
+
+function isLoginPost(path: string, init?: ApiFetchInit): boolean {
   const p = path.startsWith("/") ? path : `/${path}`;
   const method = (init?.method ?? "GET").toUpperCase();
   return method === "POST" && p.startsWith("/auth/login");
+}
+
+function mapAbortToTimeout(err: unknown): Error {
+  if (err instanceof Error && (err.name === "AbortError" || /abort/i.test(err.message))) {
+    return new Error("Request timed out. The API may be waking up—wait up to a minute and try again.");
+  }
+  return err instanceof Error ? err : new Error(String(err));
+}
+
+async function fetchWithTimeout(url: string, init: ApiFetchInit | undefined, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  const parent = init?.signal;
+  if (parent) {
+    if (parent.aborted) controller.abort();
+    else parent.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+  const { timeoutMs: _drop, ...rest } = init ?? {};
+  try {
+    return await fetch(url, {
+      ...rest,
+      signal: controller.signal
+    });
+  } catch (e) {
+    throw mapAbortToTimeout(e);
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 /**
  * JSON API helper: `${API_URL}${path}`. Throws on non-OK with `body?.error?.message` when present.
  * Omits `Authorization` on `POST /auth/login`.
  */
-export async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
+export async function apiFetch<T = unknown>(path: string, options?: ApiFetchInit): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
   const p = path.startsWith("/") ? path : `/${path}`;
   const skipAuth = isLoginPost(p, options);
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_API_TIMEOUT_MS;
 
-  const res = await fetch(`${API_URL}${p}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers
+  const res = await fetchWithTimeout(
+    `${API_URL}${p}`,
+    {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers
+      },
+      cache: "no-store"
     },
-    cache: "no-store"
-  });
+    timeoutMs
+  );
 
   const body = await readResponseJson(res);
 
@@ -137,37 +175,47 @@ export async function apiFetch<T = unknown>(path: string, options?: RequestInit)
 }
 
 /** Same URL/auth as apiFetch but returns the raw `Response` (e.g. 429 handling). */
-export async function apiFetchResponse(path: string, options?: RequestInit): Promise<Response> {
+export async function apiFetchResponse(path: string, options?: ApiFetchInit): Promise<Response> {
   const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
   const p = path.startsWith("/") ? path : `/${path}`;
   const skipAuth = isLoginPost(p, options);
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_API_TIMEOUT_MS;
 
-  return fetch(`${API_URL}${p}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers
+  return fetchWithTimeout(
+    `${API_URL}${p}`,
+    {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers
+      },
+      cache: "no-store"
     },
-    cache: "no-store"
-  });
+    timeoutMs
+  );
 }
 
-export async function apiRequestJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiRequestJson<T>(path: string, init?: ApiFetchInit): Promise<T> {
   return apiFetch<T>(path, init);
 }
 
-async function requestWithToken<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+async function requestWithToken<T>(path: string, token: string, init?: ApiFetchInit): Promise<T> {
   const p = path.startsWith("/") ? path : `/${path}`;
-  const response = await fetch(`${API_URL}${p}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...init?.headers
+  const timeoutMs = init?.timeoutMs ?? DEFAULT_API_TIMEOUT_MS;
+  const response = await fetchWithTimeout(
+    `${API_URL}${p}`,
+    {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...init?.headers
+      },
+      cache: "no-store"
     },
-    cache: "no-store"
-  });
+    timeoutMs
+  );
   const parsed = await readResponseJson(response);
   if (!response.ok) {
     const raw =
@@ -217,10 +265,10 @@ export const api = {
   }
 };
 
-export async function fetchMe(token: string) {
+export async function fetchMe(token: string, timeoutMs: number = DEFAULT_API_TIMEOUT_MS) {
   return requestWithToken<{
     success: boolean;
     user: { id: string; email: string; name: string | null; role: string; clientId: string | null };
     instagramConnected: boolean;
-  }>("/auth/me", token);
+  }>("/auth/me", token, { timeoutMs });
 }

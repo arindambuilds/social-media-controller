@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/ui/page-header";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { useAuth } from "../../context/auth-context";
+
+const LOGIN_TIMEOUT_MS = 90_000;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,10 +15,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("Demo1234!");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [slowBackendHint, setSlowBackendHint] = useState(false);
+
+  useEffect(() => {
+    if (!submitting) {
+      setSlowBackendHint(false);
+      return;
+    }
+    const t = setTimeout(() => setSlowBackendHint(true), 5000);
+    return () => clearTimeout(t);
+  }, [submitting]);
 
   async function onLogin() {
     setError("");
     setSubmitting(true);
+    setSlowBackendHint(false);
     try {
       const payload = await apiFetch<{
         success: boolean;
@@ -24,10 +37,11 @@ export default function LoginPage() {
         user: { clientId?: string | null };
       }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        timeoutMs: LOGIN_TIMEOUT_MS
       });
 
-      const me = await fetchMe(payload.accessToken);
+      const me = await fetchMe(payload.accessToken, LOGIN_TIMEOUT_MS);
       setSession(payload.accessToken, me.user.clientId ?? null);
 
       router.push("/analytics");
@@ -57,8 +71,20 @@ export default function LoginPage() {
               placeholder="Password"
             />
             <button type="button" className="button" onClick={onLogin} disabled={submitting}>
-              {submitting ? "Signing in…" : "Continue"}
+              {submitting ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                  <span className="spinner" style={{ width: 18, height: 18 }} aria-hidden />
+                  Signing in…
+                </span>
+              ) : (
+                "Continue"
+              )}
             </button>
+            {submitting && slowBackendHint ? (
+              <p className="muted" style={{ margin: 0, lineHeight: 1.45 }}>
+                Backend is starting up, please wait… (Render free tier can take up to ~50 seconds after sleep.)
+              </p>
+            ) : null}
             {error ? <p className="text-error">{error}</p> : null}
           </div>
         </section>
@@ -66,4 +92,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

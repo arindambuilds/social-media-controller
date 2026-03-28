@@ -55,14 +55,14 @@ and align **`INSTAGRAM_REDIRECT_URI`** / **`INSTAGRAM_FRONTEND_REDIRECT_URI`** w
 
 ## Environment checklist (Vercel)
 
-- `NEXT_PUBLIC_API_URL=https://social-media-controller.onrender.com`  
+- `NEXT_PUBLIC_API_URL=https://social-media-controller.onrender.com` — **origin only, no `/api` suffix** (the dashboard appends `/api` in code).  
 - `NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI=https://social-media-controller.vercel.app/onboarding/callback`  
 
 Redeploy the dashboard after changing variables.
 
 ## Environment checklist (Render API)
 
-- **`DATABASE_URL` (required):** In Render, create a **PostgreSQL** instance, then on your **Web Service** → **Environment** add `DATABASE_URL` using the **Internal Database URL** from the database (or External URL if you connect from outside Render).  
+- **`DATABASE_URL` (required):** Use the same Postgres URL as local (e.g. Supabase) or Render’s **Internal Database URL** on the web service. Copy from root `.env` if you use hosted Postgres elsewhere.  
   - Do **not** leave the default `localhost` connection string — the API will **refuse to start** in `NODE_ENV=production` if `DATABASE_URL` still points at `localhost` / `127.0.0.1`.  
 - **`JWT_SECRET`** (32+ chars), **`JWT_REFRESH_SECRET`** (32+ chars), **`ENCRYPTION_KEY`** (32+ chars optional if you rely on JWT-derived encryption per code).  
 - **`NODE_ENV=production`**  

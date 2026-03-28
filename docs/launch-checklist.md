@@ -26,13 +26,13 @@ Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 1. Migrate + seed → API + dashboard up → login → Analytics populated.  
 2. Insights → see seeded insight OR generate; weekly focus button; captions.  
 3. Leads table for `demo-client`.  
-4. `npm run smoke:demo` green with API running.
+4. `npm run smoke:local` (or `npm run smoke:render` against production API) green.
 
 ## Environment
 
 - [ ] Root `.env`: `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `ENCRYPTION_KEY` (32+ chars), `APP_BASE_URL`
 - [ ] `INGESTION_MODE=mock` for demos without Meta (or `instagram` + valid Meta app)
-- [ ] `dashboard/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:4000`
+- [ ] `dashboard/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:4000` (origin only; code appends `/api`)
 - [ ] Optional: `OPENAI_API_KEY` for best AI output
 
 ## Data
@@ -51,12 +51,16 @@ Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 With API running (worker not required for smoke):
 
 ```powershell
-npm run smoke:demo
+npm run smoke:local
 ```
 
-Checks: `GET /health`, login, `GET /api/auth/me`, analytics overview + Instagram summary, latest AI insight payload, **`GET /api/leads`** for the demo client.
+Against production API (after cold start may need a retry):
 
-Optional env: `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `SMOKE_CLIENT_ID`.
+```powershell
+npm run smoke:render
+```
+
+Script checks in order: **`GET /api/health`**, login (`demo@demo.com` / `Demo1234!`), Instagram **summary**, **AI insight** POST, **leads** list, **posts** list (uses `clientId` from the login response). Override base URL: `npx tsx scripts/smoke-demo.ts --url https://your-api.example.com`.
 
 ## Logins (after seed)
 
@@ -66,7 +70,7 @@ Optional env: `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `SMOKE_CLIENT_I
 | Client (pilot UX) | `salon@pilot.demo` | `pilot123` |
 | Agency admin (presentations / alternate demo) | `demo@agencyname.com` | `Demo1234!` |
 
-`npm run smoke:demo` defaults use **`admin@demo.com`** / **`admin123`** and **`demo-client`**.
+`npm run smoke:local` / `smoke:render` use **`demo@demo.com`** / **`Demo1234!`**; **`clientId`** comes from the login payload (must match a seeded user with a client).
 
 ## Manual 2-minute pass (before every demo)
 
@@ -81,3 +85,22 @@ Optional env: `SMOKE_BASE_URL`, `SMOKE_EMAIL`, `SMOKE_PASSWORD`, `SMOKE_CLIENT_I
 ## Do not claim without proof
 
 - Live customer logos, revenue, or DAU — use **pilot** language until you have signed references.
+
+---
+
+## Operator runbook (recommended order)
+
+**Phase A — Lock MVP (1–3 days, no new features)**  
+1. Check every box in this file (Environment → Data → Processes).  
+2. Confirm Vercel `NEXT_PUBLIC_API_URL` is the **API origin only** (no `/api`); see `docs/DEMO.md`.  
+3. Run `npm run smoke:render` once; if Render was cold, wait ~60s and retry. Note only **blockers** (login, 404 API, empty charts).  
+4. Do the **Manual 2-minute pass** on **production** (same as local, but on live URLs).
+
+**Phase B — One validation channel**  
+- **Pilot-first:** 1–2 local businesses, `INGESTION_MODE=mock`, weekly check-in, “would you pay X?” — no code unless they hit a clear gap.  
+- **Product-first:** Meta app + OAuth + `INGESTION_MODE=instagram` (+ Redis if you run multiple API instances).
+
+**Phase C — After demo stable or first pilot**  
+Paid tiers (cold start), Redis, Stripe/billing — see `docs/DEMO.md` → “Next steps for a first paying customer.”
+
+**Defer until post-MVP:** new platforms, major new routes, big UI refactors, extra planning docs beyond `mvp-product.md` + this checklist + `DEMO.md`.

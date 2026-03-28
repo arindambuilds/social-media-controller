@@ -70,7 +70,7 @@ On a host or second container:
 ```bash
 cd dashboard
 cp .env.local.example .env.local
-# Set NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
+# Set NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 npm ci
 npm run build
 npm start
@@ -99,7 +99,7 @@ npm start
    **Start command:** `npx prisma migrate deploy && node dist/server.js`  
    (Use `npm run prisma:migrate:deploy` if you prefer the npm script alias.)
 7. **Worker service** (duplicate repo, same env): start command `node dist/workers/ingestionWorker.js`. Add another service for **`node dist/workers/postPublishWorker.js`** and **`node dist/workers/tokenRefreshWorker.js`** if you use scheduled posts and token refresh jobs.
-8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API **including `/api`** (e.g. `https://social-media-controller.onrender.com/api`).
+8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API **origin only** (e.g. `https://social-media-controller.onrender.com`); the app appends `/api` in code.
 
 Register OAuth redirect URLs with Meta/LinkedIn to match `OAUTH_REDIRECT_BASE_URL` (e.g. `https://api…/api/oauth/facebook/callback`).
 
@@ -159,9 +159,9 @@ Then update **`DATABASE_URL`** in Render → Web Service → **Environment** wit
 
 | Variable | Value |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://your-api.onrender.com/api` |
+| `NEXT_PUBLIC_API_URL` | `https://your-api.onrender.com` |
 
-The dashboard builds request URLs as `${NEXT_PUBLIC_API_URL}/auth/…`, so the value **must include the `/api` suffix** (or set `NEXT_PUBLIC_API_URL` to `https://host/api` and keep paths as today).
+Use the **API origin only** (no `/api`). The dashboard code normalizes this and appends `/api` for routes like `/auth/login`.
 
 ## 11. Operational notes
 
