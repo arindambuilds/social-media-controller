@@ -1,7 +1,13 @@
 import crypto from "crypto";
 import { env } from "../config/env";
 
-const key = crypto.createHash("sha256").update(env.ENCRYPTION_KEY).digest();
+/** Prefer dedicated ENCRYPTION_KEY (32+ chars); otherwise derive from JWT_SECRET (also min 32). */
+const keySource =
+  env.ENCRYPTION_KEY && env.ENCRYPTION_KEY.length >= 32
+    ? env.ENCRYPTION_KEY
+    : env.JWT_SECRET;
+
+const key = crypto.createHash("sha256").update(keySource).digest();
 
 export function encrypt(plainText: string): string {
   const iv = crypto.randomBytes(12);

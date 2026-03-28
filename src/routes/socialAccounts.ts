@@ -132,7 +132,11 @@ socialAccountsRouter.post("/instagram/start", requireRole("AGENCY_ADMIN", "CLIEN
     initiatedBy: req.auth?.userId ?? "unknown"
   });
 
-  const clientId = env.INSTAGRAM_APP_ID || env.FACEBOOK_APP_ID;
+  const clientId = env.INSTAGRAM_APP_ID || env.FACEBOOK_APP_ID || "";
+  if (!clientId) {
+    res.status(503).json({ error: "Instagram/Facebook OAuth is not configured (missing app id)." });
+    return;
+  }
   const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?${new URLSearchParams({
     client_id: clientId,
     redirect_uri: env.INSTAGRAM_REDIRECT_URI,

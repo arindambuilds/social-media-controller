@@ -1,26 +1,78 @@
-import http from "http";
-import * as Sentry from "@sentry/node";
-import { env } from "./config/env";
-import { logger } from "./lib/logger";
-import { createApp } from "./app";
+import "dotenv/config";
+import express, { type Router } from "express";
+import cors from "cors";
 
-if (env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: env.SENTRY_DSN,
-    environment: env.NODE_ENV,
-    tracesSampleRate: 0.2
-  });
-}
+const app = express();
+const PORT = Number(process.env.PORT) || 8080;
 
-const app = createApp();
-const PORT = parseInt(process.env.PORT || "8080", 10);
+app.use(
+  cors({
+    origin: [
+      "https://social-media-controller.vercel.app",
+      "http://localhost:3000",
+      "http://localhost:3002"
+    ],
+    credentials: true
+  })
+);
 
-const httpServer = http.createServer(app);
+app.use(express.json());
 
-httpServer.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-  logger.info("API server started", {
-    port: PORT,
-    environment: env.NODE_ENV
+app.get("/", (_req, res) => {
+  res.json({ status: "ok", message: "API running" });
+});
+
+app.get("/api/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
   });
 });
+
+function loadRoute(
+  modulePath: string,
+  exportName: string,
+  mountPath: string
+): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require(modulePath) as Record<string, Router>;
+    const router = mod[exportName];
+    if (!router) {
+      console.warn(`Route module ${modulePath} has no export ${exportName}`);
+      return;
+    }
+    app.use(mountPath, router);
+  } catch (e: unknown) {
+    console.warn(
+      `Failed to load ${mountPath}:`,
+      e instanceof Error ? e.message : e
+    );
+  }
+}
+
+loadRoute("./routes/auth", "authRouter", "/api/auth");
+loadRoute("./routes/analytics", "analyticsRouter", "/api/analytics");
+loadRoute("./routes/ai", "aiRouter", "/api/ai");
+loadRoute("./routes/leads", "leadsRouter", "/api/leads");
+
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server started on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
+});
+
+server.on("error", (err) => {
+  console.error("Server error:", err);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
+
+export default app;
