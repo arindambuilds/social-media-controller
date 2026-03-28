@@ -1,25 +1,28 @@
 import IORedis from "ioredis";
 import { env } from "../config/env";
 
-const url = (env.REDIS_URL ?? "").trim();
+let redisClient: IORedis | null = null;
 
-/** True when a non-empty REDIS_URL is configured (queues, cache, OAuth state in Redis). */
-export const redisEnabled = Boolean(url);
-
-/**
- * Shared client when Redis is configured. Lazy connect + no offline queue so a bad URL
- * does not block process startup. BullMQ requires `maxRetriesPerRequest: null` on this client.
- */
-export const redisConnection: IORedis | null = redisEnabled
-  ? new IORedis(url, {
+try {
+  const url = typeof env.REDIS_URL === "string" ? env.REDIS_URL.trim() : "";
+  if (url) {
+    redisClient = new IORedis(url, {
       maxRetriesPerRequest: null,
       lazyConnect: true,
       enableOfflineQueue: false
-    })
-  : null;
-
-if (redisConnection) {
-  redisConnection.on("error", (err) => {
-    console.warn("Redis connection error:", err.message);
-  });
+    });
+    redisClient.on("error", (err) => {
+      console.warn("Redis connection error:", err.message);
+    });
+  }
+} catch (err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.warn("Redis unavailable - running without cache:", msg);
+  redisClient = null;
 }
+
+/** @deprecated Prefer named import `redisConnection` — default export for compatibility. */
+export default redisClient;
+
+export const redisConnection = redisClient;
+export const redisEnabled = Boolean(redisClient);

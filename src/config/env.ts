@@ -8,8 +8,8 @@ const envSchema = z.object({
   /** Set by the host (e.g. Railway). Parsed for any code that reads env.PORT; listen binding uses process.env.PORT in server.ts. */
   PORT: z.coerce.number().optional(),
   DATABASE_URL: z.string().min(1),
-  /** Optional: omit or leave empty to run API without Redis (queues/cache disabled; OAuth state uses memory). */
-  REDIS_URL: z.string().default(""),
+  /** Optional — no Redis: no cache, jobs run inline, OAuth state in memory (single instance). */
+  REDIS_URL: z.string().optional(),
   INGESTION_MODE: z.enum(["instagram", "mock"]).default("mock"),
   JWT_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16).default("replace-with-a-long-random-refresh-secret"),
