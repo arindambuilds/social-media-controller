@@ -45,7 +45,13 @@ export function createApp() {
   });
 
   app.use(helmet());
-  app.use(cors({ origin: corsOrigin(), credentials: true }));
+  app.use(
+    cors({
+      origin: corsOrigin(),
+      credentials: true,
+      exposedHeaders: ["Location"]
+    })
+  );
   app.use(express.json({ limit: "1mb" }));
 
   const authLimiter = rateLimit({

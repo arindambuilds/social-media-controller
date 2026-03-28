@@ -121,6 +121,10 @@ export default function AnalyticsPage() {
       <div className="page-shell">
         <section className="panel span-12">
           <h2>Analytics</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div className="spinner" aria-label="Loading analytics" />
+            <span className="muted">Loading charts…</span>
+          </div>
           <div className="stats-grid">
             {[1, 2, 3, 4].map((k) => (
               <div key={k} className="stat-card">

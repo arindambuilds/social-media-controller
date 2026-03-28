@@ -31,6 +31,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AppProviders>
           <AuthProvider>
             <DashboardNav />
+            {/* Errors in route segments are caught by app/error.tsx (Next.js error boundary). */}
             <main className="app-main">{children}</main>
           </AuthProvider>
         </AppProviders>

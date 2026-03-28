@@ -14,6 +14,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [ingestionMode, setIngestionMode] = useState<string | null>(null);
   const [metaConfigured, setMetaConfigured] = useState<boolean | null>(null);
+  const [connectBusy, setConnectBusy] = useState(false);
 
   useEffect(() => {
     const token = getStoredToken();
@@ -66,21 +67,43 @@ export default function OnboardingPage() {
       router.push("/login");
       return;
     }
-    const res = await apiFetch(
-      `/auth/oauth/instagram/authorise?clientId=${encodeURIComponent(clientId)}`
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      try {
-        const j = JSON.parse(text) as { error?: string };
-        setError(j.error ?? text);
-      } catch {
-        setError(text || "Could not start Instagram OAuth.");
+    setConnectBusy(true);
+    try {
+      const instagramUrl = `${API_ORIGIN}/api/auth/instagram?clientId=${encodeURIComponent(clientId)}`;
+      const res = await fetch(instagramUrl, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        redirect: "manual"
+      });
+      const loc = res.headers.get("Location");
+      if (
+        (res.status === 302 || res.status === 301 || res.status === 307 || res.status === 308) &&
+        loc
+      ) {
+        window.location.href = loc;
+        return;
       }
-      return;
+
+      const res2 = await apiFetch(
+        `/auth/oauth/instagram/authorise?clientId=${encodeURIComponent(clientId)}`
+      );
+      if (!res2.ok) {
+        const text = await res2.text();
+        try {
+          const j = JSON.parse(text) as { error?: string };
+          setError(j.error ?? text);
+        } catch {
+          setError(text || "Could not start Instagram OAuth.");
+        }
+        return;
+      }
+      const data = (await res2.json()) as { url: string };
+      window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start Instagram OAuth.");
+    } finally {
+      setConnectBusy(false);
     }
-    const data = (await res.json()) as { url: string };
-    window.location.href = data.url;
   }
 
   if (loading) {
@@ -131,8 +154,8 @@ export default function OnboardingPage() {
         ) : null}
         {error ? <p className="text-error">{error}</p> : null}
         <div className="actions" style={{ marginTop: 16 }}>
-          <button type="button" className="button" onClick={connect}>
-            Connect Instagram
+          <button type="button" className="button" onClick={connect} disabled={connectBusy}>
+            {connectBusy ? "Opening Meta…" : "Connect Instagram"}
           </button>
         </div>
       </section>

@@ -202,6 +202,10 @@ export default function InsightsPage() {
       <div className="page-shell">
         <section className="panel span-12">
           <h2>Insights</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div className="spinner" aria-label="Loading insights" />
+            <span className="muted">Loading AI insights…</span>
+          </div>
           <div className="skeleton" style={{ height: 120 }} />
         </section>
       </div>

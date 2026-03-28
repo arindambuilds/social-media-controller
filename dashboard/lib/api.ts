@@ -1,6 +1,6 @@
 import { CLIENT_ID_KEY, TOKEN_KEY } from "./auth-storage";
 
-/** API origin without `/api` — same as `NEXT_PUBLIC_API_URL`. */
+/** API origin without `/api` — set `NEXT_PUBLIC_API_URL` in Vercel / `.env.local` (localhost fallback is dev only). */
 export const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 export const API_BASE_URL = `${API_ORIGIN}/api`;
 

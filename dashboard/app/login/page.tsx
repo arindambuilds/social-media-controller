@@ -23,30 +23,38 @@ export default function LoginPage() {
   const [email, setEmail] = useState("demo@demo.com");
   const [password, setPassword] = useState("Demo1234!");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function onLogin() {
     setError("");
-    const response = await fetch(`${API_ORIGIN}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_ORIGIN}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
 
-    if (!response.ok) {
-      setError(await readLoginError(response));
-      return;
+      if (!response.ok) {
+        setError(await readLoginError(response));
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        success: boolean;
+        accessToken: string;
+        user: { clientId?: string | null };
+      };
+
+      const me = await fetchMe(payload.accessToken);
+      setSession(payload.accessToken, me.user.clientId ?? null);
+
+      router.push("/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign-in failed.");
+    } finally {
+      setSubmitting(false);
     }
-
-    const payload = (await response.json()) as {
-      success: boolean;
-      accessToken: string;
-      user: { clientId?: string | null };
-    };
-
-    const me = await fetchMe(payload.accessToken);
-    setSession(payload.accessToken, me.user.clientId ?? null);
-
-    router.push("/dashboard");
   }
 
   return (
@@ -67,8 +75,8 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
             />
-            <button type="button" className="button" onClick={onLogin}>
-              Continue
+            <button type="button" className="button" onClick={onLogin} disabled={submitting}>
+              {submitting ? "Signing in…" : "Continue"}
             </button>
             {error ? <p className="text-error">{error}</p> : null}
           </div>

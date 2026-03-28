@@ -86,7 +86,11 @@ export default function AuditPage() {
   if (loading) {
     return (
       <div className="page-shell">
-        <div className="skeleton" style={{ height: 120 }} />
+        <div className="panel" style={{ display: "flex", alignItems: "center", gap: 12, padding: 32 }}>
+          <div className="spinner" aria-label="Loading audit log" />
+          <span className="muted">Loading audit log…</span>
+        </div>
+        <div className="skeleton" style={{ height: 120, marginTop: 16 }} />
       </div>
     );
   }
