@@ -120,17 +120,17 @@ If `DATABASE_URL` still points at `localhost` while `NODE_ENV=production`, the A
 
 | Field | Example |
 |-------|---------|
-| **Build Command** | `npm install && npm run build && npm run db:deploy:seed` |
-| **Start Command** | `node dist/server.js` |
+| **Build Command** | `npm ci && npm run build` |
+| **Start Command** | `npm start` (runs `prisma migrate deploy && node dist/server.js`) |
 
-`db:deploy:seed` runs `prisma migrate deploy` then `prisma db seed`. In this repo, `prisma migrate deploy` should use `DIRECT_URL`, while the running API uses `DATABASE_URL`.
+If **migrate** fails on Render with **P1001** to `:5432`, run `npx prisma migrate deploy` locally once, then set **Start Command** to **`npm run start:app`** (`node dist/server.js` only). Optional: run `npx tsx prisma/seed.ts` locally against the pooler URL if you need demo users.
 
 ### Render Web Service — Required Environment Variables
 
 | Variable | Value | Notes |
 |---|---|---|
 | `DIRECT_URL` | `postgresql://postgres:<PASSWORD>@db.lvlzugnoavgzwzulnnyf.supabase.co:5432/postgres?schema=public&sslmode=require` | Direct Supabase Postgres for Prisma migrations |
-| `DATABASE_URL` | `postgresql://postgres:<PASSWORD>@db.lvlzugnoavgzwzulnnyf.supabase.co:6543/postgres?schema=public&pgbouncer=true&sslmode=require` | Supabase transaction pooler for runtime |
+| `DATABASE_URL` | Copy **Transaction pooler** from Supabase (usually `*.pooler.supabase.com:6543`, user `postgres.<project-ref>`, `pgbouncer=true`, `sslmode=require`) | **Do not** use `db.*.supabase.co:5432` here — that is direct Postgres, not the pooler |
 | `NODE_ENV` | `production` | Required for production DB guard |
 | `JWT_SECRET` | (from local `.env`) | Min 32 chars |
 | `JWT_REFRESH_SECRET` | (from local `.env`) | Min 32 chars |
@@ -152,6 +152,15 @@ After updating Render env vars:
 2. Verify `GET /api/health/db`.
 3. Verify `POST /api/auth/login`.
 4. If runtime still fails but migrations worked, compare Render’s `DATABASE_URL` character-for-character with the exact Supabase transaction pooler value. No manual hostname guessing.
+
+### Prisma `P1001` during `prisma migrate deploy` on Render
+
+Logs show `Can't reach database server at 'db.*.supabase.co:5432'` when the **start** command runs migrations against **`DIRECT_URL`**.
+
+1. **Resume** the Supabase project if it is **paused** (dashboard → project status).
+2. Confirm **`DATABASE_URL`** is the **transaction pooler** (`:6543`, pooler hostname from Supabase UI), not direct `:5432`.
+3. Confirm **`DIRECT_URL`** uses **`sslmode=require`** and a URL-encoded password.
+4. If `:5432` is still unreachable from Render: run `npx prisma migrate deploy` **from your laptop** (with the same env vars), then set Render **Start Command** to **`npm run start:app`** so the service boots without migrate on each deploy. Run migrations again after Prisma schema changes.
 
 ### Vercel Dashboard — Required Environment Variables
 

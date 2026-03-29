@@ -5,9 +5,10 @@
 
   2) Left sidebar → **Environment** → **Environment Variables**.
 
-  3) Set **Supabase** URLs (Render cannot use direct `:5432` to `db.*.supabase.co` — use the **Transaction pooler**):
-     - **DATABASE_URL** = Supabase → Settings → Database → **Transaction pooler** URI (host like `*.pooler.supabase.com`, port **6543**). Append **`?pgbouncer=true`** (and **`sslmode=require`**) if not already in the string — required for Prisma + PgBouncer.
-     - **DIRECT_URL** = **Direct connection** URI (host `db.<project-ref>.supabase.co`, port **5432**) with **`sslmode=require`**. Used for `prisma migrate` / introspection only.
+  3) Set **Supabase** URLs:
+     - **DATABASE_URL** = **Transaction pooler** only (host like `*.pooler.supabase.com`, port **6543**). Must NOT be `db.*.supabase.co:5432` — the app + PgBouncer need the pooler. Append **`pgbouncer=true`** and **`sslmode=require`** if missing.
+     - **DIRECT_URL** = **Direct connection** (`db.<project-ref>.supabase.co`, port **5432**, **`sslmode=require`**). Used by `prisma migrate deploy` on boot.
+     - **If deploy crashes with `P1001` on `:5432`:** the migrate step cannot reach Supabase direct Postgres from Render (paused project, network, or IPv4). In Supabase → **pause/resume** the project. If it still fails: run migrations from your laptop (`npx prisma migrate deploy` with the same `DIRECT_URL` / pooler env), then on Render set **Start Command** to `npm run start:app` (runs `node dist/server.js` only — no migrate on boot). Re-apply migrations after schema changes via laptop or Render Shell if it can reach `:5432`.
      - Encode special characters in the password in both URLs as needed.
      - Must NOT be `...@localhost...` on the Web Service.
 

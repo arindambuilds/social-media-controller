@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "clean:cache": "rimraf node_modules/.cache",
     "start": "npx prisma migrate deploy && node dist/server.js",
+    "start:app": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
