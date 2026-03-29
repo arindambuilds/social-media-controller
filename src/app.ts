@@ -99,6 +99,11 @@ export function createApp() {
 
   const app = express();
 
+  // One trusted hop (e.g. Render, Railway) so req.ip and rate limits use the real client.
+  if (env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+  }
+
   app.use(securityHelmet());
   app.use(
     cors({
