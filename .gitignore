@@ -3,6 +3,8 @@ dist/
 .env
 .env.*
 !.env.example
+# Local curl helper (may contain demo password)
+login.json
 dashboard/.env.local
 dashboard/.env.production
 dashboard/.env.*.local

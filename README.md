@@ -106,11 +106,21 @@ npm run dashboard:dev
 
 ## API surface (high level)
 
-- Auth: `POST /api/auth/signup`, `login`, `refresh`, `GET /api/auth/me`
-- Instagram OAuth: `GET /api/auth/oauth/instagram/authorise`, callback, plus `social-accounts/instagram/start`
-- Analytics: `/api/analytics/...` (overview, posts, insights — see app routes)
-- AI: `/api/ai/...`, `/api/insights/...`
-- Webhooks: ingestion enqueue under `/api/webhooks/...`
+| Area | Endpoints (representative) |
+|------|----------------------------|
+| **Auth** | `POST /api/auth/signup`, `login`, `refresh`, `GET /api/auth/me`, `register` (agency) |
+| **Instagram OAuth** | `GET /api/auth/oauth/instagram/authorise`, callbacks, `social-accounts/connect/*` |
+| **Analytics** | `GET /api/analytics/:clientId/overview`, `posts`, `GET /api/analytics/:platform/:clientId/summary` |
+| **AI / insights** | `GET/POST /api/ai/*`, `GET /api/insights/*`, `POST /api/ai/insights/*` |
+| **Billing** | `GET /api/billing/:clientId/status` |
+| **Clients & DM** | `GET/PATCH /api/clients/:clientId/dm-settings`, `GET /api/clients/:clientId/dm-conversations`, `GET .../dm-conversations/:id/messages` |
+| **Meta DM webhook** | `GET/POST /api/webhook/instagram` (verify token + `X-Hub-Signature-256`; no JWT) |
+| **Ingestion webhooks** | `POST /api/webhooks/*` (signed) |
+| **Morning briefing** | `GET /api/briefing/latest`, `POST /api/briefing/trigger`, `PATCH /api/briefing/settings` |
+| **Voice-to-post** | `POST /api/voice/transcribe`, `POST /api/voice/generate`, `POST /api/voice/save` |
+| **Posts / leads / accounts** | `GET/POST/DELETE /api/posts`, `GET /api/leads`, `GET/POST /api/social-accounts/*` |
+
+See `docs/completion-report.md` for a fuller route table.
 
 ---
 

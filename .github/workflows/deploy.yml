@@ -1,11 +1,13 @@
-name: CI/CD
+# Push to main: API tests + lints + dashboard lint, then Render deploy hook (if secret set).
+# Postgres + Prisma here are required: `env.ts` and Vitest load at import time with DATABASE_URL.
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [main]
 
 jobs:
-  test-and-deploy:
+  test-lint-deploy:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -32,23 +34,46 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "22"
           cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npm run prisma:generate
-      - run: npx prisma migrate deploy
-      - run: npm run prisma:seed
-      - run: npm test
-      - run: npm run lint
+          cache-dependency-path: |
+            package-lock.json
+            dashboard/package-lock.json
+
+      - name: Install API dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npm run prisma:generate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed database
+        run: npm run prisma:seed
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run API lint
+        run: npm run lint
+
+      - name: Install dashboard dependencies
+        run: npm ci --prefix dashboard
+
+      - name: Run dashboard lint
+        run: npm --prefix dashboard run lint
+
       - name: Deploy to Render
+        if: success()
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
           if [ -z "${RENDER_DEPLOY_HOOK}" ]; then
-            echo "RENDER_DEPLOY_HOOK secret not set — skipping deploy (add it in repo Settings → Secrets)."
+            echo "RENDER_DEPLOY_HOOK secret not set — skipping deploy (GitHub → Settings → Secrets)."
             exit 0
           fi
           curl -fsS -X POST "${RENDER_DEPLOY_HOOK}"

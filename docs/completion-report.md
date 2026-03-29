@@ -49,6 +49,18 @@ Legend: ✅ working · ⚠️ stub / partial · 🔴 missing
 | POST | `/api/ai/insights/content-performance/:clientId` | Bearer | ✅ |
 | GET | `/api/billing/:clientId/status` | Bearer | ✅ (AI generation usage vs monthly limit) |
 | GET/POST | `/api/clients/*` | Bearer | ✅ |
+| GET | `/api/clients/:clientId/dm-settings` | Bearer + tenant | ✅ |
+| PATCH | `/api/clients/:clientId/dm-settings` | Bearer + tenant | ✅ |
+| GET | `/api/clients/:clientId/dm-conversations` | Bearer + tenant | ✅ |
+| GET | `/api/clients/:clientId/dm-conversations/:conversationId/messages` | Bearer + tenant | ✅ |
+| GET | `/api/webhook/instagram` | No (Meta verify) | ✅ |
+| POST | `/api/webhook/instagram` | No (`X-Hub-Signature-256` + app secret) | ✅ |
+| GET | `/api/briefing/latest` | Bearer | ✅ |
+| POST | `/api/briefing/trigger` | Bearer | ✅ |
+| PATCH | `/api/briefing/settings` | Bearer | ✅ |
+| POST | `/api/voice/transcribe` | Bearer (multipart) | ✅ |
+| POST | `/api/voice/generate` | Bearer | ✅ |
+| POST | `/api/voice/save` | Bearer | ✅ |
 | GET | `/api/leads` | Bearer | ✅ |
 | GET/POST/DELETE | `/api/posts` | Bearer | ✅ |
 | GET | `/api/audit-logs` | Bearer | ✅ |
@@ -87,10 +99,12 @@ Without `REDIS_URL`, jobs run **synchronously** in the API process when enqueued
 | `/posts` | ✅ |
 | `/accounts` | ✅ |
 | `/dashboard` | ✅ |
+| `/dashboard/dm-settings` | ✅ (DM auto-reply) |
+| `/dashboard/dm-inbox` | ✅ (read-only threads) |
 | `/onboarding` + `/onboarding/callback` | ✅ |
 | `/audit` | ✅ |
 
-**Primary nav (5):** Analytics, Insights, Leads, Posts, Accounts (+ More: Home, Dashboard, Connect, Audit, Login).
+**Primary nav (5):** Analytics, Insights, Leads, Posts, Accounts (+ More: Home, Dashboard, DM settings, DM inbox, Connect, Audit, Login).
 
 ---
 
@@ -120,6 +134,8 @@ Without `REDIS_URL`, jobs run **synchronously** in the API process when enqueued
 | Meta / OpenAI vars | As needed |
 
 **Vercel:** `NEXT_PUBLIC_API_URL` = API origin **without** `/api`.
+
+**Render start:** this repo uses `npx prisma migrate deploy && node dist/server.js` (not `dist/index.js`).
 
 ---
 
