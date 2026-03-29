@@ -32,12 +32,14 @@ const SERVICE_UNAVAILABLE_BODY = {
 function toAuthUserResponse(user: {
   id: string;
   email: string;
+  name?: string | null;
   role: string;
   clientId?: string | null;
 }) {
   return {
     id: user.id,
     email: user.email,
+    name: user.name ?? null,
     role: user.role,
     clientId: user.clientId ?? null
   };
@@ -129,7 +131,7 @@ authRouter.post("/register", registerAuthLimiter, authenticate, requireRole("AGE
 
     const result = await registerUserByAgency(payload);
     await writeAuditLog({
-      clientId: result.user.clientId ?? payload.clientId ?? "unassigned",
+      clientId: result.user.clientId ?? payload.clientId ?? null,
       actorId: req.auth?.userId,
       action: "USER_REGISTERED_BY_AGENCY",
       entityType: "User",
@@ -169,7 +171,7 @@ authRouter.post("/signup", registerAuthLimiter, async (req, res) => {
 
     const result = await signup(payload);
     await writeAuditLog({
-      clientId: result.user.clientId ?? "unassigned",
+      clientId: result.user.clientId ?? null,
       actorId: result.user.id,
       action: "USER_SIGNED_UP",
       entityType: "User",

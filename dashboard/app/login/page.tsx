@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "../../components/ui/page-header";
-import { apiFetch, fetchMe } from "../../lib/api";
+import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../context/auth-context";
 
 const LOGIN_TIMEOUT_MS = 90_000;
@@ -35,6 +35,7 @@ export default function LoginPage() {
       const payload = await apiFetch<{
         success: boolean;
         accessToken: string;
+        refreshToken: string;
         user: { clientId?: string | null };
       }>("/auth/login", {
         method: "POST",
@@ -42,10 +43,8 @@ export default function LoginPage() {
         timeoutMs: LOGIN_TIMEOUT_MS
       });
 
-      const me = await fetchMe(payload.accessToken, LOGIN_TIMEOUT_MS);
-      setSession(payload.accessToken, me.user.clientId ?? null);
-
-      router.push("/analytics");
+      setSession(payload.accessToken, payload.user.clientId ?? null, payload.refreshToken);
+      router.push("/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign-in failed.");
     } finally {

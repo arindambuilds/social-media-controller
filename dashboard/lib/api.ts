@@ -1,4 +1,4 @@
-import { CLIENT_ID_KEY, TOKEN_KEY } from "./auth-storage";
+import { clearAuthStorage, notifyAuthStorageSync, REFRESH_TOKEN_KEY, TOKEN_KEY } from "./auth-storage";
 
 /** Default request timeout (ms). Login uses a longer override for Render cold starts. */
 export const DEFAULT_API_TIMEOUT_MS = 10_000;
@@ -103,6 +103,56 @@ function isLoginPost(path: string, init?: ApiFetchInit): boolean {
   return method === "POST" && p.startsWith("/auth/login");
 }
 
+function isRefreshPost(path: string, init?: ApiFetchInit): boolean {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const method = (init?.method ?? "GET").toUpperCase();
+  return method === "POST" && (p === "/auth/refresh" || p.startsWith("/auth/refresh"));
+}
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+/** Exchange refresh token for new access (+ refresh). Returns new access or null. */
+async function tryRefreshTokens(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const rt = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!rt) return null;
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      try {
+        const res = await fetchWithTimeout(
+          `${API_URL}/auth/refresh`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken: rt })
+          },
+          Math.max(DEFAULT_API_TIMEOUT_MS, 25_000)
+        );
+        const body = await readResponseJson(res);
+        if (!res.ok) return null;
+        const access = (body as { accessToken?: string }).accessToken;
+        const nextRt = (body as { refreshToken?: string }).refreshToken;
+        if (!access) return null;
+        localStorage.setItem(TOKEN_KEY, access);
+        if (nextRt) localStorage.setItem(REFRESH_TOKEN_KEY, nextRt);
+        notifyAuthStorageSync();
+        return access;
+      } catch {
+        return null;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+  }
+  return refreshInFlight;
+}
+
+function forceLogoutToLogin(): void {
+  if (typeof window === "undefined") return;
+  clearAuthStorage();
+  window.location.assign("/login");
+}
+
 function mapAbortToTimeout(err: unknown): Error {
   if (err instanceof Error && (err.name === "AbortError" || /abort/i.test(err.message))) {
     return new Error("Request timed out. The API may be waking up—wait up to a minute and try again.");
@@ -135,40 +185,51 @@ async function fetchWithTimeout(url: string, init: ApiFetchInit | undefined, tim
 
 /**
  * JSON API helper: `${API_URL}${path}`. Throws on non-OK with `body?.error?.message` when present.
- * Omits `Authorization` on `POST /auth/login`.
+ * Omits `Authorization` on `POST /auth/login`. On 401, attempts refresh once then retries.
  */
 export async function apiFetch<T = unknown>(path: string, options?: ApiFetchInit): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+  let token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
   const p = path.startsWith("/") ? path : `/${path}`;
-  const skipAuth = isLoginPost(p, options);
+  const skipAuth = isLoginPost(p, options) || isRefreshPost(p, options);
   const timeoutMs = options?.timeoutMs ?? DEFAULT_API_TIMEOUT_MS;
+  const url = `${API_URL}${p}`;
 
-  const res = await fetchWithTimeout(
-    `${API_URL}${p}`,
-    {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
-        ...options?.headers
+  const doFetch = (bearer: string | null) =>
+    fetchWithTimeout(
+      url,
+      {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(bearer && !skipAuth ? { Authorization: `Bearer ${bearer}` } : {}),
+          ...options?.headers
+        },
+        cache: "no-store"
       },
-      cache: "no-store"
-    },
-    timeoutMs
-  );
+      timeoutMs
+    );
 
-  const body = await readResponseJson(res);
+  let res = await doFetch(skipAuth ? null : token);
+  let body = await readResponseJson(res);
+
+  if (
+    res.status === 401 &&
+    typeof window !== "undefined" &&
+    token &&
+    !skipAuth &&
+    !p.includes("/auth/login")
+  ) {
+    const next = await tryRefreshTokens();
+    if (next) {
+      token = next;
+      res = await doFetch(next);
+      body = await readResponseJson(res);
+    }
+  }
 
   if (!res.ok) {
-    if (
-      typeof window !== "undefined" &&
-      res.status === 401 &&
-      token &&
-      !p.includes("/auth/login")
-    ) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(CLIENT_ID_KEY);
-      window.location.assign("/login");
+    if (typeof window !== "undefined" && res.status === 401 && !skipAuth && !p.includes("/auth/login")) {
+      forceLogoutToLogin();
     }
     const raw =
       body && typeof body === "object" && "_raw" in body && typeof (body as { _raw: string })._raw === "string"
@@ -187,24 +248,48 @@ export async function apiFetch<T = unknown>(path: string, options?: ApiFetchInit
 
 /** Same URL/auth as apiFetch but returns the raw `Response` (e.g. 429 handling). */
 export async function apiFetchResponse(path: string, options?: ApiFetchInit): Promise<Response> {
-  const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+  let token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
   const p = path.startsWith("/") ? path : `/${path}`;
-  const skipAuth = isLoginPost(p, options);
+  const skipAuth = isLoginPost(p, options) || isRefreshPost(p, options);
   const timeoutMs = options?.timeoutMs ?? DEFAULT_API_TIMEOUT_MS;
+  const url = `${API_URL}${p}`;
 
-  return fetchWithTimeout(
-    `${API_URL}${p}`,
-    {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
-        ...options?.headers
+  const doFetch = (bearer: string | null) =>
+    fetchWithTimeout(
+      url,
+      {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(bearer && !skipAuth ? { Authorization: `Bearer ${bearer}` } : {}),
+          ...options?.headers
+        },
+        cache: "no-store"
       },
-      cache: "no-store"
-    },
-    timeoutMs
-  );
+      timeoutMs
+    );
+
+  let res = await doFetch(skipAuth ? null : token);
+
+  if (
+    res.status === 401 &&
+    typeof window !== "undefined" &&
+    token &&
+    !skipAuth &&
+    !p.includes("/auth/login")
+  ) {
+    const next = await tryRefreshTokens();
+    if (next) {
+      token = next;
+      res = await doFetch(next);
+    }
+  }
+
+  if (res.status === 401 && typeof window !== "undefined" && !skipAuth && !p.includes("/auth/login")) {
+    forceLogoutToLogin();
+  }
+
+  return res;
 }
 
 export async function apiRequestJson<T>(path: string, init?: ApiFetchInit): Promise<T> {
@@ -214,21 +299,34 @@ export async function apiRequestJson<T>(path: string, init?: ApiFetchInit): Prom
 async function requestWithToken<T>(path: string, token: string, init?: ApiFetchInit): Promise<T> {
   const p = path.startsWith("/") ? path : `/${path}`;
   const timeoutMs = init?.timeoutMs ?? DEFAULT_API_TIMEOUT_MS;
-  const response = await fetchWithTimeout(
-    `${API_URL}${p}`,
-    {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        ...init?.headers
+  const url = `${API_URL}${p}`;
+
+  const run = (t: string) =>
+    fetchWithTimeout(
+      url,
+      {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${t}`,
+          ...init?.headers
+        },
+        cache: "no-store"
       },
-      cache: "no-store"
-    },
-    timeoutMs
-  );
+      timeoutMs
+    );
+
+  let response = await run(token);
+  if (response.status === 401 && typeof window !== "undefined") {
+    const next = await tryRefreshTokens();
+    if (next) response = await run(next);
+  }
+
   const parsed = await readResponseJson(response);
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      forceLogoutToLogin();
+    }
     const raw =
       parsed && typeof parsed === "object" && "_raw" in parsed && typeof (parsed as { _raw: string })._raw === "string"
         ? (parsed as { _raw: string })._raw.slice(0, 200)
@@ -276,10 +374,16 @@ export const api = {
   }
 };
 
-export async function fetchMe(token: string, timeoutMs: number = DEFAULT_API_TIMEOUT_MS) {
+export async function fetchMe(explicitToken?: string | null, timeoutMs: number = DEFAULT_API_TIMEOUT_MS) {
+  const tok =
+    explicitToken ??
+    (typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null);
+  if (!tok) {
+    throw new Error("Not signed in");
+  }
   return requestWithToken<{
     success: boolean;
     user: { id: string; email: string; name: string | null; role: string; clientId: string | null };
     instagramConnected: boolean;
-  }>("/auth/me", token, { timeoutMs });
+  }>("/auth/me", tok, { timeoutMs });
 }
