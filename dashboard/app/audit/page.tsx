@@ -113,12 +113,12 @@ export default function AuditPage() {
         <PageHeader
           eyebrow="Security"
           title="Audit log"
-          description="This area is reserved for agency administrators."
+          description="This feature is available for agency accounts."
         />
         <section className="panel span-12" style={{ marginTop: 20, padding: "28px 24px" }}>
           <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: "var(--text-secondary)" }}>
-            Audit history is not available for store logins. If you need activity visibility, ask your agency admin
-            to export or review logs from their account.
+            This feature is available for agency accounts. Your login does not include access to audit history — contact
+            your agency if you need activity visibility.
           </p>
           <Link href="/dashboard" className="button" style={{ marginTop: 20, display: "inline-block" }}>
             Back to dashboard

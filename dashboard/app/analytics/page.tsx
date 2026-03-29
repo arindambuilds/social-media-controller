@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import { apiFetch, type AnalyticsSummary } from "../../lib/api";
+import { apiFetch, fetchMe, type AnalyticsSummary } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 import { AnalyticsPageSkeleton } from "../../components/page-skeleton";
 
@@ -100,12 +100,12 @@ export default function AnalyticsPage() {
     (async () => {
       try {
         let cid = getStoredClientId();
-        if (!cid) {
-          const { fetchMe } = await import("../../lib/api");
-          const me = await fetchMe();
-          cid = me.user.clientId;
-          if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
+        const me = await fetchMe();
+        cid = cid ?? me.user.clientId ?? null;
+        if (!cid && me.user.role === "AGENCY_ADMIN") {
+          cid = "demo-client";
         }
+        if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
         if (!cid) {
           setError("No client ID for this account. Log in with a user that has a client assigned.");
           setLoading(false);

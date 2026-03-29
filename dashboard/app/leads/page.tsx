@@ -41,11 +41,8 @@ export default function LeadsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (token: string, clientId: string | null) => {
-    const path =
-      clientId != null
-        ? `/leads?clientId=${encodeURIComponent(clientId)}&page=1&limit=50`
-        : `/leads?page=1&limit=50`;
+  const load = useCallback(async (clientId: string) => {
+    const path = `/leads?clientId=${encodeURIComponent(clientId)}&page=1&limit=50`;
     const data = await apiFetch<{ success: boolean; leads: Lead[] }>(path);
     setLeads(data.leads ?? []);
   }, []);
@@ -62,6 +59,9 @@ export default function LeadsPage() {
         const me = await fetchMe();
         setRole(me.user.role);
         let cid: string | null = getStoredClientId() ?? me.user.clientId;
+        if (!cid && me.user.role === "AGENCY_ADMIN") {
+          cid = "demo-client";
+        }
         if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
 
         if (me.user.role === "CLIENT_USER") {
@@ -70,9 +70,11 @@ export default function LeadsPage() {
             setLoading(false);
             return;
           }
-          await load(token, cid);
+          await load(cid);
+        } else if (cid) {
+          await load(cid);
         } else {
-          await load(token, cid);
+          setError("No client context — assign a client to your agency user or use the demo operator login.");
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load leads");

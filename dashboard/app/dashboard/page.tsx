@@ -76,8 +76,11 @@ export default function DashboardHomePage() {
         const me = await fetchMe();
         setName(me.user.name ?? me.user.email);
         setEmail(me.user.email ?? null);
-        if (me.user.clientId) {
-          const cid = me.user.clientId;
+        let cid = me.user.clientId ?? getStoredClientId();
+        if (!cid && me.user.role === "AGENCY_ADMIN") {
+          cid = "demo-client";
+        }
+        if (cid) {
           localStorage.setItem(CLIENT_ID_KEY, cid);
           setClientLabel(cid);
           setStatsLoading(true);

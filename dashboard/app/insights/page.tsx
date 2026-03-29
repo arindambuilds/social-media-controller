@@ -58,11 +58,12 @@ export default function InsightsPage() {
     (async () => {
       try {
         let cid = getStoredClientId();
-        if (!cid) {
-          const me = await fetchMe();
-          cid = me.user.clientId;
-          if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
+        const me = await fetchMe();
+        cid = cid ?? me.user.clientId ?? null;
+        if (!cid && me.user.role === "AGENCY_ADMIN") {
+          cid = "demo-client";
         }
+        if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
         if (!cid) {
           setError("No client ID for this account.");
           setLoadingLatest(false);
