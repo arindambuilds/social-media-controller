@@ -27,6 +27,7 @@ The `api` service waits until Postgres and Redis report **healthy**.
 For containers on localhost, typical URLs are:
 
 - `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/social_media_controller?schema=public`
+- `DIRECT_URL=` same as `DATABASE_URL` for local Postgres (required by Prisma schema; see `.env.example` for Supabase pooler + direct split).
 - `REDIS_URL=redis://localhost:6379` (plain Redis; use `rediss://` only for TLS services like Upstash)
 
 ---
@@ -170,8 +171,21 @@ npm run smoke:render
   "socialAccountId": "<instagram SocialAccount id from DB or seed>",
   "platform": "INSTAGRAM",
   "trigger": "manual"
-}
-```
+   }
+   ```
+
+3. Signed social webhook test:
+
+   - Body example:
+
+   ```json
+   {"socialAccountId":"demo-social-account","eventType":"comment","externalId":"demo-event-1","text":"price?","authorId":"user-1","authorName":"User 1"}
+   ```
+
+   - Sign the raw JSON with HMAC SHA-256 using `WEBHOOK_SIGNING_SECRET`.
+   - Send either:
+     - `X-Webhook-Signature: <hex digest>`
+     - `X-Hub-Signature-256: sha256=<hex digest>`
 
 ---
 

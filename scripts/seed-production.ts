@@ -31,8 +31,11 @@ async function main() {
   const databaseUrl = process.env.DATABASE_URL?.trim();
   if (!databaseUrl) {
     throw new Error(
-      'DATABASE_URL is not set. Run: DATABASE_URL="postgresql://user:pass@host:5432/postgres" npx tsx scripts/seed-production.ts'
+      'DATABASE_URL is not set. Run: DATABASE_URL="postgresql://..." npx tsx scripts/seed-production.ts (set DIRECT_URL to direct :5432 for Supabase when using pooler in DATABASE_URL)'
     );
+  }
+  if (!process.env.DIRECT_URL?.trim()) {
+    process.env.DIRECT_URL = databaseUrl;
   }
 
   const prisma = new PrismaClient();

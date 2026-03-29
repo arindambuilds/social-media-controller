@@ -31,6 +31,11 @@ const envSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     PORT: z.coerce.number().optional(),
     DATABASE_URL: z.string().min(1),
+    /**
+     * Direct Postgres URL for migrations (port 5432). For Supabase + Render, use pooler in DATABASE_URL (:6543)
+     * and direct host in DIRECT_URL. Local dev: set equal to DATABASE_URL.
+     */
+    DIRECT_URL: z.string().min(1).optional(),
     JWT_SECRET: z.string().min(32),
     JWT_REFRESH_SECRET: z.string().min(32),
     REDIS_URL: z.string().optional(),
@@ -65,6 +70,7 @@ const envSchema = z
       .optional()
       .default("http://localhost:3000/onboarding/callback"),
     OPENAI_MODEL: z.string().optional().default("gpt-5"),
+    WEBHOOK_SIGNING_SECRET: z.string().optional().default(""),
     /** Comma-separated origins, or * for dev-only (refused in production). */
     CORS_ORIGIN: z.string().optional().default("*")
   })
@@ -99,12 +105,15 @@ const envSchema = z
     }
 
     const db = data.DATABASE_URL.toLowerCase();
-    // Nudge operators toward TLS to the database in production (Supabase/Render).
-    if (!db.includes("sslmode=require") && !db.includes("ssl=true")) {
+    // TLS: explicit sslmode, or Supabase pooler / pgbouncer (encrypted by platform defaults).
+    const hasExplicitTls = db.includes("sslmode=require") || db.includes("ssl=true");
+    const supabasePooled =
+      db.includes("pooler.supabase.com") || db.includes("pgbouncer=true");
+    if (!hasExplicitTls && !supabasePooled) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "DATABASE_URL should include sslmode=require (or equivalent) in production for encrypted Postgres.",
+          "DATABASE_URL should use TLS in production (e.g. sslmode=require) or Supabase Transaction pooler (?pgbouncer=true on pooler host).",
         path: ["DATABASE_URL"]
       });
     }
@@ -129,7 +138,13 @@ function resolveAppBaseUrl(): string {
   return DEFAULT_APP_BASE_URL;
 }
 
+// Prisma schema requires DIRECT_URL; default to DATABASE_URL for single-URL setups (local Postgres).
+if (!process.env.DIRECT_URL?.trim()) {
+  process.env.DIRECT_URL = parsed.DATABASE_URL;
+}
+
 export const env = {
   ...parsed,
+  DIRECT_URL: process.env.DIRECT_URL!,
   APP_BASE_URL: resolveAppBaseUrl()
 };

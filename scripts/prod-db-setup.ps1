@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$DatabaseUrl
+    [string]$DatabaseUrl,
+    [Parameter(Mandatory = $false)]
+    [string]$DirectUrl = ""
 )
 
 if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
@@ -10,6 +12,7 @@ if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
 
 $ErrorActionPreference = "Stop"
 $env:DATABASE_URL = $DatabaseUrl.Trim()
+$env:DIRECT_URL = if ([string]::IsNullOrWhiteSpace($DirectUrl)) { $env:DATABASE_URL } else { $DirectUrl.Trim() }
 Write-Host "Running migrations..."
 npx prisma migrate deploy
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
