@@ -278,7 +278,7 @@ export default function DashboardHomePage() {
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="gradient-border p-5">
-                  <div className="skeleton skeleton-stat min-h-[120px] border-0 bg-[#1e1e2e]" />
+                  <div className="skeleton skeleton-stat min-h-[120px]" />
                 </div>
               ))}
             </div>

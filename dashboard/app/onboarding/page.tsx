@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ListPageSkeleton } from "../../components/page-skeleton";
 import { API_ORIGIN, apiFetch, fetchMe } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 
@@ -101,13 +102,7 @@ export default function OnboardingPage() {
   }
 
   if (loading) {
-    return (
-      <div className="page-shell">
-        <div className="panel" style={{ display: "flex", justifyContent: "center", padding: 48 }}>
-          <div className="spinner" aria-label="Loading" />
-        </div>
-      </div>
-    );
+    return <ListPageSkeleton label="Loading onboarding…" />;
   }
 
   if (showSuccess) {

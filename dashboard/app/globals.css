@@ -1449,12 +1449,20 @@ select {
   background: linear-gradient(
     90deg,
     var(--panel-strong) 0%,
-    var(--bg-elevated) 50%,
+    var(--bg-elevated) 32%,
+    color-mix(in srgb, var(--bg-elevated) 82%, var(--accent) 18%) 50%,
+    var(--bg-elevated) 68%,
     var(--panel-strong) 100%
   );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
   min-height: 1em;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 10px;
+  max-width: 100%;
 }
 
 .skeleton-title {
@@ -1490,8 +1498,15 @@ select {
   height: 40px;
   border: 3px solid var(--line);
   border-top-color: var(--accent);
+  border-right-color: color-mix(in srgb, var(--accent-dark) 55%, transparent);
   border-radius: 50%;
   animation: spin 0.75s linear infinite;
+}
+
+.spinner--sm {
+  width: 28px;
+  height: 28px;
+  border-width: 2px;
 }
 
 @keyframes spin {

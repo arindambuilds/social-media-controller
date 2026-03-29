@@ -150,7 +150,7 @@ export default function LeadsPage() {
         </div>
         <div className="mt-4 flex flex-col gap-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="lead-row-card h-24 animate-pulse bg-[#16161f]" />
+            <div key={i} className="skeleton h-24 w-full rounded-[14px]" />
           ))}
         </div>
       </div>

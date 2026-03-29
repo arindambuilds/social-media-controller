@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetchResponse, fetchMe, parseApiErrorMessage } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { ListPageSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
 
 type AuditRow = {
@@ -96,15 +97,7 @@ export default function AuditPage() {
   }, [clientId, page, actionFilter, load, role]);
 
   if (loading) {
-    return (
-      <div className="page-shell">
-        <div className="panel" style={{ display: "flex", alignItems: "center", gap: 12, padding: 32 }}>
-          <div className="spinner" aria-label="Loading audit log" />
-          <span className="muted">Loading…</span>
-        </div>
-        <div className="skeleton" style={{ height: 120, marginTop: 16 }} />
-      </div>
-    );
+    return <ListPageSkeleton label="Loading audit log…" />;
   }
 
   if (role === "CLIENT_USER") {

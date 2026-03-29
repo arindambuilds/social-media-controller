@@ -208,7 +208,7 @@ export default function PostsPage() {
         </div>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="aspect-[4/5] animate-pulse rounded-xl border border-subtle bg-[#16161f]" />
+            <div key={i} className="skeleton aspect-[4/5] w-full rounded-xl" />
           ))}
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { ListPageSkeleton, TableFallbackSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
 
 type AccountRow = {
@@ -106,15 +107,7 @@ function AccountsPageContent() {
   }
 
   if (loading) {
-    return (
-      <div className="page-shell">
-        <div className="panel" style={{ display: "flex", alignItems: "center", gap: 12, padding: 32 }}>
-          <div className="spinner" aria-label="Loading accounts" />
-          <span className="muted">Loading accounts…</span>
-        </div>
-        <div className="skeleton" style={{ height: 120, marginTop: 16 }} />
-      </div>
-    );
+    return <ListPageSkeleton label="Loading accounts…" />;
   }
 
   return (
@@ -187,13 +180,7 @@ function AccountsPageContent() {
 
 export default function AccountsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="page-shell">
-          <div className="skeleton" style={{ height: 120 }} />
-        </div>
-      }
-    >
+    <Suspense fallback={<TableFallbackSkeleton />}>
       <AccountsPageContent />
     </Suspense>
   );

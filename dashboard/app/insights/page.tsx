@@ -236,7 +236,7 @@ export default function InsightsPage() {
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 animate-pulse rounded-xl border border-subtle bg-[#16161f]" />
+              <div key={i} className="skeleton h-32 w-full rounded-xl" />
             ))}
           </div>
         </div>
@@ -487,13 +487,13 @@ export default function InsightsPage() {
               ? Array.from({ length: 4 }).map((_, i) => (
                   <div
                     key={i}
-                    className="animate-pulse rounded-xl border border-subtle bg-[#16161f] p-5"
+                    className="rounded-xl border border-subtle bg-surface/30 p-5"
                     aria-hidden
                   >
-                    <div className="mb-3 h-3 w-1/4 rounded bg-[#2a2a38]" />
-                    <div className="mb-2 h-4 w-full rounded bg-[#2a2a38]" />
-                    <div className="mb-4 h-16 w-full rounded bg-[#2a2a38]" />
-                    <div className="h-8 w-24 rounded bg-[#2a2a38]" />
+                    <div className="skeleton skeleton-line mb-3 w-1/4" />
+                    <div className="skeleton skeleton-line mb-2 w-full" />
+                    <div className="skeleton mb-4 h-16 w-full rounded-lg" />
+                    <div className="skeleton h-8 w-24 rounded-lg" />
                   </div>
                 ))
               : captions.map((c, idx) => (
