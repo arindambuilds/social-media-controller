@@ -1,9 +1,25 @@
+/**
+ * INVESTIGATION (Steps 1–4)
+ *
+ * Step 1 — prisma/schema.prisma `User`: hashed password field is `passwordHash` (not `password`).
+ *   Email: `email`. No @@map/@map on User → PostgreSQL columns match names, e.g. "passwordHash".
+ *   `id`: String @id @default(cuid()). `email` required on create; `role` defaults AGENCY_ADMIN.
+ *
+ * Step 2 — Login: src/routes/auth.ts → authService.login → findUnique by email, select passwordHash,
+ *   bcrypt.compare (package `bcrypt`).
+ *
+ * Step 3 — Seed upserts demo@demo.com with passwordHash; failures in prod were DB/migrations/connectivity
+ *   or ad-hoc SQL using column "password" (does not exist).
+ *
+ * Step 4 — package.json: `bcrypt` and `bcryptjs` present; app + this seed use `bcrypt` only. Seed uses cost 10.
+ */
 import "dotenv/config";
+import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import { encrypt } from "../src/lib/encryption";
-import { hashPassword } from "../src/services/authService";
 
 const prisma = new PrismaClient();
+const SEED_BCRYPT_ROUNDS = 10;
 
 const urbanCaptions = [
   "Weekend glow-up slots open — Patia + Saheed Nagar. DM “GLOW” to book. #Bhubaneswar #Salon",
@@ -73,6 +89,10 @@ const cafeCaptions = [
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+async function hashSeedPassword(plain: string) {
+  return bcrypt.hash(plain, SEED_BCRYPT_ROUNDS);
 }
 
 async function seedPostSeries(
@@ -149,7 +169,7 @@ async function seedFollowerCurve(socialAccountId: string, baseFollowers: number)
 }
 
 async function main() {
-  const demoAgencyHash = await hashPassword("Demo1234!");
+  const demoAgencyHash = await hashSeedPassword("Demo1234!");
   const demoAgency = await prisma.user.upsert({
     where: { email: "demo@agencyname.com" },
     update: {
@@ -165,7 +185,7 @@ async function main() {
     }
   });
 
-  const passwordHash = await hashPassword("admin123");
+  const passwordHash = await hashSeedPassword("admin123");
   const admin = await prisma.user.upsert({
     where: { email: "admin@demo.com" },
     update: { name: "Founder (demo)", passwordHash, role: "AGENCY_ADMIN" },
@@ -212,25 +232,26 @@ async function main() {
     data: { clientId: client.id }
   });
 
-  const demoLoginHash = await hashPassword("Demo1234!");
-  await prisma.user.upsert({
+  const demoLoginHash = await hashSeedPassword("Demo1234!");
+  const demoLoginUser = await prisma.user.upsert({
     where: { email: "demo@demo.com" },
     update: {
-      name: "Demo Agency",
+      name: "Demo User",
       passwordHash: demoLoginHash,
       role: "AGENCY_ADMIN",
       clientId: client.id
     },
     create: {
       email: "demo@demo.com",
-      name: "Demo Agency",
+      name: "Demo User",
       passwordHash: demoLoginHash,
       role: "AGENCY_ADMIN",
       clientId: client.id
     }
   });
+  console.log(`[seed] Demo user ready: ${demoLoginUser.email} (${demoLoginUser.id})`);
 
-  const pilotHash = await hashPassword("pilot123");
+  const pilotHash = await hashSeedPassword("pilot123");
   await prisma.user.upsert({
     where: { email: "salon@pilot.demo" },
     update: {
@@ -463,6 +484,11 @@ async function main() {
       }
     });
   }
+
+  console.log(
+    "Seed OK: users upserted (password field = passwordHash, bcrypt cost %s) — demo@demo.com / Demo1234!, demo@agencyname.com, admin@demo.com, salon@pilot.demo",
+    SEED_BCRYPT_ROUNDS
+  );
 }
 
 main()
