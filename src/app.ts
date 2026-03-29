@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { setupExpressErrorHandler } from "@sentry/node";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -114,6 +115,7 @@ export function createApp() {
       exposedHeaders: ["Location"]
     })
   );
+  app.use(cookieParser());
   app.use(
     express.json({
       limit: "1mb",

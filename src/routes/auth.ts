@@ -18,8 +18,15 @@ import {
   isSocialAccountOwnershipConflictError
 } from "../services/socialAccountService";
 import { writeAuditLog } from "../services/auditLogService";
+import { clearAuthCookieHeaders, REFRESH_COOKIE, setAuthCookieHeaders } from "../lib/authCookies";
 
 export const authRouter = Router();
+
+function attachAuthCookiesIfEnabled(res: Response, accessToken: string, refreshToken: string): void {
+  if (env.AUTH_HTTPONLY_COOKIES) {
+    setAuthCookieHeaders(res, accessToken, refreshToken);
+  }
+}
 
 const SERVICE_UNAVAILABLE_BODY = {
   success: false,
@@ -139,6 +146,7 @@ authRouter.post("/register", registerAuthLimiter, authenticate, requireRole("AGE
       metadata: { email: result.user.email, role: result.user.role },
       ipAddress: req.ip
     });
+    attachAuthCookiesIfEnabled(res, result.accessToken, result.refreshToken);
     res.status(201).json({
       success: true,
       accessToken: result.accessToken,
@@ -179,6 +187,7 @@ authRouter.post("/signup", registerAuthLimiter, async (req, res) => {
       metadata: { email: result.user.email, role: result.user.role },
       ipAddress: req.ip
     });
+    attachAuthCookiesIfEnabled(res, result.accessToken, result.refreshToken);
     res.status(201).json({
       success: true,
       accessToken: result.accessToken,
@@ -209,6 +218,7 @@ authRouter.post("/login", loginAuthLimiter, async (req, res) => {
 
     // Prisma/DB connectivity → respondDbUnavailable (503). Bad credentials → 401 below. No silent catch.
     const result = await login(payload);
+    attachAuthCookiesIfEnabled(res, result.accessToken, result.refreshToken);
     res.json({
       success: true,
       accessToken: result.accessToken,
@@ -229,13 +239,38 @@ authRouter.post("/login", loginAuthLimiter, async (req, res) => {
   }
 });
 
+authRouter.post("/logout", (_req, res) => {
+  clearAuthCookieHeaders(res);
+  res.status(204).send();
+});
+
 authRouter.post("/refresh", refreshAuthLimiter, async (req, res) => {
   try {
-    const payload = z.object({
-      refreshToken: z.string().min(1)
-    }).parse(req.body);
+    let refreshToken: string | undefined;
+    if (env.AUTH_HTTPONLY_COOKIES) {
+      const loose = z.object({ refreshToken: z.string().min(1).optional() }).safeParse(req.body);
+      const bodyRt = loose.success ? loose.data.refreshToken?.trim() : undefined;
+      const cookieRt =
+        typeof req.cookies?.[REFRESH_COOKIE] === "string" ? req.cookies[REFRESH_COOKIE] : undefined;
+      refreshToken = bodyRt || cookieRt;
+    } else {
+      const parsed = z.object({ refreshToken: z.string().min(1) }).parse(req.body);
+      refreshToken = parsed.refreshToken;
+    }
 
-    const result = await refresh(payload.refreshToken);
+    if (!refreshToken) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          fieldErrors: { refreshToken: ["Required"] }
+        }
+      });
+      return;
+    }
+
+    const result = await refresh(refreshToken);
+    attachAuthCookiesIfEnabled(res, result.accessToken, result.refreshToken);
     res.json({
       success: true,
       accessToken: result.accessToken,

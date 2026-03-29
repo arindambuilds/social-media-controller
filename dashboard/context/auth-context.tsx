@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode
 } from "react";
-import { fetchMe } from "../lib/api";
+import { authLogoutFireAndForget, fetchMe } from "../lib/api";
 import {
   AUTH_STORAGE_SYNC_EVENT,
   clearAuthStorage,
@@ -107,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearSession = useCallback(() => {
+    authLogoutFireAndForget();
     clearAuthStorage();
     setToken(null);
     setUser(null);

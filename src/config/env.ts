@@ -73,7 +73,15 @@ const envSchema = z
     OPENAI_MODEL: z.string().optional().default("gpt-5"),
     WEBHOOK_SIGNING_SECRET: z.string().optional().default(""),
     /** Comma-separated origins, or * for dev-only (refused in production). */
-    CORS_ORIGIN: z.string().optional().default("*")
+    CORS_ORIGIN: z.string().optional().default("*"),
+    /**
+     * When true: issue httpOnly JWT cookies on login/signup/refresh/register, accept them in
+     * `authenticate` and refresh, and expose POST /api/auth/logout to clear them. JSON tokens are
+     * still returned for API clients; the dashboard should use `credentials: "include"` (already default).
+     */
+    AUTH_HTTPONLY_COOKIES: z
+      .preprocess((val) => val === true || val === "true" || val === "1", z.boolean())
+      .default(false)
   })
   .superRefine((data, ctx) => {
     // Reject wildcard CORS in production — prevents credentialed abuse from arbitrary sites.

@@ -174,13 +174,24 @@ async function fetchWithTimeout(url: string, init: ApiFetchInit | undefined, tim
   try {
     return await fetch(url, {
       ...passThrough,
-      signal: controller.signal
+      signal: controller.signal,
+      credentials: passThrough.credentials ?? "include"
     });
   } catch (e) {
     throw mapAbortToTimeout(e);
   } finally {
     clearTimeout(t);
   }
+}
+
+/** Clears httpOnly auth cookies when the API has AUTH_HTTPONLY_COOKIES enabled. */
+export function authLogoutFireAndForget(): void {
+  if (typeof window === "undefined") return;
+  void fetchWithTimeout(
+    `${API_URL}/auth/logout`,
+    { method: "POST", headers: { "Content-Type": "application/json" } },
+    DEFAULT_API_TIMEOUT_MS
+  ).catch(() => {});
 }
 
 /**

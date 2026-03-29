@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../auth/jwt";
+import { env } from "../config/env";
+import { ACCESS_COOKIE } from "../lib/authCookies";
 
 declare global {
   namespace Express {
@@ -15,15 +17,22 @@ declare global {
 }
 
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
+  let token: string | undefined;
   const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) {
+    token = header.slice(7);
+  } else if (env.AUTH_HTTPONLY_COOKIES) {
+    const c = req.cookies?.[ACCESS_COOKIE];
+    if (typeof c === "string" && c.length > 0) token = c;
+  }
 
-  if (!header?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Missing bearer token." });
+  if (!token) {
+    res.status(401).json({ error: "Missing authentication credentials." });
     return;
   }
 
   try {
-    const payload = verifyAccessToken(header.slice(7));
+    const payload = verifyAccessToken(token);
     req.auth = {
       userId: payload.sub,
       role: payload.role,
