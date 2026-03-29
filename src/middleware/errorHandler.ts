@@ -45,6 +45,34 @@ export function errorHandler(
     return;
   }
 
+  /** express.json / body-parser — client sent non-JSON or invalid JSON (e.g. shell-mangled curl body). */
+  const parseMeta = err as { type?: string; status?: number };
+  if (parseMeta.type === "entity.parse.failed") {
+    logger.warn("Invalid JSON request body", {
+      message: err instanceof Error ? err.message : String(err)
+    });
+    res.status(400).json({
+      success: false,
+      error: {
+        code: "INVALID_JSON",
+        message: "Request body must be valid JSON (double-quoted keys and strings)."
+      }
+    });
+    return;
+  }
+
+  if (err instanceof SyntaxError && /json|JSON/i.test(err.message)) {
+    logger.warn("JSON parse error on request body", { message: err.message });
+    res.status(400).json({
+      success: false,
+      error: {
+        code: "INVALID_JSON",
+        message: "Request body must be valid JSON (double-quoted keys and strings)."
+      }
+    });
+    return;
+  }
+
   if (err instanceof Error) {
     logger.error("Unhandled request error", { message: err.message, stack: err.stack });
     if (env.SENTRY_DSN) Sentry.captureException(err);
