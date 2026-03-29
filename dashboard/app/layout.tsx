@@ -38,8 +38,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AppProviders>
           <DemoModeProvider>
             <AuthProvider>
-              <DashboardNav />
               <DemoModeBanner />
+              <DashboardNav />
               <AuthReadyGate>
                 {/* Errors in route segments are caught by app/error.tsx (Next.js error boundary). */}
                 <main className="app-main">{children}</main>

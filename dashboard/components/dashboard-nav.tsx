@@ -1,8 +1,9 @@
 "use client";
 
+import { ChevronDown, LogOut, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/auth-context";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -41,12 +42,57 @@ function userInitials(user: { name: string | null; email: string }): string {
   return local.slice(0, 2).toUpperCase();
 }
 
-function avatarHue(email: string): number {
-  let h = 0;
-  for (let i = 0; i < email.length; i += 1) {
-    h = (h * 31 + email.charCodeAt(i)) >>> 0;
-  }
-  return h % 360;
+const AVATAR_GRADIENT = "linear-gradient(135deg, #6c63ff, #00d4aa)";
+
+type NavLinksProps = {
+  pathname: string;
+  hasToken: boolean;
+  showAuditLink: boolean;
+  onNavigate: () => void;
+  variant: "bar" | "drawer";
+};
+
+function NavLinks({ pathname, hasToken, showAuditLink, onNavigate, variant }: NavLinksProps) {
+  const wrapClass = variant === "drawer" ? "app-nav-drawer-groups" : "app-nav-group-wrap";
+  const linkClass = variant === "drawer" ? "app-nav-link app-nav-link--drawer" : "app-nav-link";
+
+  return (
+    <div className={wrapClass}>
+      <div className="app-nav-group">
+        <span className="app-nav-group-label">App</span>
+        {primaryLinks.map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className={linkClass}
+            data-active={isActive(pathname, href) ? "true" : undefined}
+            onClick={onNavigate}
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+      <div className="app-nav-group">
+        <span className="app-nav-group-label">More</span>
+        {secondaryLinks.map(({ href, label }) => {
+          if (href === "/login" && hasToken) return null;
+          if (href === "/onboarding" && !hasToken) return null;
+          if (href === "/audit" && !showAuditLink) return null;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={linkClass}
+              data-active={isActive(pathname, href) ? "true" : undefined}
+              onClick={onNavigate}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function DashboardNav() {
@@ -54,11 +100,17 @@ export function DashboardNav() {
   const router = useRouter();
   const { token, isReady, user, userLoading, clearSession } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const hasToken = isReady && !!token;
   const showAuditLink = !userLoading && user?.role === "AGENCY_ADMIN";
 
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const closeUserMenu = useCallback(() => setUserMenuOpen(false), []);
+
   useEffect(() => {
     setMenuOpen(false);
+    setUserMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -76,21 +128,42 @@ export function DashboardNav() {
     };
   }, [menuOpen]);
 
-  const avatarStyle = useMemo(() => {
-    if (!user?.email) return undefined;
-    const hue = avatarHue(user.email);
-    return {
-      background: `linear-gradient(135deg, hsl(${hue}, 52%, 46%), hsl(${(hue + 40) % 360}, 55%, 38%))`
-    } as CSSProperties;
-  }, [user?.email]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setUserMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [userMenuOpen]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [userMenuOpen]);
+
+  const avatarStyle = useMemo(() => ({ background: AVATAR_GRADIENT }), []);
 
   function signOut() {
     clearSession();
+    closeUserMenu();
+    closeMenu();
     router.push("/login");
-  }
-
-  function closeMenu() {
-    setMenuOpen(false);
   }
 
   return (
@@ -101,7 +174,7 @@ export function DashboardNav() {
             P
           </Link>
           <Link href={hasToken ? "/dashboard" : "/"} className="app-nav-brand">
-            Pulse<span> Studio</span>
+            Pulse
           </Link>
         </div>
 
@@ -110,58 +183,111 @@ export function DashboardNav() {
           className="app-nav-menu-toggle"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
-          aria-controls="app-nav-links"
+          aria-controls="app-nav-drawer"
           onClick={() => setMenuOpen((o) => !o)}
         >
-          <span />
-          <span />
-          <span />
+          {menuOpen ? <X size={22} strokeWidth={2} aria-hidden /> : <Menu size={22} strokeWidth={2} aria-hidden />}
         </button>
 
-        <nav
-          id="app-nav-links"
-          className={`app-nav-center ${menuOpen ? "is-open" : ""}`}
-          aria-label="Primary"
-        >
-          <div className="app-nav-group">
-            <span className="app-nav-group-label">App</span>
-            {primaryLinks.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="app-nav-link"
-                data-active={isActive(pathname, href) ? "true" : undefined}
-                onClick={closeMenu}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="app-nav-group">
-            <span className="app-nav-group-label">More</span>
-            {secondaryLinks.map(({ href, label }) => {
-              if (href === "/login" && hasToken) return null;
-              if (href === "/onboarding" && !hasToken) return null;
-              if (href === "/audit" && !showAuditLink) return null;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className="app-nav-link"
-                  data-active={isActive(pathname, href) ? "true" : undefined}
-                  onClick={closeMenu}
-                >
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
+        <nav id="app-nav-links" className="app-nav-center" aria-label="Primary">
+          <NavLinks
+            pathname={pathname}
+            hasToken={hasToken}
+            showAuditLink={showAuditLink}
+            onNavigate={closeMenu}
+            variant="bar"
+          />
         </nav>
 
         <div className="app-nav-trailing">
           {hasToken && user ? (
-            <div className="app-nav-user" title={user.email}>
+            <div className="app-nav-user-desktop" ref={userMenuRef}>
+              <button
+                type="button"
+                className="app-nav-user-trigger"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => setUserMenuOpen((o) => !o)}
+              >
+                <div className="app-nav-avatar" style={avatarStyle} aria-hidden>
+                  {userInitials(user)}
+                </div>
+                <div className="app-nav-user-text">
+                  <span className="app-nav-user-name">{user.name?.trim() || user.email.split("@")[0]}</span>
+                  <span className="app-nav-user-email">{user.email}</span>
+                </div>
+                <ChevronDown
+                  size={18}
+                  strokeWidth={2}
+                  className={`app-nav-user-chevron${userMenuOpen ? " is-open" : ""}`}
+                  aria-hidden
+                />
+              </button>
+              {userMenuOpen ? (
+                <div className="app-nav-dropdown" role="menu">
+                  <button type="button" className="app-nav-dropdown-item" role="menuitem" onClick={signOut}>
+                    <LogOut size={16} strokeWidth={2} aria-hidden />
+                    Sign out
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {hasToken && userLoading && !user ? (
+            <div className="app-nav-user app-nav-user-loading app-nav-user-desktop" aria-hidden>
+              <div className="app-nav-avatar skeleton" style={{ animation: "none", minWidth: 40 }} />
+              <div className="app-nav-user-text">
+                <span className="skeleton skeleton-line-inline" />
+                <span className="skeleton skeleton-line-inline short" />
+              </div>
+            </div>
+          ) : null}
+          <div className={hasToken ? "app-nav-trailing-theme hidden md:flex" : "app-nav-trailing-theme flex"}>
+            <ThemeToggle />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile: backdrop + right drawer */}
+      <div
+        className={`app-nav-drawer-backdrop${menuOpen ? " is-visible" : ""}`}
+        aria-hidden
+        onClick={closeMenu}
+      />
+      <aside
+        id="app-nav-drawer"
+        className={`app-nav-drawer${menuOpen ? " is-open" : ""}`}
+        aria-hidden={!menuOpen}
+        aria-label="Mobile navigation"
+      >
+        <div className="app-nav-drawer-head">
+          <Link href={hasToken ? "/dashboard" : "/"} className="app-nav-drawer-brand" onClick={closeMenu}>
+            <span className="app-nav-mark app-nav-mark--sm" aria-hidden>
+              P
+            </span>
+            <span className="app-nav-brand">Pulse</span>
+          </Link>
+          <button
+            type="button"
+            className="app-nav-drawer-close"
+            aria-label="Close menu"
+            onClick={closeMenu}
+          >
+            <X size={22} strokeWidth={2} />
+          </button>
+        </div>
+        <div className="app-nav-drawer-scroll">
+          <NavLinks
+            pathname={pathname}
+            hasToken={hasToken}
+            showAuditLink={showAuditLink}
+            onNavigate={closeMenu}
+            variant="drawer"
+          />
+        </div>
+        {hasToken && user ? (
+          <div className="app-nav-drawer-footer">
+            <div className="app-nav-drawer-user">
               <div className="app-nav-avatar" style={avatarStyle} aria-hidden>
                 {userInitials(user)}
               </div>
@@ -170,24 +296,16 @@ export function DashboardNav() {
                 <span className="app-nav-user-email">{user.email}</span>
               </div>
             </div>
-          ) : null}
-          {hasToken && userLoading && !user ? (
-            <div className="app-nav-user app-nav-user-loading" aria-hidden>
-              <div className="app-nav-avatar skeleton" style={{ animation: "none", minWidth: 40 }} />
-              <div className="app-nav-user-text">
-                <span className="skeleton skeleton-line-inline" />
-                <span className="skeleton skeleton-line-inline short" />
-              </div>
+            <div className="app-nav-drawer-actions">
+              <ThemeToggle />
+              <button type="button" className="app-nav-signout" onClick={signOut}>
+                <LogOut size={16} strokeWidth={2} aria-hidden />
+                Sign out
+              </button>
             </div>
-          ) : null}
-          <ThemeToggle />
-          {hasToken ? (
-            <button type="button" className="app-nav-signout" onClick={signOut}>
-              Sign out
-            </button>
-          ) : null}
-        </div>
-      </div>
+          </div>
+        ) : null}
+      </aside>
     </header>
   );
 }
