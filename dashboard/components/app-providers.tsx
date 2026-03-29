@@ -6,6 +6,7 @@ const STORAGE_KEY = "smc_theme";
 
 function applyTheme(mode: "light" | "dark") {
   document.documentElement.dataset.theme = mode;
+  document.documentElement.classList.toggle("dark", mode === "dark");
 }
 
 export function AppProviders({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -15,8 +16,7 @@ export function AppProviders({ children }: Readonly<{ children: React.ReactNode 
       applyTheme(stored);
       return;
     }
-    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
-    applyTheme(prefersDark ? "dark" : "light");
+    applyTheme("dark");
   }, []);
 
   return <>{children}</>;
@@ -30,6 +30,6 @@ export function toggleTheme(): "light" | "dark" {
 }
 
 export function getTheme(): "light" | "dark" {
-  if (typeof document === "undefined") return "light";
+  if (typeof document === "undefined") return "dark";
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }

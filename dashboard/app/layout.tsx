@@ -29,8 +29,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
-      <body>
+    <html
+      lang="en"
+      className={`dark ${inter.variable} ${sora.variable} bg-canvas`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen bg-canvas font-sans text-ink antialiased">
         <AppProviders>
           <DemoModeProvider>
             <AuthProvider>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getTheme, toggleTheme } from "./app-providers";
 
 export function ThemeToggle() {
-  const [mode, setMode] = useState<"light" | "dark">("light");
+  const [mode, setMode] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
     setMode(getTheme());
