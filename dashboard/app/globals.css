@@ -763,6 +763,74 @@ html[data-theme="light"] .demo-mode-banner {
   box-shadow: inset 4px 0 0 #6c63ff;
 }
 
+/* ─── Leads: card rows + ghost icon actions ─── */
+.lead-row-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid #1e1e2e;
+  background: #111118;
+  transition:
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.lead-row-card:hover {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#111118, #111118) padding-box,
+    linear-gradient(135deg, #6c63ff, #00d4aa) border-box;
+  box-shadow: 0 0 22px rgba(108, 99, 255, 0.28);
+}
+
+.lead-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid #1e1e2e;
+  background: transparent;
+  color: #8b8ba0;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    gap 0.2s ease,
+    min-width 0.2s ease,
+    padding 0.2s ease;
+}
+
+.lead-action-btn:hover {
+  color: #f0f0ff;
+  border-color: rgba(108, 99, 255, 0.45);
+  background: rgba(108, 99, 255, 0.12);
+  gap: 6px;
+  min-width: auto;
+  padding: 0 14px;
+}
+
+.lead-action-btn .lead-action-label {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    max-width 0.22s ease,
+    opacity 0.18s ease;
+}
+
+.lead-action-btn:hover .lead-action-label {
+  max-width: 120px;
+  opacity: 1;
+}
+
 a {
   color: inherit;
   text-decoration: none;
