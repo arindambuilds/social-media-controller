@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { apiFetch, type AnalyticsSummary } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { AnalyticsPageSkeleton } from "../../components/page-skeleton";
 
 type Overview = {
   success: boolean;
@@ -125,26 +126,7 @@ export default function AnalyticsPage() {
   }, [router, load]);
 
   if (loading) {
-    return (
-      <div className="page-shell">
-        <section className="panel span-12">
-          <h2>Analytics</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <div className="spinner" aria-label="Loading analytics" />
-            <span className="muted">Loading charts…</span>
-          </div>
-          <div className="stats-grid">
-            {[1, 2, 3, 4].map((k) => (
-              <div key={k} className="stat-card">
-                <div className="skeleton" style={{ height: 14, marginBottom: 12 }} />
-                <div className="skeleton" style={{ height: 36, width: "60%" }} />
-              </div>
-            ))}
-          </div>
-          <div className="skeleton span-12" style={{ height: 280, marginTop: 24, gridColumn: "span 12" }} />
-        </section>
-      </div>
-    );
+    return <AnalyticsPageSkeleton />;
   }
 
   if (error) {

@@ -15,6 +15,7 @@ import {
 import { apiFetch, fetchMe } from "../../lib/api";
 import { useAuth } from "../../context/auth-context";
 import { CLIENT_ID_KEY, getStoredClientId } from "../../lib/auth-storage";
+import { DashboardPageSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
 
 type OverviewResponse = {
@@ -155,14 +156,7 @@ export default function DashboardHomePage() {
   }, [isReady, token, router]);
 
   if (!isReady || !token) {
-    return (
-      <div className="page-shell">
-        <div className="panel" style={{ display: "flex", justifyContent: "center", padding: 32 }}>
-          <div className="spinner" aria-label="Loading" />
-        </div>
-        <div className="skeleton" style={{ height: 120, marginTop: 16 }} />
-      </div>
-    );
+    return <DashboardPageSkeleton />;
   }
 
   const handleLabel = instagramHandle ? `@${instagramHandle.replace(/^@/, "")}` : null;
