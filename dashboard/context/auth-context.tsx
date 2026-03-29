@@ -14,6 +14,7 @@ import {
   AUTH_STORAGE_SYNC_EVENT,
   clearAuthStorage,
   CLIENT_ID_KEY,
+  notifyAuthStorageSync,
   REFRESH_TOKEN_KEY,
   TOKEN_KEY
 } from "../lib/auth-storage";
@@ -56,6 +57,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(AUTH_STORAGE_SYNC_EVENT, onSync);
   }, []);
 
+  /** Other tabs: keep session in sync when localStorage auth keys change. */
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.storageArea !== localStorage) return;
+      if (e.key === TOKEN_KEY || e.key === REFRESH_TOKEN_KEY || e.key === CLIENT_ID_KEY) {
+        setToken(localStorage.getItem(TOKEN_KEY));
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   useEffect(() => {
     if (!isReady || !token) {
       setUser(null);
@@ -90,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       else localStorage.removeItem(CLIENT_ID_KEY);
     }
     setToken(accessToken);
+    notifyAuthStorageSync();
   }, []);
 
   const clearSession = useCallback(() => {

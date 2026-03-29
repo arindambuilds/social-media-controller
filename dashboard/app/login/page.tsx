@@ -10,7 +10,7 @@ const LOGIN_TIMEOUT_MS = 90_000;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setSession } = useAuth();
+  const { setSession, token, isReady } = useAuth();
   /** Demo defaults: primary operator (README / docs/DEMO.md). */
   const [email, setEmail] = useState("demo@demo.com");
   const [password, setPassword] = useState("Demo1234!");
@@ -26,6 +26,11 @@ export default function LoginPage() {
     const t = setTimeout(() => setSlowBackendHint(true), 5000);
     return () => clearTimeout(t);
   }, [submitting]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (token) router.replace("/dashboard");
+  }, [isReady, token, router]);
 
   async function onLogin() {
     setError("");
