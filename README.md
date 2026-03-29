@@ -87,6 +87,8 @@ npm run dashboard:dev
 
 | Doc | Purpose |
 |-----|---------|
+| [GITHUB_SETUP.md](GITHUB_SETUP.md) | Push to GitHub, CI workflow, optional branch protection |
+| [SECURITY.md](SECURITY.md) | How to report vulnerabilities; hardening pointers |
 | [docs/local-dev.md](docs/local-dev.md) | Env, migrations, seed, curl checks |
 | [docs/deploy-checklist.md](docs/deploy-checklist.md) | Operator-ready Supabase + Render deploy checklist |
 | [docs/mvp-product.md](docs/mvp-product.md) | Positioning, MVP promise, what to ignore |
@@ -125,17 +127,19 @@ npm run dashboard:dev
 | `npm run dashboard:build` | Production build of dashboard |
 | `npm run smoke:demo` | Hit health, login, me, analytics, insights, leads (API must be up) |
 | `npm run pdf:mvp-one-pager` | Build `docs/mvp-status-one-pager.pdf` from the Markdown (uses Microsoft Edge) |
-| `npm test` | Vitest API smoke (needs `DATABASE_URL` + `REDIS_URL` in env) |
+| `npm test` | Vitest API smoke (needs `DATABASE_URL`; `REDIS_URL` optional — OAuth state falls back to memory) |
+| `npm run verify` | `lint` + `test` + `dashboard:build` (release gate before deploy; same steps as [CI](.github/workflows/ci.yml)) |
 
 ---
 
 ## Security
 
-- JWT for API auth; refresh tokens supported  
-- OAuth `state` validated via Redis  
-- Social tokens encrypted at rest (see `src/lib/encryption.ts`)  
-- Role checks on agency-only routes  
-- Inbound social webhooks require HMAC SHA-256 signing via `WEBHOOK_SIGNING_SECRET`
+- **Reporting:** see [SECURITY.md](SECURITY.md).  
+- JWT for API auth; refresh tokens supported; optional httpOnly cookies via `AUTH_HTTPONLY_COOKIES` (`.env.example`).  
+- OAuth `state` stored in Redis when configured; otherwise in-memory (single-instance).  
+- Social tokens encrypted at rest (see `src/lib/encryption.ts`).  
+- Role checks on agency-only routes.  
+- Inbound social webhooks require HMAC SHA-256 signing via `WEBHOOK_SIGNING_SECRET`.
 
 ### Webhook signature contract
 
