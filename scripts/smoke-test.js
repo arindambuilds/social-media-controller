@@ -77,7 +77,7 @@ async function main() {
     logFail("GET /api/health/db", String(e));
   }
 
-  // 3) POST /api/auth/login
+  // 3) POST /api/auth/login (primary operator — README / docs/DEMO.md)
   try {
     const { res, body } = await request("POST", "/api/auth/login", {
       jsonBody: { email: "demo@demo.com", password: "Demo1234!" }

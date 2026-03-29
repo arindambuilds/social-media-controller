@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
 import { tenantRateLimit } from "../middleware/tenantRateLimit";
+import { writeAuditLog } from "../services/auditLogService";
 
 export const leadsRouter = Router();
 
@@ -98,6 +99,16 @@ leadsRouter.patch("/:id", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req
   const lead = await prisma.lead.update({
     where: { id: params.id },
     data: { status: payload.status }
+  });
+
+  await writeAuditLog({
+    clientId: existing.clientId,
+    actorId: req.auth?.userId,
+    action: "LEAD_STATUS_UPDATED",
+    entityType: "Lead",
+    entityId: lead.id,
+    metadata: { fromStatus: existing.status, toStatus: payload.status },
+    ipAddress: req.ip
   });
 
   res.json({ success: true, lead });

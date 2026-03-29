@@ -1,5 +1,5 @@
 /**
- * API smoke test. Requires: API + DB seeded (demo@demo.com / Demo1234!).
+ * API smoke test. Requires: API + DB seeded. Logs in with primary operator demo@demo.com / Demo1234!.
  *
  * Usage:
  *   npm run smoke:local

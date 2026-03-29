@@ -27,10 +27,11 @@ Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 2. Insights → see seeded insight OR generate; weekly focus button; captions.  
 3. Leads table for `demo-client`.  
 4. `npm run smoke:local` (or `npm run smoke:render` against production API) green.
+5. For Supabase + Render production, `DIRECT_URL` is the direct `:5432` connection and `DATABASE_URL` is the transaction pooler on `:6543`.
 
 ## Environment
 
-- [ ] Root `.env`: `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `ENCRYPTION_KEY` (32+ chars), `APP_BASE_URL`
+- [ ] Root `.env`: `DIRECT_URL`, `DATABASE_URL`, `REDIS_URL`, `JWT_*`, `ENCRYPTION_KEY` (32+ chars), `APP_BASE_URL`
 - [ ] `INGESTION_MODE=mock` for demos without Meta (or `instagram` + valid Meta app)
 - [ ] `dashboard/.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:4000` (origin only; code appends `/api`)
 - [ ] Optional: `OPENAI_API_KEY` for best AI output
@@ -60,17 +61,20 @@ Against production API (after cold start may need a retry):
 npm run smoke:render
 ```
 
-Script checks in order: **`GET /api/health`**, login (`demo@demo.com` / `Demo1234!`), Instagram **summary**, **AI insight** POST, **leads** list, **posts** list (uses `clientId` from the login response). Override base URL: `npx tsx scripts/smoke-demo.ts --url https://your-api.example.com`.
+Script checks in order: **`GET /api/health`**, **primary** login (`demo@demo.com` / `Demo1234!`), Instagram **summary**, **AI insight** POST, **leads** list, **posts** list (uses `clientId` from the login response). Override base URL: `npx tsx scripts/smoke-demo.ts --url https://your-api.example.com`.
 
 ## Logins (after seed)
 
+**Primary operator / smoke:** `demo@demo.com` / `Demo1234!`
+
 | Role | Email | Password |
 |------|--------|----------|
-| Admin / founder demo | `admin@demo.com` | `admin123` |
-| Client (pilot UX) | `salon@pilot.demo` | `pilot123` |
-| Agency admin (presentations / alternate demo) | `demo@agencyname.com` | `Demo1234!` |
+| Primary operator / smoke | `demo@demo.com` | `Demo1234!` |
+| Alternate — founder | `admin@demo.com` | `admin123` |
+| Alternate — client (pilot UX) | `salon@pilot.demo` | `pilot123` |
+| Alternate — agency (presentations) | `demo@agencyname.com` | `Demo1234!` |
 
-`npm run smoke:local` / `smoke:render` use **`demo@demo.com`** / **`Demo1234!`**; **`clientId`** comes from the login payload (must match a seeded user with a client).
+`npm run smoke:local` / `smoke:render` use the **primary** pair above. **`clientId`** comes from the login payload (must match a seeded user with a client).
 
 ## Manual 2-minute pass (before every demo)
 

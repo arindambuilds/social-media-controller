@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { addIngestionJob } from "../queues/ingestionQueue";
+import { writeAuditLog } from "../services/auditLogService";
 
 export const instagramRouter = Router();
 
@@ -39,6 +40,16 @@ instagramRouter.post("/sync", async (req, res) => {
     },
     { jobId: `instagram-sync:${ig.id}:${Date.now()}` }
   );
+
+  await writeAuditLog({
+    clientId: body.clientId,
+    actorId: req.auth?.userId,
+    action: "INSTAGRAM_SYNC_REQUESTED",
+    entityType: "SocialAccount",
+    entityId: ig.id,
+    metadata: { trigger: "manual" },
+    ipAddress: req.ip
+  });
 
   res.status(202).json({ success: true, socialAccountId: ig.id, message: "Sync job queued." });
 });

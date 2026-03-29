@@ -18,8 +18,34 @@ type CreateSocialAccountInput = {
   lastSyncedAt?: Date;
 };
 
+export class SocialAccountOwnershipConflictError extends Error {
+  constructor(platform: PlatformValue, platformUserId: string) {
+    super(`Social account ${platform}:${platformUserId} is already linked to another client.`);
+    this.name = "SocialAccountOwnershipConflictError";
+  }
+}
+
+export function isSocialAccountOwnershipConflictError(
+  err: unknown
+): err is SocialAccountOwnershipConflictError {
+  return err instanceof SocialAccountOwnershipConflictError;
+}
+
 export async function upsertSocialAccount(input: CreateSocialAccountInput) {
   const metadata = input.metadata as Prisma.InputJsonValue | undefined;
+  const existing = await prisma.socialAccount.findUnique({
+    where: {
+      platform_platformUserId: {
+        platform: input.platform as never,
+        platformUserId: input.platformUserId
+      }
+    },
+    select: { id: true, clientId: true }
+  });
+
+  if (existing && existing.clientId !== input.clientId) {
+    throw new SocialAccountOwnershipConflictError(input.platform, input.platformUserId);
+  }
 
   return prisma.socialAccount.upsert({
     where: {

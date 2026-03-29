@@ -33,7 +33,7 @@ git log --all --full-history -- dashboard/.env.production
 | SEC-009 | **MEDIUM** | `src/app.ts` L89 | `helmet()` defaults only — audit requested explicit CSP / Referrer-Policy / HSTS behavior. | Custom Helmet config for API. |
 | SEC-010 | **MEDIUM** | `src/app.ts` L91–95 | CORS `methods` not restricted (wildcard behavior). | Whitelist `GET,POST,PUT,PATCH,DELETE,OPTIONS` (+ `HEAD` implicit for some stacks). |
 | SEC-011 | **LOW** | `dashboard/lib/auth-storage.ts` | JWT in **localStorage** — XSS can steal tokens. | Document risk + recommend httpOnly cookies. |
-| SEC-012 | **LOW** | `dashboard/app/login/page.tsx` L15 | Default password pre-filled (`Demo1234!`) — UX leak in shared screens. | **Not changed** (demo product); noted as demo-only risk. |
+| SEC-012 | **LOW** | `dashboard/app/login/page.tsx` L16 | Primary demo password pre-filled (`Demo1234!`) — UX leak on shared screens. | **Not changed** (demo product); noted as demo-only risk. |
 | SEC-013 | **LOW** | `.env.example` L18–20 | Placeholder text said JWT min 16 chars while schema requires 32. | Aligned comments + `15m` access example. |
 | SEC-014 | **INFO** | `docker-compose.yml` L6–7 | `POSTGRES_PASSWORD=postgres` — **dev-only**; acceptable for local compose. | Documented; not production. |
 | SEC-015 | **INFO** | `DEPLOYMENT.md` / `docs/local-dev.md` | Example `postgresql://` strings — placeholders, not live secrets. | No change. |

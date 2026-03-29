@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { tenantRateLimit } from "../middleware/tenantRateLimit";
 import { addPostPublishJob } from "../queues/postPublishQueue";
+import { writeAuditLog } from "../services/auditLogService";
 
 export const postsRouter = Router();
 
@@ -80,6 +81,20 @@ postsRouter.post("/", async (req, res) => {
     );
   }
 
+  await writeAuditLog({
+    clientId: body.clientId,
+    actorId: req.auth?.userId,
+    action: body.status === "SCHEDULED" ? "SCHEDULED_POST_CREATED" : "DRAFT_POST_CREATED",
+    entityType: "ScheduledPost",
+    entityId: row.id,
+    metadata: {
+      socialAccountId: body.socialAccountId,
+      status: body.status,
+      scheduledAt: row.scheduledAt?.toISOString() ?? null
+    },
+    ipAddress: req.ip
+  });
+
   res.status(201).json({ success: true, post: row });
 });
 
@@ -100,5 +115,14 @@ postsRouter.delete("/:id", async (req, res) => {
   }
 
   await prisma.scheduledPost.delete({ where: { id } });
+  await writeAuditLog({
+    clientId: existing.clientId,
+    actorId: req.auth?.userId,
+    action: "SCHEDULED_POST_DELETED",
+    entityType: "ScheduledPost",
+    entityId: existing.id,
+    metadata: { status: existing.status },
+    ipAddress: req.ip
+  });
   res.status(204).send();
 });

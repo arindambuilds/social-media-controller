@@ -32,8 +32,9 @@ const envSchema = z
     PORT: z.coerce.number().optional(),
     DATABASE_URL: z.string().min(1),
     /**
-     * Direct Postgres URL for migrations (port 5432). For Supabase + Render, use pooler in DATABASE_URL (:6543)
-     * and direct host in DIRECT_URL. Local dev: set equal to DATABASE_URL.
+     * Direct Postgres URL for Prisma migrations / direct access (usually port 5432).
+     * For Supabase + Render, DATABASE_URL should be the transaction pooler (:6543) and DIRECT_URL stays direct (:5432).
+     * Local dev may set DIRECT_URL equal to DATABASE_URL.
      */
     DIRECT_URL: z.string().min(1).optional(),
     JWT_SECRET: z.string().min(32),
@@ -105,6 +106,7 @@ const envSchema = z
     }
 
     const db = data.DATABASE_URL.toLowerCase();
+    const direct = (data.DIRECT_URL ?? data.DATABASE_URL).toLowerCase();
     // TLS: explicit sslmode, or Supabase pooler / pgbouncer (encrypted by platform defaults).
     const hasExplicitTls = db.includes("sslmode=require") || db.includes("ssl=true");
     const supabasePooled =
@@ -115,6 +117,24 @@ const envSchema = z
         message:
           "DATABASE_URL should use TLS in production (e.g. sslmode=require) or Supabase Transaction pooler (?pgbouncer=true on pooler host).",
         path: ["DATABASE_URL"]
+      });
+    }
+
+    if (db.includes(":5432")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "DATABASE_URL should be the runtime connection. In production with Supabase/Render, use the transaction pooler on :6543, not the direct :5432 connection.",
+        path: ["DATABASE_URL"]
+      });
+    }
+
+    if (supabasePooled && direct.includes(":6543")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "DIRECT_URL should stay on the direct Postgres connection (typically :5432) when DATABASE_URL uses the pooler.",
+        path: ["DIRECT_URL"]
       });
     }
   });
@@ -138,7 +158,7 @@ function resolveAppBaseUrl(): string {
   return DEFAULT_APP_BASE_URL;
 }
 
-// Prisma schema requires DIRECT_URL; default to DATABASE_URL for single-URL setups (local Postgres).
+// Prisma schema requires DIRECT_URL; default to DATABASE_URL only for local single-host Postgres setups.
 if (!process.env.DIRECT_URL?.trim()) {
   process.env.DIRECT_URL = parsed.DATABASE_URL;
 }

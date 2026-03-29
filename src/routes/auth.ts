@@ -14,6 +14,10 @@ import { buildInstagramBrowserOAuthUrl } from "../lib/instagramBrowserOAuth";
 import { isDatabaseConnectivityError } from "../lib/databaseErrors";
 import { logger } from "../lib/logger";
 import { loginAuthLimiter, registerAuthLimiter } from "../middleware/rateLimiter";
+import {
+  isSocialAccountOwnershipConflictError
+} from "../services/socialAccountService";
+import { writeAuditLog } from "../services/auditLogService";
 
 export const authRouter = Router();
 
@@ -124,6 +128,15 @@ authRouter.post("/register", registerAuthLimiter, authenticate, requireRole("AGE
       .parse(req.body);
 
     const result = await registerUserByAgency(payload);
+    await writeAuditLog({
+      clientId: result.user.clientId ?? payload.clientId ?? "unassigned",
+      actorId: req.auth?.userId,
+      action: "USER_REGISTERED_BY_AGENCY",
+      entityType: "User",
+      entityId: result.user.id,
+      metadata: { email: result.user.email, role: result.user.role },
+      ipAddress: req.ip
+    });
     res.status(201).json({
       success: true,
       accessToken: result.accessToken,
@@ -145,17 +158,25 @@ authRouter.post("/register", registerAuthLimiter, authenticate, requireRole("AGE
   }
 });
 
-authRouter.post("/signup", async (req, res) => {
+authRouter.post("/signup", registerAuthLimiter, async (req, res) => {
   try {
     const payload = z.object({
       email: z.string().email(),
       password: z.string().min(8),
       name: z.string().min(2),
-      role: z.enum(["AGENCY_ADMIN", "CLIENT_USER"]).optional(),
       clientId: z.string().optional()
     }).parse(req.body);
 
     const result = await signup(payload);
+    await writeAuditLog({
+      clientId: result.user.clientId ?? "unassigned",
+      actorId: result.user.id,
+      action: "USER_SIGNED_UP",
+      entityType: "User",
+      entityId: result.user.id,
+      metadata: { email: result.user.email, role: result.user.role },
+      ipAddress: req.ip
+    });
     res.status(201).json({
       success: true,
       accessToken: result.accessToken,
@@ -274,17 +295,26 @@ async function handleBrowserInstagramOAuthCallback(req: Request, res: Response) 
   }
 
   const result = await exchangeInstagramCode(query.code, env.INSTAGRAM_FRONTEND_REDIRECT_URI);
-  const socialAccount = await upsertSocialAccount({
-    clientId: context.clientId,
-    platform: "INSTAGRAM",
-    platformUserId: result.instagramBusinessAccountId,
-    platformUsername: result.instagramUsername,
-    pageId: result.pageId,
-    pageName: result.pageName,
-    accessToken: result.accessToken,
-    refreshToken: undefined,
-    tokenExpiresAt: result.expiresAt ?? undefined
-  });
+  let socialAccount;
+  try {
+    socialAccount = await upsertSocialAccount({
+      clientId: context.clientId,
+      platform: "INSTAGRAM",
+      platformUserId: result.instagramBusinessAccountId,
+      platformUsername: result.instagramUsername,
+      pageId: result.pageId,
+      pageName: result.pageName,
+      accessToken: result.accessToken,
+      refreshToken: undefined,
+      tokenExpiresAt: result.expiresAt ?? undefined
+    });
+  } catch (err) {
+    if (isSocialAccountOwnershipConflictError(err)) {
+      res.status(409).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 
   await addIngestionJob(
     "instagram-oauth-connect",
@@ -297,6 +327,20 @@ async function handleBrowserInstagramOAuthCallback(req: Request, res: Response) 
       jobId: `instagram-sync:${socialAccount.id}:oauth-connect`
     }
   );
+
+  await writeAuditLog({
+    clientId: context.clientId,
+    actorId: context.initiatedBy ?? null,
+    action: "SOCIAL_ACCOUNT_LINKED",
+    entityType: "SocialAccount",
+    entityId: socialAccount.id,
+    metadata: {
+      platform: "INSTAGRAM",
+      platformUserId: socialAccount.platformUserId,
+      pageId: socialAccount.pageId
+    },
+    ipAddress: req.ip
+  });
 
   res.status(201).json({
     connected: true,

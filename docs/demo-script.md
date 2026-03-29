@@ -13,7 +13,7 @@
 ## 2. Login (1 min)
 
 - Open dashboard → **Login**  
-- `admin@demo.com` / `admin123` (seed), or **`salon@pilot.demo` / `pilot123`** for the client-only view  
+- **Primary:** **`demo@demo.com` / `Demo1234!`** (operator flow). **Alternate (client-only):** **`salon@pilot.demo` / `pilot123`**  
 - Land on **Analytics** — point to nav: **Insights**, **Leads**, **Onboarding**.
 
 ## 3. Connect Instagram (2 min)

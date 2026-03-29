@@ -14,7 +14,7 @@ This doc aligns **external narrative** with **what the repository actually imple
 ## Critical deploy facts (often underestimated)
 
 1. **OAuth `state`:** Without Redis, `oauthStateStore` falls back to **process memory** → **broken with multiple API instances** or restarts. Production pilot should set **`REDIS_URL`** (e.g. Upstash).  
-2. **Render + Supabase:** `DATABASE_URL` must match the DB you seeded; **`sslmode=require`** required in production per env validator.  
+2. **Render + Supabase:** `DIRECT_URL` must stay on the direct `:5432` connection for migrations, while `DATABASE_URL` must be the transaction pooler on `:6543` for runtime. `sslmode=require` is required in production.  
 3. **JWT in localStorage (dashboard):** Works for MVP; **XSS = token theft**. Government / scale pilots should plan **httpOnly cookies** as a phase-2 item.
 
 ## Government / MSME proposal discipline

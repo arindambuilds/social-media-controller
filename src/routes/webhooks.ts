@@ -1,4 +1,6 @@
+import crypto from "crypto";
 import { Router } from "express";
+import type { Request } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { detectLeadIntent } from "../services/leadDetection";
@@ -8,6 +10,30 @@ import { requireRole } from "../middleware/requireRole";
 import { env } from "../config/env";
 
 export const webhookRouter = Router();
+
+function getWebhookSignature(req: Request): string | null {
+  const candidate =
+    req.get("x-webhook-signature") ??
+    req.get("x-signature") ??
+    req.get("x-hub-signature-256");
+  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+}
+
+export function signWebhookPayload(rawBody: Buffer, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+}
+
+export function matchesWebhookSignature(signatureHeader: string, rawBody: Buffer, secret: string): boolean {
+  const normalized = signatureHeader.startsWith("sha256=")
+    ? signatureHeader.slice("sha256=".length)
+    : signatureHeader;
+  const expected = signWebhookPayload(rawBody, secret);
+  const received = normalized.toLowerCase();
+  if (!/^[0-9a-f]{64}$/i.test(received)) {
+    return false;
+  }
+  return crypto.timingSafeEqual(Buffer.from(received, "hex"), Buffer.from(expected, "hex"));
+}
 
 webhookRouter.post("/ingestion", authenticate, requireRole("AGENCY_ADMIN"), async (req, res) => {
   if (env.INGESTION_MODE !== "mock") {
@@ -42,6 +68,17 @@ webhookRouter.post("/ingestion", authenticate, requireRole("AGENCY_ADMIN"), asyn
 });
 
 webhookRouter.post("/social/:platform", async (req, res) => {
+  if (!env.WEBHOOK_SIGNING_SECRET) {
+    res.status(503).json({ error: "Webhook signing secret is not configured." });
+    return;
+  }
+
+  const signature = getWebhookSignature(req);
+  if (!signature || !req.rawBody || !matchesWebhookSignature(signature, req.rawBody, env.WEBHOOK_SIGNING_SECRET)) {
+    res.status(401).json({ error: "Invalid webhook signature." });
+    return;
+  }
+
   const bodySchema = z.object({
     socialAccountId: z.string().min(1),
     eventType: z.enum(["comment", "message", "post"]),

@@ -18,4 +18,4 @@ echo "▶ Seeding database..."
 npx prisma db seed
 
 echo "✅ Done. Now test login at https://social-media-controller.vercel.app/login"
-echo "   Email: demo@demo.com | Password: Demo1234!"
+echo "   Primary operator: demo@demo.com | Demo1234! (alternates in README / docs/DEMO.md)"

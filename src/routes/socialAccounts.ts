@@ -6,11 +6,15 @@ import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
 import { issueOAuthState } from "../services/oauthStateStore";
 import { exchangeInstagramCode } from "../services/instagramOAuthService";
-import { upsertSocialAccount } from "../services/socialAccountService";
+import {
+  isSocialAccountOwnershipConflictError,
+  upsertSocialAccount
+} from "../services/socialAccountService";
 import { buildAuthUrl as buildMetaAuthUrl } from "../services/oauth/metaOAuth";
 import { buildAuthUrl as buildLinkedInAuthUrl } from "../services/oauth/linkedinOAuth";
 import { addIngestionJob } from "../queues/ingestionQueue";
 import { addTokenRefreshJob } from "../queues/tokenRefreshQueue";
+import { writeAuditLog } from "../services/auditLogService";
 
 export const socialAccountsRouter = Router();
 const platformSchema = z.enum(["FACEBOOK", "INSTAGRAM", "TWITTER", "LINKEDIN", "TIKTOK"]);
@@ -60,6 +64,15 @@ socialAccountsRouter.delete("/:id", requireRole("AGENCY_ADMIN", "CLIENT_USER"), 
   }
 
   await prisma.socialAccount.delete({ where: { id } });
+  await writeAuditLog({
+    clientId: existing.clientId,
+    actorId: req.auth?.userId,
+    action: "SOCIAL_ACCOUNT_REVOKED",
+    entityType: "SocialAccount",
+    entityId: existing.id,
+    metadata: { platform: existing.platform, platformUserId: existing.platformUserId },
+    ipAddress: req.ip
+  });
   res.status(204).send();
 });
 
@@ -78,6 +91,15 @@ socialAccountsRouter.post("/connect/facebook", requireRole("AGENCY_ADMIN", "CLIE
   });
   const redirectUri = `${oauthCallbackBase()}/api/oauth/facebook/callback`;
   const authUrl = buildMetaAuthUrl(state, redirectUri);
+  await writeAuditLog({
+    clientId,
+    actorId: req.auth?.userId,
+    action: "SOCIAL_ACCOUNT_CONNECT_STARTED",
+    entityType: "OAuthState",
+    entityId: state,
+    metadata: { platform: "FACEBOOK", redirectUri },
+    ipAddress: req.ip
+  });
   res.json({ state, authUrl, redirectUri });
 });
 
@@ -94,6 +116,15 @@ socialAccountsRouter.post("/connect/instagram", requireRole("AGENCY_ADMIN", "CLI
   });
   const redirectUri = `${oauthCallbackBase()}/api/oauth/instagram/callback`;
   const authUrl = buildMetaAuthUrl(state, redirectUri);
+  await writeAuditLog({
+    clientId,
+    actorId: req.auth?.userId,
+    action: "SOCIAL_ACCOUNT_CONNECT_STARTED",
+    entityType: "OAuthState",
+    entityId: state,
+    metadata: { platform: "INSTAGRAM", redirectUri },
+    ipAddress: req.ip
+  });
   res.json({ state, authUrl, redirectUri });
 });
 
@@ -110,6 +141,15 @@ socialAccountsRouter.post("/connect/linkedin", requireRole("AGENCY_ADMIN", "CLIE
   });
   const redirectUri = `${oauthCallbackBase()}/api/oauth/linkedin/callback`;
   const authUrl = buildLinkedInAuthUrl(state, redirectUri);
+  await writeAuditLog({
+    clientId,
+    actorId: req.auth?.userId,
+    action: "SOCIAL_ACCOUNT_CONNECT_STARTED",
+    entityType: "OAuthState",
+    entityId: state,
+    metadata: { platform: "LINKEDIN", redirectUri },
+    ipAddress: req.ip
+  });
   res.json({ state, authUrl, redirectUri });
 });
 
@@ -145,69 +185,118 @@ socialAccountsRouter.post("/instagram/start", requireRole("AGENCY_ADMIN", "CLIEN
     scope: "instagram_basic,instagram_manage_insights,pages_show_list,business_management"
   }).toString()}`;
 
+  await writeAuditLog({
+    clientId: payload.clientId,
+    actorId: req.auth?.userId,
+    action: "SOCIAL_ACCOUNT_CONNECT_STARTED",
+    entityType: "OAuthState",
+    entityId: state,
+    metadata: { platform: "INSTAGRAM", redirectUri: env.INSTAGRAM_REDIRECT_URI },
+    ipAddress: req.ip
+  });
   res.json({ state, authUrl });
 });
 
 socialAccountsRouter.post("/", requireRole("AGENCY_ADMIN"), async (req, res) => {
-  const bodySchema = z.object({
-    clientId: z.string().min(1),
-    platform: platformSchema,
-    platformUserId: z.string().min(1),
-    accessToken: z.string().min(1),
-    refreshToken: z.string().optional(),
-    tokenExpiresAt: z.string().datetime().optional()
-  });
+  try {
+    const bodySchema = z.object({
+      clientId: z.string().min(1),
+      platform: platformSchema,
+      platformUserId: z.string().min(1),
+      accessToken: z.string().min(1),
+      refreshToken: z.string().optional(),
+      tokenExpiresAt: z.string().datetime().optional()
+    });
 
-  const payload = bodySchema.parse(req.body);
-  const socialAccount = await upsertSocialAccount({
-    clientId: payload.clientId,
-    platform: payload.platform,
-    platformUserId: payload.platformUserId,
-    accessToken: payload.accessToken,
-    refreshToken: payload.refreshToken,
-    tokenExpiresAt: payload.tokenExpiresAt ? new Date(payload.tokenExpiresAt) : undefined
-  });
+    const payload = bodySchema.parse(req.body);
+    const socialAccount = await upsertSocialAccount({
+      clientId: payload.clientId,
+      platform: payload.platform,
+      platformUserId: payload.platformUserId,
+      accessToken: payload.accessToken,
+      refreshToken: payload.refreshToken,
+      tokenExpiresAt: payload.tokenExpiresAt ? new Date(payload.tokenExpiresAt) : undefined
+    });
 
-  await addTokenRefreshJob(
-    "refresh-token",
-    { socialAccountId: socialAccount.id },
-    {
-      jobId: `token-refresh:${socialAccount.id}`
+    await addTokenRefreshJob(
+      "refresh-token",
+      { socialAccountId: socialAccount.id },
+      {
+        jobId: `token-refresh:${socialAccount.id}`
+      }
+    );
+
+    await writeAuditLog({
+      clientId: payload.clientId,
+      actorId: req.auth?.userId,
+      action: "SOCIAL_ACCOUNT_LINKED",
+      entityType: "SocialAccount",
+      entityId: socialAccount.id,
+      metadata: { platform: payload.platform, platformUserId: payload.platformUserId },
+      ipAddress: req.ip
+    });
+
+    res.status(201).json(socialAccount);
+  } catch (err) {
+    if (isSocialAccountOwnershipConflictError(err)) {
+      res.status(409).json({ error: err.message });
+      return;
     }
-  );
-
-  res.status(201).json(socialAccount);
+    throw err;
+  }
 });
 
 socialAccountsRouter.post("/instagram/exchange", requireRole("AGENCY_ADMIN"), async (req, res) => {
-  const payload = z.object({
-    clientId: z.string().min(1),
-    code: z.string().min(1)
-  }).parse(req.body);
+  try {
+    const payload = z.object({
+      clientId: z.string().min(1),
+      code: z.string().min(1)
+    }).parse(req.body);
 
-  const result = await exchangeInstagramCode(payload.code);
-  const socialAccount = await upsertSocialAccount({
-    clientId: payload.clientId,
-    platform: "INSTAGRAM",
-    platformUserId: result.instagramBusinessAccountId,
-    platformUsername: result.instagramUsername,
-    pageId: result.pageId,
-    pageName: result.pageName,
-    accessToken: result.accessToken,
-    tokenExpiresAt: result.expiresAt ?? undefined
-  });
-
-  await addIngestionJob(
-    "instagram-manual-connect",
-    {
-      socialAccountId: socialAccount.id,
+    const result = await exchangeInstagramCode(payload.code);
+    const socialAccount = await upsertSocialAccount({
+      clientId: payload.clientId,
       platform: "INSTAGRAM",
-      trigger: "manual"
-    },
-    {
-      jobId: `instagram-sync:${socialAccount.id}:manual`
-    }
-  );
+      platformUserId: result.instagramBusinessAccountId,
+      platformUsername: result.instagramUsername,
+      pageId: result.pageId,
+      pageName: result.pageName,
+      accessToken: result.accessToken,
+      tokenExpiresAt: result.expiresAt ?? undefined
+    });
 
-  res.status(201).json(socialAccount);
+    await addIngestionJob(
+      "instagram-manual-connect",
+      {
+        socialAccountId: socialAccount.id,
+        platform: "INSTAGRAM",
+        trigger: "manual"
+      },
+      {
+        jobId: `instagram-sync:${socialAccount.id}:manual`
+      }
+    );
+
+    await writeAuditLog({
+      clientId: payload.clientId,
+      actorId: req.auth?.userId,
+      action: "SOCIAL_ACCOUNT_LINKED",
+      entityType: "SocialAccount",
+      entityId: socialAccount.id,
+      metadata: {
+        platform: "INSTAGRAM",
+        platformUserId: result.instagramBusinessAccountId,
+        pageId: result.pageId
+      },
+      ipAddress: req.ip
+    });
+
+    res.status(201).json(socialAccount);
+  } catch (err) {
+    if (isSocialAccountOwnershipConflictError(err)) {
+      res.status(409).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });

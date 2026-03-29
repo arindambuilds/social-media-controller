@@ -65,7 +65,6 @@ export async function signup(input: {
   email: string;
   password: string;
   name: string;
-  role?: "AGENCY_ADMIN" | "CLIENT_USER";
   clientId?: string;
 }) {
   const email = input.email.toLowerCase().trim();
@@ -83,7 +82,7 @@ export async function signup(input: {
       email,
       name: input.name,
       passwordHash,
-      role: input.role ?? "CLIENT_USER",
+      role: "CLIENT_USER",
       client: input.clientId
         ? {
             connect: { id: input.clientId }

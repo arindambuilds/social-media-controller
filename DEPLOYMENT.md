@@ -33,16 +33,18 @@ cp .env.example .env
 
 Edit `.env`:
 
-- `DATABASE_URL` — Postgres (managed or container).
+- `DIRECT_URL` — direct Postgres for Prisma migrations / direct access. Supabase production: direct host on `:5432`.
+- `DATABASE_URL` — runtime app connection. Supabase production: transaction pooler on `:6543` with `pgbouncer=true`.
 - `REDIS_URL` — Redis / Upstash `rediss://`.
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY` (32+ chars).
+- `WEBHOOK_SIGNING_SECRET` for signed inbound social webhooks.
 - `APP_BASE_URL` — public API URL (e.g. `https://api.yourdomain.com`).
 - `INGESTION_MODE=mock` for demos without Meta; `instagram` when Meta app + tokens are ready.
 - `CORS_ORIGIN` — your dashboard origin(s), comma-separated.
 
 ## 4. Database migrations
 
-Run against the same `DATABASE_URL`:
+Run migrations against `DIRECT_URL` and use `DATABASE_URL` for runtime:
 
 ```bash
 npm ci
@@ -92,7 +94,7 @@ npm start
 
 1. Push the repo to GitHub (if not already).
 2. In [Railway](https://railway.app), create a project → **Deploy from GitHub repo** and select this repository.
-3. Add the **PostgreSQL** plugin; copy `DATABASE_URL` into the API service variables.
+3. Add the **PostgreSQL** plugin if you use Railway Postgres. If you use Supabase instead, set both `DIRECT_URL` and `DATABASE_URL` from Supabase in the service variables.
 4. Add **Redis** (Railway plugin) or paste an **Upstash** `REDIS_URL` (`rediss://…`) into variables.
 5. Set all required variables from root `.env.example` (`JWT_*`, `ENCRYPTION_KEY`, `APP_BASE_URL`, `CORS_ORIGIN`, `INGESTION_MODE`, optional Meta/LinkedIn keys, `OAUTH_REDIRECT_BASE_URL` pointing at your public API URL, `SENTRY_DSN` optional).
 6. **API service** — install/build: `npm ci && npm run build && npx prisma migrate deploy`  
@@ -103,28 +105,16 @@ npm start
 
 Register OAuth redirect URLs with Meta/LinkedIn to match `OAUTH_REDIRECT_BASE_URL` (e.g. `https://api…/api/oauth/facebook/callback`).
 
-## 10. Render.com (Web Service + PostgreSQL)
+## 10. Render.com (Web Service + Supabase)
 
-### Internal vs external `DATABASE_URL`
+This repository’s production model is **Supabase**, not Render-managed Postgres:
 
-- **Internal Database URL** — use on your **Render Web Service** in the same region/account so the API can reach Postgres over Render’s private network (hostname like `dpg-xxxx.REGION-postgres.render.com`). **Do not** use the external URL for the web service.
-- **External URL** — for tools running **outside** Render (your laptop, CI, Prisma CLI, `npx prisma migrate deploy`, etc.). Add `?sslmode=require` when connecting from your machine.
-- **Credentials:** the older DB user `smc_user` was replaced by **`smc_user_v2`** for new passwords; your connection string must use the active user from the Render Postgres dashboard.
-- **Local development** still uses a normal local Postgres URL, e.g. `postgresql://...@localhost:5432/...`.
+- `DIRECT_URL` = direct Supabase Postgres on `:5432` for Prisma migrations
+- `DATABASE_URL` = Supabase transaction pooler on `:6543` for runtime app connections
 
-If `DATABASE_URL` still points at `localhost` while `NODE_ENV=production`, the API **exits immediately** with a fatal log (misconfiguration guard).
+Use the exact pooler value Supabase shows you. If Supabase shows an `aws-0-REGION.pooler.supabase.com` hostname, copy it exactly. Do not guess or hand-edit the pooler hostname.
 
-**If you create a new Render Postgres credential or rotate the password:** update `DATABASE_URL` in **Web Service → Environment** to match (prefer the **internal** URL on the service), then trigger a **manual redeploy** so the process picks up the new value.
-
-### Rotate Postgres password from Windows (`psql`)
-
-Use the installed binary, e.g.:
-
-```powershell
-& "C:\Program Files\PostgreSQL\16\bin\psql.exe" "postgresql://USER:OLD_PASSWORD@HOST:5432/DBNAME" -c "ALTER USER your_user WITH PASSWORD 'SecureNewPass2024!';"
-```
-
-Then update **`DATABASE_URL`** in Render → Web Service → **Environment** with the new password and **redeploy**.
+If `DATABASE_URL` still points at `localhost` while `NODE_ENV=production`, the API exits immediately with a fatal log.
 
 ### Suggested Render Web Service commands
 
@@ -133,13 +123,14 @@ Then update **`DATABASE_URL`** in Render → Web Service → **Environment** wit
 | **Build Command** | `npm install && npm run build && npm run db:deploy:seed` |
 | **Start Command** | `node dist/server.js` |
 
-`db:deploy:seed` runs `prisma migrate deploy` then `prisma db seed` (seed uses upserts; safe to re-run for demos). For large production datasets, run migrate in build and seed **once** from **Render Shell** instead.
+`db:deploy:seed` runs `prisma migrate deploy` then `prisma db seed`. In this repo, `prisma migrate deploy` should use `DIRECT_URL`, while the running API uses `DATABASE_URL`.
 
 ### Render Web Service — Required Environment Variables
 
 | Variable | Value | Notes |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://smc_user_v2:PASSWORD@dpg-xxx/smc_db_s2vr` | Use **Internal** Database URL on the web service |
+| `DIRECT_URL` | `postgresql://postgres:<PASSWORD>@db.lvlzugnoavgzwzulnnyf.supabase.co:5432/postgres?schema=public&sslmode=require` | Direct Supabase Postgres for Prisma migrations |
+| `DATABASE_URL` | `postgresql://postgres:<PASSWORD>@db.lvlzugnoavgzwzulnnyf.supabase.co:6543/postgres?schema=public&pgbouncer=true&sslmode=require` | Supabase transaction pooler for runtime |
 | `NODE_ENV` | `production` | Required for production DB guard |
 | `JWT_SECRET` | (from local `.env`) | Min 32 chars |
 | `JWT_REFRESH_SECRET` | (from local `.env`) | Min 32 chars |
@@ -154,6 +145,13 @@ Then update **`DATABASE_URL`** in Render → Web Service → **Environment** wit
 | `LINKEDIN_CLIENT_ID` | (optional) | LinkedIn OAuth |
 | `LINKEDIN_CLIENT_SECRET` | (optional) | LinkedIn OAuth |
 | `INGESTION_MODE` | `mock` | For testing without live platform sync |
+
+After updating Render env vars:
+
+1. Redeploy the service.
+2. Verify `GET /api/health/db`.
+3. Verify `POST /api/auth/login`.
+4. If runtime still fails but migrations worked, compare Render’s `DATABASE_URL` character-for-character with the exact Supabase transaction pooler value. No manual hostname guessing.
 
 ### Vercel Dashboard — Required Environment Variables
 

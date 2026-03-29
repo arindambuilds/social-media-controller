@@ -9,6 +9,7 @@ declare global {
         role: string;
         clientId?: string;
       };
+      rawBody?: Buffer;
     }
   }
 }

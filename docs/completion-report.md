@@ -51,7 +51,7 @@ Legend: ✅ working · ⚠️ stub / partial · 🔴 missing
 | GET/POST/DELETE | `/api/posts` | Bearer | ✅ |
 | GET | `/api/audit-logs` | Bearer | ✅ |
 | GET/POST | `/api/social-accounts/*` | Bearer | ✅ |
-| POST | `/api/webhooks/*` | Signature | ✅ |
+| POST | `/api/webhooks/*` | `X-Webhook-Signature` hex HMAC or `X-Hub-Signature-256: sha256=...` | ✅ |
 | GET | `/api/analytics/:clientId/overview` | Bearer | ✅ |
 | GET | `/api/analytics/:clientId/posts` | Bearer | ✅ |
 | GET | `/api/analytics/:platform/:clientId/summary` | Bearer | ✅ |
@@ -103,11 +103,12 @@ Without `REDIS_URL`, jobs run **synchronously** in the API process when enqueued
 
 ---
 
-## Render deployment checklist (set in dashboard)
+## Render deployment checklist (set in dashboard; Supabase-backed)
 
 | Variable | Typical state |
 |----------|----------------|
-| `DATABASE_URL` | ✅ Must be **internal** Postgres URL on web service |
+| `DIRECT_URL` | ✅ Direct Supabase Postgres on `:5432` for Prisma migrations |
+| `DATABASE_URL` | ✅ Supabase transaction pooler on `:6543` for runtime |
 | `NODE_ENV` | ✅ `production` |
 | `JWT_SECRET` | ✅ 32+ chars |
 | `JWT_REFRESH_SECRET` | ✅ 32+ chars |

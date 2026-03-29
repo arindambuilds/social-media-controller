@@ -169,6 +169,9 @@ async function seedFollowerCurve(socialAccountId: string, baseFollowers: number)
 }
 
 async function main() {
+  // Operator logins (docs: README, docs/DEMO.md):
+  // Primary: demo@demo.com / Demo1234!
+  // Alternates: admin@demo.com / admin123, salon@pilot.demo / pilot123, demo@agencyname.com / Demo1234!
   const demoAgencyHash = await hashSeedPassword("Demo1234!");
   const demoAgency = await prisma.user.upsert({
     where: { email: "demo@agencyname.com" },
@@ -486,7 +489,7 @@ async function main() {
   }
 
   console.log(
-    "Seed OK: users upserted (password field = passwordHash, bcrypt cost %s) — demo@demo.com / Demo1234!, demo@agencyname.com, admin@demo.com, salon@pilot.demo",
+    "Seed OK: users upserted (password field = passwordHash, bcrypt cost %s) — primary demo@demo.com / Demo1234!; alternates: demo@agencyname.com, admin@demo.com, salon@pilot.demo",
     SEED_BCRYPT_ROUNDS
   );
 }

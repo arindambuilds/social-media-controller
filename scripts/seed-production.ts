@@ -15,13 +15,14 @@
  *
  * STEP 4 — package.json dependencies: `bcrypt` and `bcryptjs` both present; auth + this script use `bcrypt` only.
  *
- * Run (production Supabase URL from env only, never hardcoded):
- *   DATABASE_URL="postgresql://..." npx tsx scripts/seed-production.ts
+ * Run (production URLs from env only, never hardcoded):
+ *   DATABASE_URL="postgresql://...:6543/...?...pgbouncer=true..." DIRECT_URL="postgresql://...:5432/...?...sslmode=require" npx tsx scripts/seed-production.ts
  */
 
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 
+/** Primary operator / smoke user (alternates: prisma/seed.ts, README, docs/DEMO.md). */
 const DEMO_EMAIL = "demo@demo.com";
 const DEMO_PASSWORD = "Demo1234!";
 const BCRYPT_ROUNDS = 10;
@@ -31,7 +32,7 @@ async function main() {
   const databaseUrl = process.env.DATABASE_URL?.trim();
   if (!databaseUrl) {
     throw new Error(
-      'DATABASE_URL is not set. Run: DATABASE_URL="postgresql://..." npx tsx scripts/seed-production.ts (set DIRECT_URL to direct :5432 for Supabase when using pooler in DATABASE_URL)'
+      'DATABASE_URL is not set. Set DATABASE_URL to the runtime pooler (:6543) and DIRECT_URL to the direct Postgres connection (:5432) before running this script.'
     );
   }
   if (!process.env.DIRECT_URL?.trim()) {

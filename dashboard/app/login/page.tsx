@@ -11,6 +11,7 @@ const LOGIN_TIMEOUT_MS = 90_000;
 export default function LoginPage() {
   const router = useRouter();
   const { setSession } = useAuth();
+  /** Demo defaults: primary operator (README / docs/DEMO.md). */
   const [email, setEmail] = useState("demo@demo.com");
   const [password, setPassword] = useState("Demo1234!");
   const [error, setError] = useState("");

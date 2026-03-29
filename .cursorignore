@@ -1,0 +1,7 @@
+﻿# Heavy / generated dirs — keep IDE search fast (e.g. avoid scanning Next build output)
+dashboard/.next/
+node_modules/
+dist/
+build/
+coverage/
+.turbo/

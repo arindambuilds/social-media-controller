@@ -7,13 +7,15 @@
 
 ## Login credentials
 
+**Primary (operator / default demo):**
+
 - **Email:** `demo@demo.com`  
 - **Password:** `Demo1234!`  
 
-**Additional seed users (same DB):**
+**Alternates** (same seeded DB):
 
-- `demo@agencyname.com` / `Demo1234!` — display name “Growth Agency” (agency admin)  
-- `admin@demo.com` / `admin123`  
+- `demo@agencyname.com` / `Demo1234!` — “Growth Agency” (agency admin)  
+- `admin@demo.com` / `admin123` — founder alternate  
 - `salon@pilot.demo` / `pilot123` — client user for Urban Glow  
 
 ## Demo script (~5 minutes)
@@ -62,8 +64,9 @@ Redeploy the dashboard after changing variables.
 
 ## Environment checklist (Render API)
 
-- **`DATABASE_URL` (required):** Use the same Postgres URL as local (e.g. Supabase) or Render’s **Internal Database URL** on the web service. Copy from root `.env` if you use hosted Postgres elsewhere.  
-  - Do **not** leave the default `localhost` connection string — the API will **refuse to start** in `NODE_ENV=production` if `DATABASE_URL` still points at `localhost` / `127.0.0.1`.  
+- **`DATABASE_URL` (required):** For this repo’s Supabase production model, use the Supabase transaction pooler on `:6543` with `pgbouncer=true&sslmode=require`.  
+- **`DIRECT_URL` (required for migrations / direct access):** Use the direct Supabase Postgres connection on `:5432` with `sslmode=require`.  
+  - Do **not** leave the default `localhost` connection string — the API will refuse to start in `NODE_ENV=production` if `DATABASE_URL` still points at `localhost` / `127.0.0.1`.  
 - **`JWT_SECRET`** (32+ chars), **`JWT_REFRESH_SECRET`** (32+ chars), **`ENCRYPTION_KEY`** (32+ chars optional if you rely on JWT-derived encryption per code).  
 - **`NODE_ENV=production`**  
 - Optional: `REDIS_URL`, `OPENAI_API_KEY`, Meta app IDs/secrets.  
@@ -71,8 +74,8 @@ Redeploy the dashboard after changing variables.
 
 ## Seeding production / Render
 
-1. Fix `DATABASE_URL` and redeploy so the service can reach Postgres.  
-2. Open **Render Shell** (or any shell with the same `DATABASE_URL`):
+1. Fix both `DATABASE_URL` and `DIRECT_URL`, then redeploy so the service can reach Supabase correctly.  
+2. Open **Render Shell** (or any shell with the same `DATABASE_URL` + `DIRECT_URL`):
 
 ```bash
 npx prisma migrate deploy

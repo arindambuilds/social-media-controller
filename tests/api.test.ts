@@ -84,7 +84,7 @@ run("API MVP smoke", () => {
 
   it("POST /api/auth/login returns the sanitized auth contract", async () => {
     const email = `auth-login-${Date.now()}@example.com`;
-    const password = "Demo1234!";
+    const password = "testpasslong1";
 
     const signup = await request(app).post("/api/auth/signup").send({
       email,
@@ -140,10 +140,10 @@ run("API MVP smoke", () => {
     });
   });
 
-  it("POST /api/auth/login returns JWT for seeded admin", async () => {
+  it("POST /api/auth/login returns JWT for seeded primary operator", async () => {
     const res = await request(app).post("/api/auth/login").send({
-      email: "admin@demo.com",
-      password: "admin123"
+      email: "demo@demo.com",
+      password: "Demo1234!"
     });
     if (res.status === 401) {
       expect(res.status).toBe(401);
@@ -160,8 +160,8 @@ run("API MVP smoke", () => {
 
   it("GET /api/analytics/:clientId/overview returns data with valid token", async () => {
     const login = await request(app).post("/api/auth/login").send({
-      email: "admin@demo.com",
-      password: "admin123"
+      email: "demo@demo.com",
+      password: "Demo1234!"
     });
     if (login.status !== 200) {
       expect(login.status).toBeDefined();
@@ -176,6 +176,7 @@ run("API MVP smoke", () => {
     expect(typeof res.body.totalPosts).toBe("number");
   });
 
+  /** Alternate seeded login — client role (not primary operator). */
   it("CLIENT_USER cannot read another tenant analytics overview (403)", async () => {
     const login = await request(app).post("/api/auth/login").send({
       email: "salon@pilot.demo",
@@ -195,8 +196,8 @@ run("API MVP smoke", () => {
 
   it("POST /api/instagram/sync accepts job (202)", async () => {
     const login = await request(app).post("/api/auth/login").send({
-      email: "admin@demo.com",
-      password: "admin123"
+      email: "demo@demo.com",
+      password: "Demo1234!"
     });
     if (login.status !== 200) return;
     const token = login.body.accessToken as string;

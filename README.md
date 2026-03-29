@@ -38,7 +38,10 @@ Full steps: **[docs/local-dev.md](docs/local-dev.md)** (Postgres local + **Upsta
 
 ```powershell
 copy .env.example .env
-# Edit .env: DATABASE_URL, REDIS_URL, JWT_*, ENCRYPTION_KEY, INGESTION_MODE=mock for demos
+# Edit .env:
+# - local Postgres: set both DATABASE_URL and DIRECT_URL to localhost:5432
+# - Supabase/Render: DIRECT_URL must stay on :5432, DATABASE_URL must use the transaction pooler on :6543
+# - also set REDIS_URL, JWT_*, ENCRYPTION_KEY, INGESTION_MODE=mock for demos
 npm install
 npm run prisma:generate
 npm run prisma:migrate
@@ -64,13 +67,15 @@ npm run dashboard:dev
 ```
 
 - API: `http://localhost:4000` · Dashboard: `http://localhost:3000`  
-- Demo logins (after seed — same table as **`docs/launch-checklist.md`**):
+- **Primary operator / smoke:** `demo@demo.com` / `Demo1234!`  
+- **Alternates** (after seed — same bcrypt rounds as `prisma/seed.ts`):
 
   | Role | Email | Password |
   |------|--------|----------|
-  | Admin / founder demo | `admin@demo.com` | `admin123` |
-  | Client (pilot UX) | `salon@pilot.demo` | `pilot123` |
-  | Agency admin (presentations) | `demo@agencyname.com` | `Demo1234!` |
+  | Primary operator / smoke | `demo@demo.com` | `Demo1234!` |
+  | Alternate — founder | `admin@demo.com` | `admin123` |
+  | Alternate — client (pilot UX) | `salon@pilot.demo` | `pilot123` |
+  | Alternate — agency (presentations) | `demo@agencyname.com` | `Demo1234!` |
 
 - Set `NEXT_PUBLIC_API_URL=http://localhost:4000` in `dashboard/.env.local` if needed.
 
@@ -83,6 +88,7 @@ npm run dashboard:dev
 | Doc | Purpose |
 |-----|---------|
 | [docs/local-dev.md](docs/local-dev.md) | Env, migrations, seed, curl checks |
+| [docs/deploy-checklist.md](docs/deploy-checklist.md) | Operator-ready Supabase + Render deploy checklist |
 | [docs/mvp-product.md](docs/mvp-product.md) | Positioning, MVP promise, what to ignore |
 | [docs/2-week-plan.md](docs/2-week-plan.md) | Founder-sized execution plan |
 | [docs/demo-script.md](docs/demo-script.md) | 8-step live demo story (local business) |
@@ -115,6 +121,7 @@ npm run dashboard:dev
 | `npm run build` | Compile API |
 | `npm run lint` | Typecheck API |
 | `npm run prisma:seed` | Seed demo data |
+| `npm run prisma:deploy` | Run production migrations using `DIRECT_URL` |
 | `npm run dashboard:build` | Production build of dashboard |
 | `npm run smoke:demo` | Hit health, login, me, analytics, insights, leads (API must be up) |
 | `npm run pdf:mvp-one-pager` | Build `docs/mvp-status-one-pager.pdf` from the Markdown (uses Microsoft Edge) |
@@ -128,8 +135,17 @@ npm run dashboard:dev
 - OAuth `state` validated via Redis  
 - Social tokens encrypted at rest (see `src/lib/encryption.ts`)  
 - Role checks on agency-only routes  
+- Inbound social webhooks require HMAC SHA-256 signing via `WEBHOOK_SIGNING_SECRET`
 
----
+### Webhook signature contract
+
+- Send the exact raw JSON body bytes signed with HMAC SHA-256 using `WEBHOOK_SIGNING_SECRET`.
+- Supported headers:
+  - `X-Webhook-Signature: <hex digest>`
+  - `X-Hub-Signature-256: sha256=<hex digest>`
+- Unsigned webhook writes are rejected.
+
+--- 
 
 ## Licence
 

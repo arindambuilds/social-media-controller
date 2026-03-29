@@ -83,9 +83,10 @@ Copy `.env.example` to `.env` at the **repo root** and set:
 
 | Variable | Notes |
 |----------|--------|
-| `DATABASE_URL` | Local: `postgresql://user:pass@localhost:5432/social_media_controller?schema=public`. Render (external URL from dashboard, for Prisma on your PC): e.g. `postgresql://smc_user_v2:YOUR_PASSWORD@dpg-d73u2k5m5p6s73eueaug-a.oregon-postgres.render.com/smc_db_s2vr?sslmode=require` |
+| `DATABASE_URL` | Local: `postgresql://user:pass@localhost:5432/social_media_controller?schema=public`. Supabase/Render production runtime: transaction pooler on `:6543` with `pgbouncer=true&sslmode=require` |
+| `DIRECT_URL` | Local: same as `DATABASE_URL`. Supabase/Render production migrations: direct connection on `:5432` with `sslmode=require` |
 | `REDIS_URL` | Upstash `rediss://...` |
-| `JWT_SECRET` / `JWT_REFRESH_SECRET` | Long random strings (16+ chars) |
+| `JWT_SECRET` / `JWT_REFRESH_SECRET` | Long random strings (32+ chars) |
 | `ENCRYPTION_KEY` | At least **32 characters** (token encryption) |
 | `APP_BASE_URL` | `http://localhost:4000` |
 | `INGESTION_MODE` | **`mock`** for reliable demos without Meta; **`instagram`** when Graph API + tokens are ready |
@@ -111,6 +112,11 @@ npm run prisma:seed
 ```
 
 `npx prisma db seed` also works (seed command is set in `package.json` → `prisma.seed`).
+
+For Supabase + Render production:
+
+- `npm run prisma:deploy` should run with `DIRECT_URL` set to the direct `:5432` connection
+- the running API should use `DATABASE_URL` set to the transaction pooler on `:6543`
 
 ---
 
@@ -138,12 +144,16 @@ npm run dashboard:dev
 
 ### 7) Demo logins (after seed)
 
+**Primary operator / smoke:** `demo@demo.com` / `Demo1234!`
+
 | Role | Email | Password |
 |------|--------|----------|
-| Agency / founder | `admin@demo.com` | `admin123` |
-| Client (Urban Glow manager) | `salon@pilot.demo` | `pilot123` |
+| Primary operator / smoke | `demo@demo.com` | `Demo1234!` |
+| Alternate — founder | `admin@demo.com` | `admin123` |
+| Alternate — client (Urban Glow) | `salon@pilot.demo` | `pilot123` |
+| Alternate — agency (presentations) | `demo@agencyname.com` | `Demo1234!` |
 
-Client ID for both is seeded as **`demo-client`** (Urban Glow Studio).
+Use the **primary** row for smoke checks and the default dashboard login. Seeded client ID: **`demo-client`** (Urban Glow Studio).
 
 ### 7b) Smoke test (API must be running)
 
@@ -163,7 +173,7 @@ npm run smoke:render
 
 ### 8) Mock ingestion (optional extra data)
 
-1. `POST /api/auth/login` with the demo credentials → JWT  
+1. `POST /api/auth/login` with the primary demo credentials → JWT  
 2. `POST /api/webhooks/ingestion` with body:
 
 ```json
@@ -215,7 +225,7 @@ curl.exe http://localhost:4000/health
 ```
 
 ```powershell
-$body = '{"email":"admin@demo.com","password":"admin123"}'
+$body = '{"email":"demo@demo.com","password":"Demo1234!"}'
 Invoke-RestMethod -Uri "http://localhost:4000/api/auth/login" -Method POST -Body $body -ContentType "application/json; charset=utf-8"
 ```
 

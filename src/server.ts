@@ -10,7 +10,7 @@ if (process.env.NODE_ENV === "production") {
   ) {
     console.error(
       "FATAL: DATABASE_URL points to localhost in production. " +
-        "Set the Render Internal Database URL in your web service environment variables."
+        "Set DATABASE_URL to the Supabase transaction pooler (:6543) and DIRECT_URL to the direct Postgres connection (:5432) in your production environment variables."
     );
     process.exit(1);
   }
