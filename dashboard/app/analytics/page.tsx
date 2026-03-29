@@ -221,7 +221,7 @@ export default function AnalyticsPage() {
             <div className="panel span-12">
               <h3>Avg likes by hour (0–23)</h3>
               <div style={{ width: "100%", height: 280 }}>
-                <ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={summary.likesByHour}>
                     <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
                     <XAxis dataKey="hour" tick={{ fill: "var(--muted)", fontSize: 10 }} />
@@ -336,7 +336,7 @@ export default function AnalyticsPage() {
               Daily follower counts when available from ingestion or seed — not live Meta unless connected.
             </p>
             <div style={{ width: "100%", height: 220 }}>
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={followerLine}>
                   <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} />
@@ -365,7 +365,7 @@ export default function AnalyticsPage() {
         <div className="panel span-12">
           <h3>Engagement rate over time</h3>
           <div style={{ width: "100%", height: 280 }}>
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={lineData}>
                 <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
                 <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} />
@@ -394,7 +394,7 @@ export default function AnalyticsPage() {
         <div className="panel span-6">
           <h3>Posts by hour</h3>
           <div style={{ width: "100%", height: 260 }}>
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hourly}>
                 <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
                 <XAxis dataKey="hour" tick={{ fill: "var(--muted)", fontSize: 10 }} />
@@ -415,7 +415,7 @@ export default function AnalyticsPage() {
         <div className="panel span-6">
           <h3>Media type breakdown</h3>
           <div style={{ width: "100%", height: 260 }}>
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={mediaTypes} layout="vertical">
                 <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
                 <XAxis type="number" tick={{ fill: "var(--muted)", fontSize: 10 }} />

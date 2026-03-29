@@ -314,6 +314,10 @@ html[data-theme="dark"] .demo-mode-banner-dismiss {
 
   .app-nav-center.is-open {
     display: flex;
+    position: relative;
+    z-index: 60;
+    background: color-mix(in srgb, var(--bg) 96%, transparent);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   }
 
   .app-nav-group {

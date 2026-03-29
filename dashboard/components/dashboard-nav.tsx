@@ -61,6 +61,21 @@ export function DashboardNav() {
     setMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const el = document.body;
+    const apply = () => {
+      el.style.overflow = window.matchMedia("(max-width: 767px)").matches ? "hidden" : "";
+    };
+    apply();
+    const mq = window.matchMedia("(max-width: 767px)");
+    mq.addEventListener("change", apply);
+    return () => {
+      mq.removeEventListener("change", apply);
+      el.style.overflow = "";
+    };
+  }, [menuOpen]);
+
   const avatarStyle = useMemo(() => {
     if (!user?.email) return undefined;
     const hue = avatarHue(user.email);
@@ -95,6 +110,7 @@ export function DashboardNav() {
           className="app-nav-menu-toggle"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
+          aria-controls="app-nav-links"
           onClick={() => setMenuOpen((o) => !o)}
         >
           <span />
@@ -102,7 +118,11 @@ export function DashboardNav() {
           <span />
         </button>
 
-        <nav className={`app-nav-center ${menuOpen ? "is-open" : ""}`} aria-label="Primary">
+        <nav
+          id="app-nav-links"
+          className={`app-nav-center ${menuOpen ? "is-open" : ""}`}
+          aria-label="Primary"
+        >
           <div className="app-nav-group">
             <span className="app-nav-group-label">App</span>
             {primaryLinks.map(({ href, label }) => (
