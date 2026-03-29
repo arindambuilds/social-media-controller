@@ -97,9 +97,8 @@ npm start
 3. Add the **PostgreSQL** plugin if you use Railway Postgres. If you use Supabase instead, set both `DIRECT_URL` and `DATABASE_URL` from Supabase in the service variables.
 4. Add **Redis** (Railway plugin) or paste an **Upstash** `REDIS_URL` (`rediss://…`) into variables.
 5. Set all required variables from root `.env.example` (`JWT_*`, `ENCRYPTION_KEY`, `APP_BASE_URL`, `CORS_ORIGIN`, `INGESTION_MODE`, optional Meta/LinkedIn keys, `OAUTH_REDIRECT_BASE_URL` pointing at your public API URL, `SENTRY_DSN` optional).
-6. **API service** — install/build: `npm ci && npm run build && npx prisma migrate deploy`  
-   **Start command:** `npx prisma migrate deploy && node dist/server.js`  
-   (Use `npm run prisma:migrate:deploy` if you prefer the npm script alias.)
+6. **API service** — install/build: `npm ci && npm run build` (run `npm run start:migrate` from a shell that can reach `DIRECT_URL` when schema changes).  
+   **Start command:** `npm run start:app` (`node dist/server.js` only).
 7. **Worker service** (duplicate repo, same env): start command `node dist/workers/ingestionWorker.js`. Add another service for **`node dist/workers/postPublishWorker.js`** and **`node dist/workers/tokenRefreshWorker.js`** if you use scheduled posts and token refresh jobs.
 8. **Dashboard service**: root `dashboard/`, install `npm ci`, build `npm run build`, start `npm start`. Set `NEXT_PUBLIC_API_URL` to the public API **origin only** (e.g. `https://social-media-controller.onrender.com`); the app appends `/api` in code.
 
@@ -121,9 +120,9 @@ If `DATABASE_URL` still points at `localhost` while `NODE_ENV=production`, the A
 | Field | Example |
 |-------|---------|
 | **Build Command** | `npm ci && npm run build` |
-| **Start Command** | `npm start` (runs `prisma migrate deploy && node dist/server.js`) |
+| **Start Command** | **`npm run start:app`** (`node dist/server.js` only — no migrate on boot) |
 
-If **migrate** fails on Render with **P1001** to `:5432`, run `npx prisma migrate deploy` locally once, then set **Start Command** to **`npm run start:app`** (`node dist/server.js` only). Optional: run `npx tsx prisma/seed.ts` locally against the pooler URL if you need demo users.
+**`npm start`** in this repo is also **`node dist/server.js` only.** Run **`npm run start:migrate`** locally (with `DATABASE_URL` + `DIRECT_URL`) when you need to apply migrations. See root **`DEPLOY_CHECKLIST.md`** (critical rule at top).
 
 ### Render Web Service — Required Environment Variables
 

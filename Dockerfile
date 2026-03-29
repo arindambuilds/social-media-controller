@@ -35,4 +35,4 @@ RUN chown -R nodejs:nodejs /app
 USER nodejs
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+CMD ["node", "dist/server.js"]

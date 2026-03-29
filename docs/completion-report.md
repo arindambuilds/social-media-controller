@@ -135,7 +135,7 @@ Without `REDIS_URL`, jobs run **synchronously** in the API process when enqueued
 
 **Vercel:** `NEXT_PUBLIC_API_URL` = API origin **without** `/api`.
 
-**Render start:** this repo uses `npx prisma migrate deploy && node dist/server.js` (not `dist/index.js`).
+**Render start:** `npm run start:app` → `node dist/server.js` only (not `dist/index.js`). Migrations: `npm run start:migrate` locally with `DATABASE_URL` + `DIRECT_URL`.
 
 ---
 
