@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/auth-context";
 import { ThemeToggle } from "./theme-toggle";
-import { DemoModeBadge } from "./demo-mode-badge";
 
 /** Primary MVP nav (5 pages). */
 const primaryLinks = [
@@ -50,7 +49,6 @@ export function DashboardNav() {
           <Link href="/" className="app-nav-brand">
             Pulse<span> Studio</span>
           </Link>
-          <DemoModeBadge />
         </div>
 
         <nav className="app-nav-center" aria-label="Primary">

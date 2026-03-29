@@ -147,6 +147,55 @@ body {
   color: var(--text-secondary);
 }
 
+.demo-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 22px;
+  background: #fef9c3;
+  border-bottom: 1px solid #eab308;
+  color: #713f12;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.demo-mode-banner-text {
+  margin: 0;
+  flex: 1 1 280px;
+  max-width: 720px;
+}
+
+.demo-mode-banner-dismiss {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #ca8a04;
+  background: #fff;
+  color: #713f12;
+}
+
+.demo-mode-banner-dismiss:hover {
+  background: #fefce8;
+}
+
+html[data-theme="dark"] .demo-mode-banner {
+  background: rgba(234, 179, 8, 0.2);
+  border-bottom-color: rgba(250, 204, 21, 0.45);
+  color: #fde68a;
+}
+
+html[data-theme="dark"] .demo-mode-banner-dismiss {
+  background: var(--bg-elevated);
+  border-color: rgba(250, 204, 21, 0.5);
+  color: #fde68a;
+}
+
 .app-nav-center {
   display: flex;
   flex-wrap: wrap;

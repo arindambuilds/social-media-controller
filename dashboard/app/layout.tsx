@@ -3,7 +3,9 @@ import { Inter, Sora } from "next/font/google";
 import { AppProviders } from "../components/app-providers";
 import { AuthReadyGate } from "../components/auth-ready-gate";
 import { AuthProvider } from "../context/auth-context";
+import { DemoModeProvider } from "../context/demo-mode-context";
 import { DashboardNav } from "../components/dashboard-nav";
+import { DemoModeBanner } from "../components/demo-mode-banner";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,13 +32,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <body>
         <AppProviders>
-          <AuthProvider>
-            <DashboardNav />
-            <AuthReadyGate>
-              {/* Errors in route segments are caught by app/error.tsx (Next.js error boundary). */}
-              <main className="app-main">{children}</main>
-            </AuthReadyGate>
-          </AuthProvider>
+          <DemoModeProvider>
+            <AuthProvider>
+              <DashboardNav />
+              <DemoModeBanner />
+              <AuthReadyGate>
+                {/* Errors in route segments are caught by app/error.tsx (Next.js error boundary). */}
+                <main className="app-main">{children}</main>
+              </AuthReadyGate>
+            </AuthProvider>
+          </DemoModeProvider>
         </AppProviders>
       </body>
     </html>
