@@ -37,6 +37,7 @@ const statusColors: Record<LeadStatus, string> = {
 export default function LeadsPage() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [role, setRole] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +59,8 @@ export default function LeadsPage() {
 
     (async () => {
       try {
-        const me = await fetchMe(token);
+        const me = await fetchMe();
+        setRole(me.user.role);
         let cid: string | null = getStoredClientId() ?? me.user.clientId;
         if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
 
@@ -99,8 +101,8 @@ export default function LeadsPage() {
         title="Leads from Instagram"
         description="Comments and DMs flagged as interest — follow up before they go cold."
         actions={
-          <Link href="/analytics" className="button secondary">
-            Back to analytics
+          <Link href="/dashboard" className="button secondary">
+            Back to dashboard
           </Link>
         }
       />
@@ -113,11 +115,13 @@ export default function LeadsPage() {
             <thead>
               <tr>
                 <th align="left" style={{ padding: "10px 8px", color: "var(--muted)", fontSize: "0.8125rem" }}>
-                  Contact
+                  Name
                 </th>
-                <th align="left" style={{ padding: "10px 8px", color: "var(--muted)", fontSize: "0.8125rem" }}>
-                  Business / IG
-                </th>
+                {role !== "CLIENT_USER" ? (
+                  <th align="left" style={{ padding: "10px 8px", color: "var(--muted)", fontSize: "0.8125rem" }}>
+                    Business / IG
+                  </th>
+                ) : null}
                 <th align="left" style={{ padding: "10px 8px", color: "var(--muted)", fontSize: "0.8125rem" }}>
                   Source
                 </th>
@@ -132,7 +136,11 @@ export default function LeadsPage() {
             <tbody>
               {leads.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="muted" style={{ padding: 24 }}>
+                  <td
+                    colSpan={role === "CLIENT_USER" ? 4 : 5}
+                    className="muted"
+                    style={{ padding: 24 }}
+                  >
                     No leads yet. When comments or DMs look like bookings, they will show here.
                   </td>
                 </tr>
@@ -144,12 +152,14 @@ export default function LeadsPage() {
                   return (
                     <tr key={lead.id}>
                       <td style={{ padding: "12px 8px" }}>{lead.contactName || lead.sourceId}</td>
-                      <td style={{ padding: "12px 8px" }}>
-                        <div>{lead.client?.name ?? "—"}</div>
-                        <div className="muted" style={{ fontSize: "0.8125rem" }}>
-                          {handle} · {sync}
-                        </div>
-                      </td>
+                      {role !== "CLIENT_USER" ? (
+                        <td style={{ padding: "12px 8px" }}>
+                          <div>{lead.client?.name ?? "—"}</div>
+                          <div className="muted" style={{ fontSize: "0.8125rem" }}>
+                            {handle} · {sync}
+                          </div>
+                        </td>
+                      ) : null}
                       <td style={{ padding: "12px 8px" }}>{lead.source}</td>
                       <td style={{ padding: "12px 8px" }}>
                         <span style={{ color: statusColors[lead.status], fontWeight: 700 }}>{lead.status}</span>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/auth-context";
 import { ThemeToggle } from "./theme-toggle";
+import { DemoModeBadge } from "./demo-mode-badge";
 
 /** Primary MVP nav (5 pages). */
 const primaryLinks = [
@@ -30,8 +31,9 @@ function isActive(pathname: string, href: string) {
 export function DashboardNav() {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
-  const { token, isReady, clearSession } = useAuth();
+  const { token, isReady, user, userLoading, clearSession } = useAuth();
   const hasToken = isReady && !!token;
+  const showAuditLink = !userLoading && user?.role === "AGENCY_ADMIN";
 
   function signOut() {
     clearSession();
@@ -48,6 +50,7 @@ export function DashboardNav() {
           <Link href="/" className="app-nav-brand">
             Pulse<span> Studio</span>
           </Link>
+          <DemoModeBadge />
         </div>
 
         <nav className="app-nav-center" aria-label="Primary">
@@ -70,6 +73,7 @@ export function DashboardNav() {
             {secondaryLinks.map(({ href, label }) => {
               if (href === "/login" && hasToken) return null;
               if (href === "/onboarding" && !hasToken) return null;
+              if (href === "/audit" && !showAuditLink) return null;
               return (
                 <Link
                   key={href}

@@ -52,7 +52,7 @@ function AccountsPageContent() {
     }
     (async () => {
       try {
-        const me = await fetchMe(token);
+        const me = await fetchMe();
         let cid = getStoredClientId() ?? me.user.clientId;
         if (me.user.role === "AGENCY_ADMIN" && !cid) {
           cid = "demo-client";

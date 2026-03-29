@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetchResponse, fetchMe, parseApiErrorMessage } from "../../lib/api";
@@ -18,6 +19,7 @@ type AuditRow = {
 
 export default function AuditPage() {
   const router = useRouter();
+  const [role, setRole] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [logs, setLogs] = useState<AuditRow[]>([]);
   const [actionFilter, setActionFilter] = useState("");
@@ -60,9 +62,10 @@ export default function AuditPage() {
     }
     (async () => {
       try {
-        const me = await fetchMe(token);
+        const me = await fetchMe();
+        setRole(me.user.role);
         if (me.user.role !== "AGENCY_ADMIN") {
-          setError("Audit log is available to agency admins only.");
+          setLoading(false);
           return;
         }
         const cid = getStoredClientId() ?? me.user.clientId ?? "demo-client";
@@ -77,7 +80,7 @@ export default function AuditPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || role !== "AGENCY_ADMIN") return;
     let cancelled = false;
     (async () => {
       try {
@@ -90,25 +93,37 @@ export default function AuditPage() {
     return () => {
       cancelled = true;
     };
-  }, [clientId, page, actionFilter, load]);
+  }, [clientId, page, actionFilter, load, role]);
 
   if (loading) {
     return (
       <div className="page-shell">
         <div className="panel" style={{ display: "flex", alignItems: "center", gap: 12, padding: 32 }}>
           <div className="spinner" aria-label="Loading audit log" />
-          <span className="muted">Loading audit log…</span>
+          <span className="muted">Loading…</span>
         </div>
         <div className="skeleton" style={{ height: 120, marginTop: 16 }} />
       </div>
     );
   }
 
-  if (error && !logs.length && error.includes("Agency")) {
+  if (role === "CLIENT_USER") {
     return (
       <div className="page-shell">
-        <PageHeader eyebrow="Security" title="Audit log" description="" />
-        <p className="text-error">{error}</p>
+        <PageHeader
+          eyebrow="Security"
+          title="Audit log"
+          description="This area is reserved for agency administrators."
+        />
+        <section className="panel span-12" style={{ marginTop: 20, padding: "28px 24px" }}>
+          <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: "var(--text-secondary)" }}>
+            Audit history is not available for store logins. If you need activity visibility, ask your agency admin
+            to export or review logs from their account.
+          </p>
+          <Link href="/dashboard" className="button" style={{ marginTop: 20, display: "inline-block" }}>
+            Back to dashboard
+          </Link>
+        </section>
       </div>
     );
   }
@@ -135,9 +150,7 @@ export default function AuditPage() {
             }}
           />
         </label>
-        <span style={{ color: "var(--muted-foreground)" }}>
-          {total} total
-        </span>
+        <span className="muted">{total} total</span>
       </div>
 
       <div className="table-wrap">
@@ -168,12 +181,12 @@ export default function AuditPage() {
       </div>
 
       <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
-        <button type="button" className="btn-secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+        <button type="button" className="button secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
           Previous
         </button>
         <button
           type="button"
-          className="btn-secondary"
+          className="button secondary"
           disabled={page * perPage >= total}
           onClick={() => setPage((p) => p + 1)}
         >

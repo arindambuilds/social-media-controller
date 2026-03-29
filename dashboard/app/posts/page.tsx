@@ -62,7 +62,7 @@ export default function PostsPage() {
     }
     (async () => {
       try {
-        const me = await fetchMe(token);
+        const me = await fetchMe();
         let cid = getStoredClientId() ?? me.user.clientId;
         if (me.user.role === "CLIENT_USER" && !cid) {
           setError("No client assigned.");
@@ -213,7 +213,7 @@ export default function PostsPage() {
           className="input"
           value={hashtags}
           onChange={(e) => setHashtags(e.target.value)}
-          placeholder="#salon #bhubaneswar"
+              placeholder="#Bhubaneswar #SareeLove #EthnicWear"
         />
 
         <label className="field-label" style={{ marginTop: 16 }}>

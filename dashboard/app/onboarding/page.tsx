@@ -35,7 +35,7 @@ export default function OnboardingPage() {
           setMetaConfigured(h.instagramOAuthConfigured ?? null);
         }
 
-        const me = await fetchMe(token);
+        const me = await fetchMe();
         const clientId = me.user.clientId;
         if (!clientId) {
           setError("No client is assigned to your account. Ask an admin to link a client.");

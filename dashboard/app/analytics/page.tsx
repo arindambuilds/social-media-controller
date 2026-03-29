@@ -101,7 +101,7 @@ export default function AnalyticsPage() {
         let cid = getStoredClientId();
         if (!cid) {
           const { fetchMe } = await import("../../lib/api");
-          const me = await fetchMe(token);
+          const me = await fetchMe();
           cid = me.user.clientId;
           if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
         }
