@@ -45,6 +45,20 @@ export const loginAuthLimiter = rateLimit({
   }
 });
 
+/** Caps refresh-token abuse and accidental retry storms (multiple tabs still fit). */
+export const refreshAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res, _next, options) => {
+    sendLimit(res, options.windowMs, {
+      success: false,
+      error: { code: "RATE_LIMIT", message: "Too many refresh attempts. Try again later." }
+    });
+  }
+});
+
 /** Limits account-creation abuse (register + public signup share the same bucket). */
 export const registerAuthLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,

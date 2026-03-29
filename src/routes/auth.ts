@@ -13,7 +13,7 @@ import { requireRole } from "../middleware/requireRole";
 import { buildInstagramBrowserOAuthUrl } from "../lib/instagramBrowserOAuth";
 import { isDatabaseConnectivityError } from "../lib/databaseErrors";
 import { logger } from "../lib/logger";
-import { loginAuthLimiter, registerAuthLimiter } from "../middleware/rateLimiter";
+import { loginAuthLimiter, refreshAuthLimiter, registerAuthLimiter } from "../middleware/rateLimiter";
 import {
   isSocialAccountOwnershipConflictError
 } from "../services/socialAccountService";
@@ -229,7 +229,7 @@ authRouter.post("/login", loginAuthLimiter, async (req, res) => {
   }
 });
 
-authRouter.post("/refresh", async (req, res) => {
+authRouter.post("/refresh", refreshAuthLimiter, async (req, res) => {
   try {
     const payload = z.object({
       refreshToken: z.string().min(1)
