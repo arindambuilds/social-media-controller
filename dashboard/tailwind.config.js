@@ -41,6 +41,14 @@ module.exports = {
       fontFamily: {
         sans: ["var(--font-sans)", "Inter", "system-ui", "sans-serif"]
       },
+      transitionTimingFunction: {
+        "smooth-out": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "tap": "cubic-bezier(0.33, 1, 0.68, 1)"
+      },
+      transitionDuration: {
+        250: "250ms",
+        320: "320ms"
+      },
       keyframes: {
         fadeIn: {
           "0%": { opacity: "0" },
