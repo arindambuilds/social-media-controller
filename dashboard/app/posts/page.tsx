@@ -5,8 +5,9 @@ import type React from "react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { VoicePostButton } from "../../components/VoicePostButton";
 import { PageHeader } from "../../components/ui/page-header";
+import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 
 type OutboundStatus = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
 
@@ -199,6 +200,11 @@ export default function PostsPage() {
   const captionLen = caption.length;
   const captionWarn = captionLen > CAPTION_MAX;
 
+  const refreshPosts = useCallback(() => {
+    const t = getStoredToken();
+    if (t && clientId) void load(t, clientId);
+  }, [clientId, load]);
+
   if (loading) {
     return (
       <div className="page-shell">
@@ -234,6 +240,10 @@ export default function PostsPage() {
       />
 
       {error ? <p className="text-error mt-4">{error}</p> : null}
+
+      {clientId ? (
+        <VoicePostButton clientId={clientId} disabled={accounts.length === 0} onScheduled={refreshPosts} />
+      ) : null}
 
       <h2 className="text-ink font-display mt-8 text-xl font-bold tracking-tight">Queue</h2>
       <p className="text-muted mt-1 text-sm">Drafts, scheduled, and published outbound posts for this client.</p>

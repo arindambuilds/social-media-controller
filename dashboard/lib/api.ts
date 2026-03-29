@@ -257,6 +257,59 @@ export async function apiFetch<T = unknown>(path: string, options?: ApiFetchInit
   return body as T;
 }
 
+/**
+ * Multipart upload (e.g. voice clip) — does not set Content-Type so the browser sets the boundary.
+ * Client-only. Retries once on 401 after refresh, like `apiFetch`.
+ */
+export async function apiFetchFormData<T = unknown>(
+  path: string,
+  formData: FormData,
+  options?: { timeoutMs?: number }
+): Promise<T> {
+  if (typeof window === "undefined") {
+    throw new Error("apiFetchFormData is only available in the browser.");
+  }
+  let token = localStorage.getItem(TOKEN_KEY);
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const timeoutMs = options?.timeoutMs ?? 60_000;
+  const url = `${API_URL}${p}`;
+
+  const doFetch = (bearer: string | null) =>
+    fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+        body: formData,
+        credentials: "include"
+      },
+      timeoutMs
+    );
+
+  let res = await doFetch(token);
+  let body = await readResponseJson(res);
+
+  if (res.status === 401 && token && !p.includes("/auth/login")) {
+    const next = await tryRefreshTokens();
+    if (next) {
+      token = next;
+      res = await doFetch(next);
+      body = await readResponseJson(res);
+    }
+  }
+
+  if (!res.ok) {
+    if (res.status === 401 && !p.includes("/auth/login")) {
+      forceLogoutToLogin();
+    }
+    const msg =
+      nestedErrorMessage(body) ?? parseApiErrorMessage(body) ?? `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  return body as T;
+}
+
 /** Same URL/auth as apiFetch but returns the raw `Response` (e.g. 429 handling). */
 export async function apiFetchResponse(path: string, options?: ApiFetchInit): Promise<Response> {
   let token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;

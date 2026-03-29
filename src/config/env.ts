@@ -85,6 +85,8 @@ const envSchema = z
     /** Morning briefing (Claude + Twilio + SMTP) — all optional; feature degrades gracefully. */
     ANTHROPIC_API_KEY: z.string().optional(),
     ANTHROPIC_BRIEFING_MODEL: z.string().optional(),
+    /** Intent + caption steps for voice-to-post (defaults to Sonnet in code). */
+    ANTHROPIC_VOICE_MODEL: z.string().optional(),
     TWILIO_ACCOUNT_SID: z.string().optional(),
     TWILIO_AUTH_TOKEN: z.string().optional(),
     TWILIO_WHATSAPP_FROM: z.string().optional(),

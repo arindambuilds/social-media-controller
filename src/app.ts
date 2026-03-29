@@ -29,6 +29,7 @@ import { leadsRouter } from "./routes/leads";
 import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { postsRouter } from "./routes/posts";
 import { socialAccountsRouter } from "./routes/socialAccounts";
+import { voicePostRouter } from "./routes/voicePost";
 import { webhookRouter } from "./routes/webhooks";
 
 /** Always allowed in addition to CORS_ORIGIN (when not *). */
@@ -242,6 +243,7 @@ export function createApp() {
   app.use("/api/ai/insights", aiInsightsRouter);
   app.use("/api/insights", insightsRouter);
   app.use("/api/briefing", briefingRouter);
+  app.use("/api/voice", voicePostRouter);
 
   if (env.NODE_ENV === "production") {
     startMorningBriefingJob();
