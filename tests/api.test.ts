@@ -127,6 +127,23 @@ run("API MVP smoke", () => {
     expect(typeof res.body.totalPosts).toBe("number");
   });
 
+  it("CLIENT_USER cannot read another tenant analytics overview (403)", async () => {
+    const login = await request(app).post("/api/auth/login").send({
+      email: "salon@pilot.demo",
+      password: "pilot123"
+    });
+    if (login.status !== 200) {
+      expect(login.status).toBeDefined();
+      return;
+    }
+    expect(login.body.user?.role).toBe("CLIENT_USER");
+    const token = login.body.accessToken as string;
+    const res = await request(app)
+      .get("/api/analytics/not-their-client-id/overview?days=7")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(403);
+  });
+
   it("POST /api/instagram/sync accepts job (202)", async () => {
     const login = await request(app).post("/api/auth/login").send({
       email: "admin@demo.com",

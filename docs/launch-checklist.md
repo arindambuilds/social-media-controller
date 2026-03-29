@@ -19,7 +19,7 @@ Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 
 - Multi-platform publishing, ads, enterprise SSO, mobile apps.
 - Full billing / payments (usage counter only).
-- Production hardening beyond basics (rate limits, audit completeness).
+- Further hardening beyond the **2026-03 security pass** (`SECURITY_AUDIT_REPORT.md`: rate limits, Helmet/CSP, production env validation, error sanitization). Remaining ops gaps: **Redis for multi-instance OAuth state**, full metrics/SLO dashboards, cookie-based auth.
 
 **End-to-end paths that must work for freeze**
 

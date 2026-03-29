@@ -47,7 +47,7 @@ From **`launch-checklist.md`** / **`mvp-product.md`**:
 
 - Multi-platform publishing, ads, enterprise SSO, mobile apps.  
 - Full billing / payments (checklist allows **usage counter only**).  
-- Heavy “production hardening” beyond basics (e.g. full audit of every route).
+- **Additional** hardening beyond the committed baseline (`SECURITY_AUDIT_REPORT.md`) — e.g. httpOnly auth cookies, full route-by-route pen test, formal compliance attestation.
 
 ---
 
