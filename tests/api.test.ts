@@ -106,10 +106,11 @@ run("API MVP smoke", () => {
     expect(res.body.user).toEqual({
       id: expect.any(String),
       email,
+      name: "Auth Login Contract",
       role: expect.any(String),
       clientId: null
     });
-    expect(Object.keys(res.body.user).sort()).toEqual(["clientId", "email", "id", "role"]);
+    expect(Object.keys(res.body.user).sort()).toEqual(["clientId", "email", "id", "name", "role"]);
     expect(res.body.user.passwordHash).toBeUndefined();
 
     await prisma.user.deleteMany({ where: { email } });
@@ -304,5 +305,27 @@ run("API MVP smoke", () => {
     });
     await prisma.client.deleteMany({ where: { id: client.id } });
     await prisma.user.deleteMany({ where: { id: owner.id } });
+  });
+
+  it("writeAuditLog persists without clientId (signup-style events)", async () => {
+    const suffix = `${Date.now()}`;
+    const entityId = `no-client-entity-${suffix}`;
+    await writeAuditLog({
+      clientId: null,
+      actorId: null,
+      action: "TEST_SIGNUP_STYLE_AUDIT",
+      entityType: "User",
+      entityId,
+      metadata: { path: "test" }
+    });
+
+    const row = await prisma.auditLog.findFirst({
+      where: { action: "TEST_SIGNUP_STYLE_AUDIT", entityId }
+    });
+
+    expect(row).not.toBeNull();
+    expect(row?.clientId).toBeNull();
+
+    await prisma.auditLog.deleteMany({ where: { entityId } });
   });
 });
