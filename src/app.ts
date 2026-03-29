@@ -6,6 +6,7 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env";
+import { startMorningBriefingJob } from "./jobs/morningBriefing";
 import { getDetailedHealth } from "./lib/healthCheck";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
 import { logger } from "./lib/logger";
@@ -19,6 +20,7 @@ import { analyticsRouter } from "./routes/analytics";
 import { auditLogsRouter } from "./routes/auditLogs";
 import { authRouter } from "./routes/auth";
 import { billingRouter } from "./routes/billing";
+import { briefingRouter } from "./routes/briefing";
 import { clientsRouter } from "./routes/clients";
 import { healthRouter } from "./routes/health";
 import { insightsRouter } from "./routes/insights";
@@ -239,6 +241,12 @@ export function createApp() {
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/ai/insights", aiInsightsRouter);
   app.use("/api/insights", insightsRouter);
+  app.use("/api/briefing", briefingRouter);
+
+  if (env.NODE_ENV === "production") {
+    startMorningBriefingJob();
+    console.log("[PulseOS] Morning briefing job scheduled for 8:00 AM IST (Asia/Kolkata)");
+  }
 
   if (env.SENTRY_DSN) {
     try {

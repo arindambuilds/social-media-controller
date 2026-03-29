@@ -1,0 +1,176 @@
+import { OutboundPostStatus } from "@prisma/client";
+import { prisma } from "../lib/prisma";
+
+export type BriefingData = {
+  businessName: string;
+  ownerName: string;
+  newFollowers: number;
+  totalFollowers: number;
+  newLeads: number;
+  topPost: { caption: string; reach: number; likes: number } | null;
+  scheduledToday: number;
+};
+
+/** YYYY-MM-DD in Asia/Kolkata for the given instant. */
+function istYmd(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(d);
+}
+
+/** Start/end UTC instants for an IST calendar day YYYY-MM-DD. */
+function istDayRangeUtc(ymd: string): { start: Date; end: Date } {
+  const [y, mo, da] = ymd.split("-").map((x) => Number(x));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const start = new Date(`${y}-${pad(mo)}-${pad(da)}T00:00:00+05:30`);
+  const end = new Date(`${y}-${pad(mo)}-${pad(da)}T23:59:59.999+05:30`);
+  return { start, end };
+}
+
+function ownerDisplayName(name: string | null | undefined, email: string): string {
+  const n = name?.trim();
+  if (n) return n.split(/\s+/)[0] ?? n;
+  return email.split("@")[0] ?? "there";
+}
+
+async function followerCountForDay(socialAccountId: string, start: Date, end: Date): Promise<number | null> {
+  const row = await prisma.followerDaily.findFirst({
+    where: {
+      socialAccountId,
+      date: { gte: start, lte: end }
+    },
+    orderBy: { date: "desc" },
+    select: { followerCount: true }
+  });
+  return row?.followerCount ?? null;
+}
+
+/**
+ * Aggregates yesterday (IST) stats for a client. Never throws — returns zeros / nulls on missing data.
+ */
+export async function getBriefingData(clientId: string): Promise<BriefingData> {
+  const empty: BriefingData = {
+    businessName: "your business",
+    ownerName: "there",
+    newFollowers: 0,
+    totalFollowers: 0,
+    newLeads: 0,
+    topPost: null,
+    scheduledToday: 0
+  };
+
+  try {
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      include: {
+        owner: { select: { name: true, email: true } },
+        socialAccounts: { select: { id: true, followerCount: true } }
+      }
+    });
+
+    if (!client) return empty;
+
+    const businessName = client.name || empty.businessName;
+    const ownerName = ownerDisplayName(client.owner.name, client.owner.email);
+
+    const todayIst = istYmd(new Date());
+    const anchor = new Date(`${todayIst}T12:00:00+05:30`);
+    const yesterdayStart = new Date(anchor.getTime() - 86400000);
+    const yesterdayYmd = istYmd(yesterdayStart);
+    const dayBeforeYmd = istYmd(new Date(anchor.getTime() - 2 * 86400000));
+
+    const yRange = istDayRangeUtc(yesterdayYmd);
+    const dbRange = istDayRangeUtc(dayBeforeYmd);
+
+    let newFollowers = 0;
+    let totalFollowers = 0;
+
+    for (const acc of client.socialAccounts) {
+      totalFollowers += acc.followerCount ?? 0;
+
+      const yCount = await followerCountForDay(acc.id, yRange.start, yRange.end);
+      const prevCount = await followerCountForDay(acc.id, dbRange.start, dbRange.end);
+
+      if (yCount != null && prevCount != null) {
+        newFollowers += Math.max(0, yCount - prevCount);
+      }
+    }
+
+    const newLeads = await prisma.lead.count({
+      where: {
+        clientId,
+        createdAt: { gte: yRange.start, lte: yRange.end }
+      }
+    });
+
+    const topMetric = await prisma.postMetricDaily.findFirst({
+      where: {
+        date: { gte: yRange.start, lte: yRange.end },
+        post: { socialAccount: { clientId } }
+      },
+      orderBy: [{ reach: "desc" }, { likes: "desc" }],
+      include: {
+        post: { select: { content: true } }
+      }
+    });
+
+    let topPost: BriefingData["topPost"] = null;
+    if (topMetric) {
+      topPost = {
+        caption: (topMetric.post.content ?? "").trim() || "(no caption)",
+        reach: topMetric.reach,
+        likes: topMetric.likes
+      };
+    } else {
+      const posts = await prisma.post.findMany({
+        where: {
+          socialAccount: { clientId },
+          publishedAt: { gte: yRange.start, lte: yRange.end }
+        },
+        select: { content: true, engagementStats: true }
+      });
+      let best: { caption: string; reach: number; likes: number } | null = null;
+      for (const p of posts) {
+        const stats = p.engagementStats as { likes?: number; reach?: number } | null;
+        const likes = typeof stats?.likes === "number" ? stats.likes : 0;
+        const reach = typeof stats?.reach === "number" ? stats.reach : likes;
+        if (!best || likes > best.likes || (likes === best.likes && reach > best.reach)) {
+          best = {
+            caption: (p.content ?? "").trim() || "(no caption)",
+            reach,
+            likes
+          };
+        }
+      }
+      topPost = best;
+    }
+
+    const todayRange = istDayRangeUtc(todayIst);
+    const scheduledToday = await prisma.scheduledPost.count({
+      where: {
+        clientId,
+        status: OutboundPostStatus.SCHEDULED,
+        scheduledAt: { gte: todayRange.start, lte: todayRange.end }
+      }
+    });
+
+    return {
+      businessName,
+      ownerName,
+      newFollowers,
+      totalFollowers,
+      newLeads,
+      topPost,
+      scheduledToday
+    };
+  } catch (err) {
+    console.warn("[briefingData] getBriefingData failed", {
+      clientId,
+      message: err instanceof Error ? err.message : String(err)
+    });
+    return empty;
+  }
+}

@@ -81,7 +81,17 @@ const envSchema = z
      */
     AUTH_HTTPONLY_COOKIES: z
       .preprocess((val) => val === true || val === "true" || val === "1", z.boolean())
-      .default(false)
+      .default(false),
+    /** Morning briefing (Claude + Twilio + SMTP) — all optional; feature degrades gracefully. */
+    ANTHROPIC_API_KEY: z.string().optional(),
+    ANTHROPIC_BRIEFING_MODEL: z.string().optional(),
+    TWILIO_ACCOUNT_SID: z.string().optional(),
+    TWILIO_AUTH_TOKEN: z.string().optional(),
+    TWILIO_WHATSAPP_FROM: z.string().optional(),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.string().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional()
   })
   .superRefine((data, ctx) => {
     // Reject wildcard CORS in production — prevents credentialed abuse from arbitrary sites.

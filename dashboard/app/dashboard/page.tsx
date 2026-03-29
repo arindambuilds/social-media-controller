@@ -24,6 +24,7 @@ import {
 import { apiFetch, fetchMe } from "../../lib/api";
 import { useAuth } from "../../context/auth-context";
 import { CLIENT_ID_KEY, getStoredClientId } from "../../lib/auth-storage";
+import { MorningBriefingCard } from "../../components/MorningBriefingCard";
 import { DashboardPageSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
 
@@ -355,6 +356,8 @@ export default function DashboardHomePage() {
                   </div>
                 </div>
               </div>
+
+              <MorningBriefingCard clientId={clientLabel} />
 
               {bestHour != null ? (
                 <p className="text-muted mt-4 text-sm">
