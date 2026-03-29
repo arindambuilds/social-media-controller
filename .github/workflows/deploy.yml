@@ -7,12 +7,40 @@ on:
 jobs:
   test-and-deploy:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: smc_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/smc_test?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/smc_test?schema=public
+      JWT_SECRET: ci-jwt-secret-must-be-at-least-32-chars-long
+      JWT_REFRESH_SECRET: ci-refresh-secret-must-be-at-least-32-chars
+      ENCRYPTION_KEY: ci-encryption-key-at-least-32-characters
+      NODE_ENV: development
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci
+      - run: npm run prisma:generate
+      - run: npx prisma migrate deploy
+      - run: npm run prisma:seed
       - run: npm test
       - run: npm run lint
       - name: Deploy to Render
