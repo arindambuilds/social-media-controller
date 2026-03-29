@@ -92,6 +92,7 @@ npm run dashboard:dev
 | [docs/implementation-roadmap.md](docs/implementation-roadmap.md) | Longer-term phases |
 | [docs/mvp-status-one-pager.md](docs/mvp-status-one-pager.md) | Status, investor/pilot outline, Phases 2–3 + GTM |
 | [docs/pilot-operational-readiness.md](docs/pilot-operational-readiness.md) | Evidence vs narrative: tenant isolation, OAuth/Redis, gov-facing discipline |
+| [docs/government/](docs/government/README.md) | Grant package: 500-MSME pilot plan, IAS tech summary, ₹25–50L budget split |
 
 ---
 
