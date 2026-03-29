@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { PageHeader } from "../components/ui/page-header";
 
 export default function GlobalError({
   error,
@@ -15,17 +16,17 @@ export default function GlobalError({
 
   return (
     <div className="page-shell">
-      <section className="panel span-12">
-        <h2>Something went wrong</h2>
-        <p className="text-error" style={{ marginTop: 12 }}>
-          {error.message || "An unexpected error occurred."}
-        </p>
-        <div className="actions" style={{ marginTop: 20 }}>
-          <button type="button" className="button" onClick={reset}>
-            Try again
-          </button>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Error"
+        title="Something went wrong"
+        description="This part of the app hit an unexpected error. Try again or reload the page."
+      />
+      <div className="gradient-border mt-6 p-8">
+        <p className="text-error m-0 text-sm leading-relaxed">{error.message || "An unexpected error occurred."}</p>
+        <button type="button" className="button mt-6" onClick={reset}>
+          Try again
+        </button>
+      </div>
     </div>
   );
 }

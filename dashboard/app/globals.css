@@ -5,6 +5,11 @@
 @layer base {
   html {
     @apply bg-canvas text-ink antialiased;
+    color-scheme: dark;
+  }
+
+  html[data-theme="light"] {
+    color-scheme: light;
   }
 
   body {

@@ -25,7 +25,13 @@ module.exports = {
         /** Headings / primary copy */
         ink: "#F0F0FF",
         /** Secondary copy */
-        muted: "#8B8BA0"
+        muted: "#8B8BA0",
+        /** Matches border subtle — dividers / hairlines */
+        line: "#1E1E2E",
+        /** Deeper than surface (CSS --bg-subtle) */
+        depth: "#0F0F16",
+        /** Strong panels / skeleton bases (CSS --panel-strong) */
+        "panel-strong": "#16161F"
       },
       borderColor: {
         /** Default subtle border token */

@@ -225,7 +225,7 @@ export default function PostsPage() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal px-5 py-3 text-sm font-bold text-[#f0f0ff] shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
           >
             <Plus size={20} strokeWidth={2.5} aria-hidden />
             Create post
@@ -301,7 +301,7 @@ export default function PostsPage() {
             aria-label="Close create post"
             onClick={() => setCreateOpen(false)}
           />
-          <div className="relative z-[1] max-h-[min(92vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-glow backdrop-blur-xl">
+          <div className="relative z-[1] max-h-[min(92vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-ink/15 bg-ink/[0.06] p-6 shadow-glow backdrop-blur-xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <h2 id={modalTitleId} className="text-ink font-display text-xl font-bold tracking-tight">
                 Create post

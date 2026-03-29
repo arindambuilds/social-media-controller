@@ -497,7 +497,7 @@ export default function AnalyticsPage() {
                             className="h-[72px] w-[72px] rounded-xl border border-subtle object-cover"
                           />
                         ) : (
-                          <div className="h-[72px] w-[72px] rounded-xl border border-subtle bg-[#16161f]" />
+                          <div className="h-[72px] w-[72px] rounded-xl border border-subtle bg-panel-strong" />
                         )}
                       </td>
                       <td className="text-ink max-w-[min(420px,50vw)] py-3 pr-4 align-top">
