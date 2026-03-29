@@ -719,6 +719,50 @@ html[data-theme="light"] .demo-mode-banner {
   min-height: calc(100vh - 64px);
 }
 
+/* ─── Analytics: posts table & list rows ─── */
+.analytics-posts-table tbody tr {
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.analytics-posts-table tbody tr:nth-child(odd) {
+  background: #111118;
+}
+
+.analytics-posts-table tbody tr:nth-child(even) {
+  background: #0f0f16;
+}
+
+.analytics-posts-table tbody tr:hover {
+  background: color-mix(in srgb, #111118 82%, #6c63ff 18%);
+  box-shadow: inset 4px 0 0 #6c63ff;
+}
+
+.analytics-post-row {
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+  border-radius: 10px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-left: -12px;
+  margin-right: -12px;
+}
+
+.analytics-post-row--a {
+  background: #111118;
+}
+
+.analytics-post-row--b {
+  background: #0f0f16;
+}
+
+.analytics-post-row:hover {
+  background: color-mix(in srgb, #111118 82%, #6c63ff 18%);
+  box-shadow: inset 4px 0 0 #6c63ff;
+}
+
 a {
   color: inherit;
   text-decoration: none;
