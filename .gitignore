@@ -9,8 +9,21 @@ dashboard/.env.*.local
 .turbo/
 coverage/
 *.log
-prisma/dev.db
-prisma/dev.db-journal
 dashboard/.next/
 dashboard/node_modules/
 dashboard/*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / local tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Prisma / generated (if checked out elsewhere)
+prisma/*.db
+prisma/*.db-journal
