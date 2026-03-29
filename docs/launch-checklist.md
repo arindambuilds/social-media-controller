@@ -9,7 +9,7 @@ Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 **In scope for this MVP**
 
 - Auth: signup / login / refresh / `me` with JWT; dashboard stores token + `clientId`.
-- Seeded demo: Urban Glow Studio (`demo-client`), dual logins (admin + pilot client).
+- Seeded demo: Arома Silk House (`demo-client`), dual logins (admin + pilot client).
 - Analytics: overview, charts, top posts (from `Post.engagementStats` + seed).
 - AI: content-performance insight (latest + generate), weekly focus recommendation, captions (stubs without OpenAI).
 - Leads: list + status patch, aligned with `LeadStatus` enum.
@@ -39,7 +39,7 @@ Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 ## Data
 
 - [ ] `npm run prisma:migrate` (or `deploy`) applied
-- [ ] `npm run prisma:seed` run (Urban Glow demo + leads + pilot user)
+- [ ] `npm run prisma:seed` run (Arома Silk House demo + leads + pilot user)
 
 ## Processes
 
@@ -48,6 +48,12 @@ Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 - [ ] Terminal 3: `npm run dashboard:dev` (:3000)
 
 ## Automated check
+
+**CI-style gate (lint + Vitest + dashboard production build):**
+
+```powershell
+npm run verify
+```
 
 With API running (worker not required for smoke):
 

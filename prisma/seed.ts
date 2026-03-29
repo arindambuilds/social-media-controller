@@ -21,37 +21,38 @@ import { encrypt } from "../src/lib/encryption";
 const prisma = new PrismaClient();
 const SEED_BCRYPT_ROUNDS = 10;
 
-const urbanCaptions = [
-  "Weekend glow-up slots open — Patia + Saheed Nagar. DM “GLOW” to book. #Bhubaneswar #Salon",
-  "Bridal hair trials this month — save your date early. Link in bio.",
-  "Monsoon hair care bundle — walk-ins welcome near Infocity.",
-  "Before / after: soft balayage done in-studio. Book a consult.",
-  "Coffee + haircut combo — Sat mornings only. Limited slots.",
-  "Festive ready? Skin + hair package — ask for the Odisha bride bundle.",
-  "Kids’ cuts available — family-friendly timings 6–8 PM.",
-  "New stylist on floor — follow for tips and offers.",
-  "Reels: 3-minute frizz fix you can do at home.",
-  "Tag a friend who needs a haircut — referral bonus this week.",
-  "Behind the scenes: sterilisation and safety every day.",
-  "DM us your hair goals — we’ll suggest a realistic plan.",
-  "Student discount Tue–Thu with ID — share with college friends.",
-  "Men’s grooming + beard trim — same-day slots.",
-  "Colour correction consult — book before chemical work.",
-  "Threading + brow shaping — add on to any service.",
-  "Mother–daughter day — special pricing on Sundays.",
-  "Local business love — thank you for 5★ reviews!",
-  "Rainy day frizz? We’ve got smoothing treatments in stock.",
-  "Last few slots for the long weekend — hurry!",
-  "Tuesday colour day — 15% off single-process with any cut.",
-  "Walk-in blowouts until 4 PM — beat the humidity.",
-  "Reels: 60-second scalp massage routine clients love.",
-  "Partner spotlight: our nail tech’s minimal nail art drop.",
-  "Early bird Tue–Fri: 10% off services before 11 AM.",
-  "Gift cards for Mother’s Day — DM “GIFT”.",
-  "Patch test reminder for new colour clients — safety first.",
-  "Salon playlist drop — comment your request for next week.",
-  "Staff pick: gloss treatment for shine without heavy lift.",
-  "Community board: local makers we love — tag your favourite shop."
+/** Arома Silk House — saree & ethnic wear, Bhubaneswar. Bilingual Hindi–English, ~4.2% ER in analytics. */
+const aromaSilkCaptions = [
+  "New Kanjeevaram drop — deep maroon with gold zari. Limited pieces. DM “SAREE” / नई कांजीवरम कलेक्शन — डीएम करें। #Bhubaneswar #SareeLove",
+  "Behind the scenes: pleating a bridal drape for tomorrow’s wedding. Book styling consult — ब्राइडल ड्रेपिंग स्लॉट खुले हैं।",
+  "Festive offer: 10% off handloom dupatta sets this week — ओडिशा हैंडलूम | Visit us Patia / online link in bio.",
+  "Reel: 30-second guide — how to store silk sarees in humid weather. Save for later! मानसून में सिल्क की देखभाल।",
+  "Odisha ikat meets contemporary blouse cuts — new lookbook live. Tag a friend who loves ethnic wear.",
+  "Saturday trunk show — Bengal cottons + Tussar. Chai on us, 4–8 PM. #EthnicWear #Bhubaneswar",
+  "Customer story: “First saree for office — you helped me drape it perfectly.” Thank you, Priya! 🙏",
+  "Wedding season ready: pastel palette + temple jewellery pairing tips. Consult: DM or call.",
+  "BTS: unpacking fresh shipment from Varanasi weavers — each piece numbered. Preview stories.",
+  "Hindi + English captions because our family shops in both — आपकी भाषा, हमारी सेवा।",
+  "Lehenga light layer for sangeet — breathable fabrics for Odisha heat. Book trial slot.",
+  "Dupatta styling 3 ways — carousel post, swipe for festive → office → casual.",
+  "Local boutique collab: limited co-branded stoles — support MSME together. #VocalForLocal",
+  "Tonight 7 PM — LIVE: festive colour trends 2026. Set reminder! लाइव में जुड़ें।",
+  "Organza saree restock — sheer elegance, full lining options. Shop link in bio.",
+  "Mother–daughter matching dupatta sets — Mother’s Day early bird code MOM15.",
+  "Alterations desk open Tue–Sat — fall, blouse, pleats. Same-week turnaround when possible.",
+  "Designer spotlight: hand-embroidered motifs inspired by Konark. Art you can wear.",
+  "Poll: Which drape for office — belted or classic seedha? Comment 1 or 2.",
+  "Rain-ready ethnic: quick-dry linings for monsoon weddings. Ask in DM — मानसून शादी के लिए।",
+  "Reels: fold a saree for travel in 45 seconds. Save + share with bridesmaids.",
+  "New stock alert: Bengal taant in jewel tones — lightweight, office-friendly.",
+  "Thank you 4.2k family on Instagram — ग्रोथ आपकी वजह से। Next milestone: styling masterclass.",
+  "Corporate ethnic Friday — crisp cotton sarees + stitched blouses. Bulk orders for teams welcome.",
+  "Jewellery pairing guide: choker vs long haar with boat neck blouses — carousel up now.",
+  "Festive countdown: Diwali edit dropping Friday 6 PM — early access list in stories.",
+  "Sustainable care: eco detergent tips for zari maintenance. Read caption — पारंपरिक जरी की देखभाल।",
+  "In-store personal shopper slots — 45 min, ₹ redeemable on purchase. Book via DM.",
+  "Throwback: our first pop-up at Ekamra Haat — grateful for Odisha’s love. #ThrowbackThursday",
+  "Weekend styling hours extended — walk-ins welcome 11–8. See you at Arома Silk House, Patia."
 ];
 
 const cafeCaptions = [
@@ -142,6 +143,55 @@ async function seedPostSeries(
   }
 }
 
+/** ~4.2% engagement rate: (likes+comments+shares) / reach for analytics overview. */
+const TARGET_ER_AROMA = 0.042;
+
+async function seedPostsFixedEngagement(
+  socialAccountId: string,
+  platformPostIdPrefix: string,
+  captions: string[],
+  preferredHours: number[]
+) {
+  const now = new Date();
+  for (let i = 0; i < captions.length; i += 1) {
+    const publishedAt = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const hour = preferredHours[i % preferredHours.length];
+    publishedAt.setHours(hour, 30, 0, 0);
+
+    const reach = 8200 + (i % 9) * 260;
+    const totalEng = Math.max(1, Math.round(reach * TARGET_ER_AROMA));
+    const likes = Math.max(0, Math.round(totalEng * 0.64));
+    const comments = Math.max(0, Math.round(totalEng * 0.24));
+    const shares = Math.max(0, totalEng - likes - comments);
+    const impressions = Math.round(reach * 1.22);
+
+    const caption = captions[i] ?? `Update ${i + 1}`;
+
+    await prisma.post.upsert({
+      where: {
+        socialAccountId_platformPostId: {
+          socialAccountId,
+          platformPostId: `${platformPostIdPrefix}-${i + 1}`
+        }
+      },
+      update: {
+        content: caption,
+        mediaUrl: `https://picsum.photos/seed/${platformPostIdPrefix}-${i + 1}/800/800`,
+        publishedAt,
+        engagementStats: { likes, comments, shares, impressions, reach }
+      },
+      create: {
+        socialAccountId,
+        platformPostId: `${platformPostIdPrefix}-${i + 1}`,
+        content: caption,
+        mediaUrl: `https://picsum.photos/seed/${platformPostIdPrefix}-${i + 1}/800/800`,
+        publishedAt,
+        engagementStats: { likes, comments, shares, impressions, reach }
+      }
+    });
+  }
+}
+
 async function seedFollowerCurve(socialAccountId: string, baseFollowers: number) {
   await prisma.socialAccount.update({
     where: { id: socialAccountId },
@@ -151,6 +201,39 @@ async function seedFollowerCurve(socialAccountId: string, baseFollowers: number)
     const day = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
     day.setUTCHours(0, 0, 0, 0);
     const followerCount = baseFollowers + (35 - d) * randomInt(3, 9) + randomInt(0, 20);
+    await prisma.followerDaily.upsert({
+      where: {
+        socialAccountId_date: {
+          socialAccountId,
+          date: day
+        }
+      },
+      update: { followerCount },
+      create: {
+        socialAccountId,
+        date: day,
+        followerCount
+      }
+    });
+  }
+}
+
+/** Linear growth ~`weeklyGain` followers per 7 days; day 0 = `currentFollowers`. */
+async function seedFollowerLinearGrowth(
+  socialAccountId: string,
+  currentFollowers: number,
+  weeklyGain: number,
+  dayCount: number
+) {
+  await prisma.socialAccount.update({
+    where: { id: socialAccountId },
+    data: { followerCount: currentFollowers }
+  });
+  const dailyGain = weeklyGain / 7;
+  for (let d = 0; d < dayCount; d += 1) {
+    const day = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+    day.setUTCHours(0, 0, 0, 0);
+    const followerCount = Math.max(0, Math.round(currentFollowers - d * dailyGain));
     await prisma.followerDaily.upsert({
       where: {
         socialAccountId_date: {
@@ -203,13 +286,13 @@ async function main() {
   const client = await prisma.client.upsert({
     where: { id: "demo-client" },
     update: {
-      name: "Urban Glow Studio",
+      name: "Arома Silk House",
       ownerId: admin.id,
       agencyId: demoAgency.id
     },
     create: {
       id: "demo-client",
-      name: "Urban Glow Studio",
+      name: "Arома Silk House",
       ownerId: admin.id,
       agencyId: demoAgency.id
     }
@@ -258,14 +341,14 @@ async function main() {
   await prisma.user.upsert({
     where: { email: "salon@pilot.demo" },
     update: {
-      name: "Urban Glow — manager (pilot)",
+      name: "Arома Silk House — store manager (pilot)",
       passwordHash: pilotHash,
       role: "CLIENT_USER",
       clientId: client.id
     },
     create: {
       email: "salon@pilot.demo",
-      name: "Urban Glow — manager (pilot)",
+      name: "Arома Silk House — store manager (pilot)",
       passwordHash: pilotHash,
       role: "CLIENT_USER",
       clientId: client.id
@@ -281,9 +364,9 @@ async function main() {
     },
     update: {
       clientId: client.id,
-      platformUsername: "urbanglow.studio",
+      platformUsername: "aromasilkhouse",
       pageId: "demo-page",
-      pageName: "Urban Glow Studio",
+      pageName: "Arома Silk House",
       encryptedToken: encrypt("demo-access-token"),
       tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       lastSyncedAt: new Date()
@@ -292,9 +375,9 @@ async function main() {
       clientId: client.id,
       platform: "INSTAGRAM",
       platformUserId: "demo-ig-user-001",
-      platformUsername: "urbanglow.studio",
+      platformUsername: "aromasilkhouse",
       pageId: "demo-page",
-      pageName: "Urban Glow Studio",
+      pageName: "Arома Silk House",
       encryptedToken: encrypt("demo-access-token"),
       tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       lastSyncedAt: new Date()
@@ -347,28 +430,112 @@ async function main() {
     await prisma.post.deleteMany({ where: { id: { in: mockPostIds } } });
   }
 
-  const preferredHoursUrban = [18, 19, 20, 21, 14, 13, 12, 11];
+  /** Emphasise 7–9 PM window for demo insight alignment. */
+  const preferredHoursAroma = [
+    19, 20, 21, 19, 20, 21, 18, 20, 19, 21, 20, 19, 18, 21, 20, 19, 20, 21, 19, 20, 21, 19, 20, 18, 21, 19, 20, 21, 20, 19
+  ];
   const preferredHoursCafe = [8, 9, 10, 11, 15, 16, 17, 19];
 
-  await seedPostSeries(socialAccount.id, "demo-post", urbanCaptions, preferredHoursUrban);
+  await seedPostsFixedEngagement(socialAccount.id, "demo-post", aromaSilkCaptions, preferredHoursAroma);
   await seedPostSeries(socialCafe.id, "cafe-post", cafeCaptions, preferredHoursCafe);
 
-  const urbanBase = randomInt(9200, 11200);
   const cafeBase = randomInt(6200, 9800);
 
   try {
-    await seedFollowerCurve(socialAccount.id, urbanBase);
+    await seedFollowerLinearGrowth(socialAccount.id, 4200, 80, 36);
     await seedFollowerCurve(socialCafe.id, cafeBase);
   } catch {
     console.warn("Seed: FollowerDaily skipped — run `npm run prisma:migrate` for follower snapshots.");
   }
 
-  const leadDataUrban = [
-    { source: "instagram_dm", sourceId: "lead-001", contactName: "Priya (DM — bridal package)", status: "NEW" as const },
-    { source: "instagram_comment", sourceId: "lead-002", contactName: "Rahul (comment — haircut)", status: "CONTACTED" as const },
-    { source: "instagram_dm", sourceId: "lead-003", contactName: "Ananya (DM — colour consult)", status: "CONVERTED" as const }
+  const leadDataAroma = [
+    { source: "instagram_dm", sourceId: "aroma-lead-01", contactName: "Riya Sahu — bridal saree consult", status: "NEW" as const },
+    {
+      source: "instagram_comment",
+      sourceId: "aroma-lead-02",
+      contactName: "Boutique Kanya — wholesale dupatta enquiry",
+      status: "CONTACTED" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-03",
+      contactName: "Ankita Mishra — office ethnic Friday (team of 12)",
+      status: "NEW" as const
+    },
+    {
+      source: "website",
+      sourceId: "aroma-lead-04",
+      contactName: "Wedding Planners Odisha — vendor tie-up",
+      status: "CONTACTED" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-05",
+      contactName: "Debjani Das — Kanjeevaram for reception",
+      status: "CONVERTED" as const
+    },
+    {
+      source: "instagram_comment",
+      sourceId: "aroma-lead-06",
+      contactName: "Local customer — Patia, mother–daughter sets",
+      status: "NEW" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-07",
+      contactName: "Studio Vastra Kolkata — Bengal cotton bulk",
+      status: "NEW" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-08",
+      contactName: "Meera Nair — destination wedding styling",
+      status: "CONTACTED" as const
+    },
+    {
+      source: "instagram_comment",
+      sourceId: "aroma-lead-09",
+      contactName: "Individual — first saree for campus interview",
+      status: "NEW" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-10",
+      contactName: "Cuttack boutique owner — ikat collaboration",
+      status: "LOST" as const
+    },
+    {
+      source: "website",
+      sourceId: "aroma-lead-11",
+      contactName: "Corporate HR — ethnic day bulk order",
+      status: "NEW" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-12",
+      contactName: "Sneha Tripathy — festive lehenga trial",
+      status: "CONTACTED" as const
+    },
+    {
+      source: "instagram_comment",
+      sourceId: "aroma-lead-13",
+      contactName: "Neha Agarwal — jewellery pairing consult",
+      status: "NEW" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-14",
+      contactName: "Puri resort events — guest welcome stoles",
+      status: "NEW" as const
+    },
+    {
+      source: "instagram_dm",
+      sourceId: "aroma-lead-15",
+      contactName: "Influencer collab — micro creator @bbsr.style",
+      status: "CONTACTED" as const
+    }
   ];
-  for (const lead of leadDataUrban) {
+  for (const lead of leadDataAroma) {
     await prisma.lead.upsert({
       where: {
         clientId_source_sourceId: {
@@ -387,6 +554,34 @@ async function main() {
       }
     });
   }
+
+  await prisma.scheduledPost.deleteMany({
+    where: { clientId: client.id, socialAccountId: socialAccount.id }
+  });
+  const scheduledIn3d = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  await prisma.scheduledPost.create({
+    data: {
+      clientId: client.id,
+      socialAccountId: socialAccount.id,
+      caption:
+        "Festive silk drop — Friday 6 PM. Set reminder in stories! ज़री रॉयल ब्लू — limited stock.",
+      mediaUrls: ["https://picsum.photos/seed/aroma-sch-1/800/800"],
+      hashtags: ["AromaSilkHouse", "Bhubaneswar", "SareeLove"],
+      status: "SCHEDULED",
+      scheduledAt: scheduledIn3d
+    }
+  });
+  await prisma.scheduledPost.create({
+    data: {
+      clientId: client.id,
+      socialAccountId: socialAccount.id,
+      caption: "Draft: Corporate ethnic Friday lookbook — outreach to Odisha IT corridor teams.",
+      mediaUrls: [],
+      hashtags: [],
+      status: "DRAFT",
+      scheduledAt: null
+    }
+  });
 
   const leadDataCafe = [
     { source: "instagram_dm", sourceId: "cafe-lead-01", contactName: "Meera — office catering", status: "NEW" as const },
@@ -413,30 +608,28 @@ async function main() {
     });
   }
 
-  const existingInsightUrban = await prisma.aiInsight.findFirst({
+  await prisma.aiInsight.deleteMany({
     where: { clientId: client.id, platform: "INSTAGRAM" }
   });
-  if (!existingInsightUrban) {
-    await prisma.aiInsight.create({
-      data: {
-        clientId: client.id,
-        platform: "INSTAGRAM",
-        summary:
-          "Evening posts (roughly 6–9 PM) are earning stronger saves and DMs for Urban Glow. Short hooks with a clear booking CTA outperform longer captions in this sample.",
-        recommendations: [
-          "Batch 2–3 Reels or photo posts for Tue–Thu evenings when engagement peaks.",
-          "Repeat the DM keyword pattern (e.g. “GLOW”) on high-intent posts to make follow-up measurable.",
-          "Pin one evergreen offer post and refresh the creative every 2 weeks."
-        ],
-        keyInsights: [
-          "Local + service hashtags (#Bhubaneswar, #Salon) appear on your better-performing posts.",
-          "Weekend and festive captions drive more comments — good for social proof.",
-          "Consistency beats volume: steady weekly posts beat sporadic bursts."
-        ],
-        warning: null
-      }
-    });
-  }
+  await prisma.aiInsight.create({
+    data: {
+      clientId: client.id,
+      platform: "INSTAGRAM",
+      summary:
+        "Post during 7–9 PM for roughly 2× reach on your audience — भारतीय समय अनुसार शाम का विंडो सबसे मजबूत दिख रहा है। Women 25–45 in Odisha/Bengal markets respond strongest in this window.",
+      recommendations: [
+        "Batch Reels and carousel posts between 7–9 PM IST; warm up with stories 6–7 PM.",
+        "Pin one evergreen offer post; refresh creative every two weeks — bilingual Hindi–English hooks in the first two lines.",
+        "Pair saree showcases with clear CTAs (DM / link) during festive drops for measurable DMs."
+      ],
+      keyInsights: [
+        "Weekly insight: Post during 7–9 PM for 2× reach on your audience.",
+        "Evening slots align with higher saves and DMs on ethnic wear and festive posts in seeded analytics.",
+        "Mix #Bhubaneswar, #SareeLove, and #EthnicWear for discovery across Odisha and Bengal interest."
+      ],
+      warning: null
+    }
+  });
 
   const existingInsightCafe = await prisma.aiInsight.findFirst({
     where: { clientId: clientCafe.id, platform: "INSTAGRAM" }

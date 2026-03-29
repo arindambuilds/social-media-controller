@@ -16,13 +16,13 @@
 
 - `demo@agencyname.com` / `Demo1234!` — “Growth Agency” (agency admin)  
 - `admin@demo.com` / `admin123` — founder alternate  
-- `salon@pilot.demo` / `pilot123` — client user for Urban Glow  
+- `salon@pilot.demo` / `pilot123` — client user for **Arома Silk House** (store manager pilot)  
 
 ## Demo script (~5 minutes)
 
 1. Open the **app** URL.  
 2. **Log in** with `demo@demo.com` / `Demo1234!`.  
-3. **Dashboard** — follower counts, engagement context, client switcher (Urban Glow / Coastal Cafe).  
+3. **Dashboard** — follower counts, engagement context, client switcher (Arома Silk House / Coastal Cafe).  
 4. **Analytics** — ~30 days of seeded post metrics and charts.  
 5. **Insights** — AI-style recommendations (OpenAI when configured; otherwise seeded copy).  
 6. **Leads** — sample DMs/comments leads for both demo clients.  
@@ -37,7 +37,7 @@
 
 ## Demo clients (seeded)
 
-- **Urban Glow Studio** — `@urbanglow.studio`  
+- **Arома Silk House** — saree & ethnic wear, Bhubaneswar — `@aromasilkhouse`  
 - **Coastal Cafe Co** — `@coastal.cafe.bbsr`  
 
 ## Meta / Instagram OAuth — redirect URIs
@@ -82,7 +82,7 @@ npx prisma migrate deploy
 npx prisma db seed
 ```
 
-This creates demo users (`demo@demo.com`, `demo@agencyname.com`, etc.), **Urban Glow** + **Coastal Cafe** clients, ~30 days of posts per seeded IG account, sample leads, and stored insights.
+This creates demo users (`demo@demo.com`, `demo@agencyname.com`, etc.), **Arома Silk House** + **Coastal Cafe** clients, ~30 days of posts per seeded IG account, sample leads, and stored insights.
 
 **Auth errors:** Login/signup return **503** with a generic message if the database is unreachable (no Prisma stack traces to the browser). Invalid credentials stay **401**.
 

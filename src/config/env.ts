@@ -72,6 +72,15 @@ const envSchema = z
       .default("http://localhost:3000/onboarding/callback"),
     OPENAI_MODEL: z.string().optional().default("gpt-5"),
     WEBHOOK_SIGNING_SECRET: z.string().optional().default(""),
+    /** Meta Instagram / Messenger webhook verification (GET hub.verify_token). */
+    WEBHOOK_VERIFY_TOKEN: z.string().optional().default(""),
+    /** When true, DM sends are logged only (no Graph API). */
+    INSTAGRAM_MOCK_MODE: z.preprocess((val) => {
+      if (val === undefined || val === null || val === "") return undefined;
+      if (val === false || val === "false" || val === "0" || val === 0) return false;
+      if (val === true || val === "true" || val === "1" || val === 1) return true;
+      return undefined;
+    }, z.boolean().optional().default(true)),
     /** Comma-separated origins, or * for dev-only (refused in production). */
     CORS_ORIGIN: z.string().optional().default("*"),
     /**

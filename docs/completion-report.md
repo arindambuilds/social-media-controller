@@ -14,9 +14,11 @@ Routers are **statically imported** in `src/app.ts` so Vitest and `tsx` resolve 
 | Workers / queues | **90%** (optional without Redis) |
 | Dashboard pages | **95%** |
 | Auth & security | **95%** |
-| **Overall** | **~95%** |
+| **Overall** | **~97%** |
 
-Remaining work is mostly **live platform credentials** (Meta, LinkedIn), **always-on hosting**, and **hardening** for multi-instance (Redis-backed OAuth state).
+Remaining work is mostly **live platform credentials** (Meta, LinkedIn), **always-on hosting**, and **hardening** for multi-instance (Redis-backed OAuth state). **Payments / Stripe** are still deferred (usage counter only).
+
+**Audit logs:** `AuditLog.clientId` is optional so `POST /api/auth/signup` and agency registration without a client can persist `USER_SIGNED_UP` / `USER_REGISTERED_BY_AGENCY` rows without a fake FK.
 
 ---
 
@@ -45,7 +47,7 @@ Legend: ✅ working · ⚠️ stub / partial · 🔴 missing
 | GET/POST | `/api/instagram/*` | Varies | ✅ |
 | GET/POST | `/api/ai/*` | Bearer | ✅ |
 | POST | `/api/ai/insights/content-performance/:clientId` | Bearer | ✅ |
-| GET/POST | `/api/billing/*` | Bearer | ⚠️ (Stripe scaffold) |
+| GET | `/api/billing/:clientId/status` | Bearer | ✅ (AI generation usage vs monthly limit) |
 | GET/POST | `/api/clients/*` | Bearer | ✅ |
 | GET | `/api/leads` | Bearer | ✅ |
 | GET/POST/DELETE | `/api/posts` | Bearer | ✅ |

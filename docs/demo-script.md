@@ -1,6 +1,6 @@
 # Demo script (≈12–15 minutes)
 
-**Persona:** Owner of **“Urban Glow Studio”** — unisex salon in **Patia, Bhubaneswar** (demo data in seed matches this story).
+**Persona:** **Arома Silk House** — saree & ethnic wear in **Bhubaneswar, Odisha**; Instagram **`@aromasilkhouse`**; audience women **25–45**, Odisha/Bengal; bilingual Hindi–English captions (seed matches this story).
 
 **Environment:** `INGESTION_MODE=mock`, seeded DB, dashboard at `:3000`, API at `:4000`.
 
@@ -24,7 +24,7 @@
 ## 4. Dashboard snapshot (2 min)
 
 - **Analytics** — total posts, engagement, best hour, charts.  
-- Tie to business: *“Evening slots match when people book after work.”*
+- Tie to business: *“Evening slots match when shoppers browse after work — seed insight highlights 7–9 PM.”*
 
 ## 5. Interpretation (2 min)
 

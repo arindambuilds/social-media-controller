@@ -30,6 +30,7 @@ import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { postsRouter } from "./routes/posts";
 import { socialAccountsRouter } from "./routes/socialAccounts";
 import { voicePostRouter } from "./routes/voicePost";
+import { instagramWebhookRouter } from "./routes/webhook";
 import { webhookRouter } from "./routes/webhooks";
 
 /** Always allowed in addition to CORS_ORIGIN (when not *). */
@@ -119,6 +120,11 @@ export function createApp() {
     })
   );
   app.use(cookieParser());
+  app.use(
+    "/api/webhook/instagram",
+    express.raw({ type: "application/json", limit: "1mb" }),
+    instagramWebhookRouter
+  );
   app.use(
     express.json({
       limit: "1mb",

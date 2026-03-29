@@ -21,7 +21,7 @@
 Aligned with **`docs/launch-checklist.md`** (freeze boundary):
 
 - Auth (signup / login / refresh / `me`), JWT, dashboard session + `clientId` context.  
-- Seeded demo: Urban Glow Studio (`demo-client`), dual primary logins + optional agency presentation user (see **`docs/launch-checklist.md`** table).  
+- Seeded demo: Arома Silk House (`demo-client`), dual primary logins + optional agency presentation user (see **`docs/launch-checklist.md`** table).  
 - Analytics (overview, charts, top posts from seeded data).  
 - AI: content-performance insight, weekly focus, captions (OpenAI optional).  
 - Leads: list + status patch.  

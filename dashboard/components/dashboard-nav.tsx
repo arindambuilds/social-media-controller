@@ -16,13 +16,17 @@ const primaryLinks = [
   { href: "/accounts", label: "Accounts" }
 ] as const;
 
-const secondaryLinks = [
+type SecondaryNavLink = { href: string; label: string; authOnly?: boolean };
+
+const secondaryLinks: SecondaryNavLink[] = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/dashboard/dm-settings", label: "DM settings", authOnly: true },
+  { href: "/dashboard/dm-inbox", label: "DM inbox", authOnly: true },
   { href: "/onboarding", label: "Connect" },
   { href: "/audit", label: "Audit" },
   { href: "/login", label: "Login" }
-] as const;
+];
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -74,7 +78,8 @@ function NavLinks({ pathname, hasToken, showAuditLink, onNavigate, variant }: Na
       </div>
       <div className="app-nav-group">
         <span className="app-nav-group-label">More</span>
-        {secondaryLinks.map(({ href, label }) => {
+        {secondaryLinks.map(({ href, label, authOnly }) => {
+          if (authOnly && !hasToken) return null;
           if (href === "/login" && hasToken) return null;
           if (href === "/onboarding" && !hasToken) return null;
           if (href === "/audit" && !showAuditLink) return null;

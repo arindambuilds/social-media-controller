@@ -3,7 +3,8 @@ import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
 
 type AuditLogInput = {
-  clientId: string;
+  /** Omit or null for user-level events before a client exists (e.g. public signup). */
+  clientId?: string | null;
   actorId?: string | null;
   action: string;
   entityType: string;
@@ -16,7 +17,7 @@ export async function writeAuditLog(input: AuditLogInput): Promise<void> {
   try {
     await prisma.auditLog.create({
       data: {
-        clientId: input.clientId,
+        clientId: input.clientId ?? null,
         actorId: input.actorId ?? null,
         action: input.action,
         entityType: input.entityType,

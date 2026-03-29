@@ -23,26 +23,61 @@ model User {
 }
 
 model Client {
-  id               String           @id @default(cuid())
-  name             String
-  ownerId          String
-  owner            User             @relation("ClientOwner", fields: [ownerId], references: [id])
-  agencyId         String?
-  agency           User?            @relation("Agency", fields: [agencyId], references: [id])
-  users            User[]           @relation("ClientMembership")
-  socialAccounts   SocialAccount[]
-  scheduledPosts   ScheduledPost[]
-  campaigns        Campaign[]
-  leads            Lead[]
-  auditLogs        AuditLog[]
-  syncRuns         SyncRun[]
-  aiInsights       AiInsight[]
-  recommendations  Recommendation[]
-  briefings        Briefing[]
-  whatsappNumber   String?
-  briefingEnabled  Boolean          @default(true)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                  String           @id @default(cuid())
+  name                String
+  ownerId             String
+  owner               User             @relation("ClientOwner", fields: [ownerId], references: [id])
+  agencyId            String?
+  agency              User?            @relation("Agency", fields: [agencyId], references: [id])
+  users               User[]           @relation("ClientMembership")
+  socialAccounts      SocialAccount[]
+  scheduledPosts      ScheduledPost[]
+  campaigns           Campaign[]
+  leads               Lead[]
+  auditLogs           AuditLog[]
+  syncRuns            SyncRun[]
+  aiInsights          AiInsight[]
+  recommendations     Recommendation[]
+  briefings           Briefing[]
+  whatsappNumber      String?
+  briefingEnabled     Boolean          @default(true)
+  dmAutoReplyEnabled  Boolean          @default(false)
+  dmBusinessContext   String?
+  dmOwnerTone         String?
+  dmConversations     DmConversation[]
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+model DmConversation {
+  id              String      @id @default(cuid())
+  clientId        String
+  client          Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  instagramUserId String
+  senderName      String?
+  messages        DmMessage[]
+  leadCaptured    Boolean     @default(false)
+  leadId          String?
+  status          String      @default("active")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([clientId, instagramUserId])
+  @@index([clientId, instagramUserId])
+}
+
+model DmMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   DmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      String
+  content        String
+  sentByAi       Boolean        @default(false)
+  confidence     Float?
+  intentLabel    String?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId])
 }
 
 model Briefing {

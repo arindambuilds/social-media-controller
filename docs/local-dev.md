@@ -150,10 +150,10 @@ npm run dashboard:dev
 |------|--------|----------|
 | Primary operator / smoke | `demo@demo.com` | `Demo1234!` |
 | Alternate — founder | `admin@demo.com` | `admin123` |
-| Alternate — client (Urban Glow) | `salon@pilot.demo` | `pilot123` |
+| Alternate — client (Arома Silk House) | `salon@pilot.demo` | `pilot123` |
 | Alternate — agency (presentations) | `demo@agencyname.com` | `Demo1234!` |
 
-Use the **primary** row for smoke checks and the default dashboard login. Seeded client ID: **`demo-client`** (Urban Glow Studio).
+Use the **primary** row for smoke checks and the default dashboard login. Seeded client ID: **`demo-client`** (Arома Silk House).
 
 ### 7b) Smoke test (API must be running)
 
