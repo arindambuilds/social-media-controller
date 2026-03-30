@@ -15,7 +15,10 @@ export function resolveTenant(req: Request, res: Response, next: NextFunction): 
 
   const auth = req.auth;
   if (!auth) {
-    res.status(401).json({ error: "Unauthenticated." });
+    res.status(401).json({
+      success: false,
+      error: { code: "UNAUTHORIZED", message: "Please log in again." }
+    });
     return;
   }
 
@@ -29,7 +32,10 @@ export function resolveTenant(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  res.status(403).json({ error: "Forbidden for this client." });
+  res.status(403).json({
+    success: false,
+    error: { code: "FORBIDDEN", message: "You do not have access to this." }
+  });
 }
 
 /**
@@ -46,7 +52,10 @@ export function resolveTenantFromBody(clientIdKey = "clientId") {
 
     const auth = req.auth;
     if (!auth) {
-      res.status(401).json({ error: "Unauthenticated." });
+      res.status(401).json({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Please log in again." }
+      });
       return;
     }
 
@@ -60,6 +69,9 @@ export function resolveTenantFromBody(clientIdKey = "clientId") {
       return;
     }
 
-    res.status(403).json({ error: "Forbidden for this client." });
+    res.status(403).json({
+      success: false,
+      error: { code: "FORBIDDEN", message: "You do not have access to this." }
+    });
   };
 }

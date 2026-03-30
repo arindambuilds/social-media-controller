@@ -9,44 +9,51 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  passwordHash  String?
-  role          Role     @default(AGENCY_ADMIN)
-  clientId      String?
-  client        Client?  @relation("ClientMembership", fields: [clientId], references: [id])
-  agencyClients Client[] @relation("Agency")
-  ownedClients  Client[] @relation("ClientOwner")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String             @id @default(cuid())
+  email            String             @unique
+  name             String?
+  passwordHash     String?
+  role             Role               @default(AGENCY_ADMIN)
+  clientId         String?
+  client           Client?            @relation("ClientMembership", fields: [clientId], references: [id])
+  agencyClients    Client[]           @relation("Agency")
+  ownedClients     Client[]           @relation("ClientOwner")
+  briefingFeedback BriefingFeedback[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 }
 
 model Client {
-  id                  String           @id @default(cuid())
-  name                String
-  ownerId             String
-  owner               User             @relation("ClientOwner", fields: [ownerId], references: [id])
-  agencyId            String?
-  agency              User?            @relation("Agency", fields: [agencyId], references: [id])
-  users               User[]           @relation("ClientMembership")
-  socialAccounts      SocialAccount[]
-  scheduledPosts      ScheduledPost[]
-  campaigns           Campaign[]
-  leads               Lead[]
-  auditLogs           AuditLog[]
-  syncRuns            SyncRun[]
-  aiInsights          AiInsight[]
-  recommendations     Recommendation[]
-  briefings           Briefing[]
-  whatsappNumber      String?
-  briefingEnabled     Boolean          @default(true)
-  dmAutoReplyEnabled  Boolean          @default(false)
-  dmBusinessContext   String?
-  dmOwnerTone         String?
-  dmConversations     DmConversation[]
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  id                       String           @id @default(cuid())
+  name                     String
+  ownerId                  String
+  owner                    User             @relation("ClientOwner", fields: [ownerId], references: [id])
+  agencyId                 String?
+  agency                   User?            @relation("Agency", fields: [agencyId], references: [id])
+  users                    User[]           @relation("ClientMembership")
+  socialAccounts           SocialAccount[]
+  scheduledPosts           ScheduledPost[]
+  campaigns                Campaign[]
+  leads                    Lead[]
+  auditLogs                AuditLog[]
+  syncRuns                 SyncRun[]
+  aiInsights               AiInsight[]
+  recommendations          Recommendation[]
+  briefings                Briefing[]
+  whatsappNumber           String?
+  briefingEnabled          Boolean          @default(true)
+  /// Hour (0–23) in Asia/Kolkata when the daily briefing should run.
+  briefingHourIst          Int              @default(8)
+  /// Instagram @handle collected at onboarding (before OAuth connects a real account).
+  preferredInstagramHandle String?
+  /// When set and in the future, Instagram ingestion jobs for this client are skipped.
+  ingestionPausedUntil     DateTime?
+  dmAutoReplyEnabled       Boolean          @default(false)
+  dmBusinessContext        String?
+  dmOwnerTone              String?
+  dmConversations          DmConversation[]
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
 }
 
 model DmConversation {
@@ -81,15 +88,61 @@ model DmMessage {
 }
 
 model Briefing {
-  id        String   @id @default(cuid())
-  clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  content   String
-  sentAt    DateTime
-  createdAt DateTime @default(now())
+  id                String           @id @default(cuid())
+  clientId          String
+  client            Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  content           String
+  sentAt            DateTime
+  whatsappDelivered Boolean?
+  emailDelivered    Boolean?
+  tipText           String?
+  metricsJson       Json?
+  status            BriefingStatus   @default(COMPLETE)
+  createdAt         DateTime         @default(now())
+  feedback          BriefingFeedback[]
 
   @@index([clientId])
   @@index([clientId, sentAt])
+}
+
+model BriefingFeedback {
+  id         String   @id @default(cuid())
+  briefingId String
+  briefing   Briefing @relation(fields: [briefingId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tipRating  String
+  freeText   String?
+  createdAt  DateTime @default(now())
+
+  @@index([briefingId])
+}
+
+model AiUsageLog {
+  id         String   @id @default(cuid())
+  clientId   String
+  feature    String
+  tokensIn   Int      @default(0)
+  tokensOut  Int      @default(0)
+  costUsd    Float?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([clientId, createdAt])
+  @@index([feature])
+}
+
+/// Operational logs for admin monitoring (briefing failures, cleanup, ingestion, etc.).
+model SystemEvent {
+  id        String   @id @default(cuid())
+  category  String
+  level     String
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([category, createdAt])
 }
 
 model SocialAccount {
@@ -378,5 +431,12 @@ enum OutboundPostStatus {
   DRAFT
   SCHEDULED
   PUBLISHED
+  FAILED
+}
+
+enum BriefingStatus {
+  PENDING
+  GENERATING
+  COMPLETE
   FAILED
 }

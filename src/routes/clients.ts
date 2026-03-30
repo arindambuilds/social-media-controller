@@ -9,7 +9,7 @@ export const clientsRouter = Router();
 
 clientsRouter.use(authenticate);
 
-const dmToneValues = ["friendly", "professional", "casual"] as const;
+const dmToneValues = ["friendly", "professional", "casual", "concise", "playful"] as const;
 
 const dmSettingsSchema = z.object({
   dmAutoReplyEnabled: z.boolean().optional(),
@@ -200,6 +200,76 @@ clientsRouter.get("/:clientId/sync-status", resolveTenant, async (req, res) => {
     lastSyncedAt: ig.lastSyncedAt?.toISOString() ?? null
   });
 });
+
+const onboardingProfileSchema = z.object({
+  name: z.string().min(2).optional(),
+  preferredInstagramHandle: z.string().max(100).nullable().optional(),
+  briefingHourIst: z.number().int().min(0).max(23).optional()
+});
+
+clientsRouter.get(
+  "/:clientId/profile",
+  resolveTenant,
+  requireRole("AGENCY_ADMIN", "CLIENT_USER"),
+  async (req, res) => {
+    const { clientId } = z.object({ clientId: z.string().min(1) }).parse(req.params);
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: {
+        id: true,
+        name: true,
+        preferredInstagramHandle: true,
+        briefingHourIst: true,
+        whatsappNumber: true
+      }
+    });
+    if (!client) {
+      res.status(404).json({ error: "Client not found." });
+      return;
+    }
+    res.json({ success: true, client });
+  }
+);
+
+clientsRouter.patch(
+  "/:clientId/profile",
+  resolveTenant,
+  requireRole("AGENCY_ADMIN", "CLIENT_USER"),
+  async (req, res) => {
+    const { clientId } = z.object({ clientId: z.string().min(1) }).parse(req.params);
+    const body = onboardingProfileSchema.parse(req.body ?? {});
+
+    if (Object.keys(body).length === 0) {
+      res.status(400).json({ error: "No fields to update." });
+      return;
+    }
+
+    const data: {
+      name?: string;
+      preferredInstagramHandle?: string | null;
+      briefingHourIst?: number;
+    } = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.preferredInstagramHandle !== undefined) {
+      const h = body.preferredInstagramHandle;
+      data.preferredInstagramHandle = h === "" || h === null ? null : h;
+    }
+    if (body.briefingHourIst !== undefined) data.briefingHourIst = body.briefingHourIst;
+
+    const client = await prisma.client.update({
+      where: { id: clientId },
+      data,
+      select: {
+        id: true,
+        name: true,
+        preferredInstagramHandle: true,
+        briefingHourIst: true
+      }
+    });
+
+    res.json({ success: true, client });
+  }
+);
 
 clientsRouter.get("/", requireRole("AGENCY_ADMIN"), async (_req, res) => {
   const clients = await prisma.client.findMany({

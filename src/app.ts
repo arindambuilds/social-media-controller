@@ -6,8 +6,11 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env";
+import cron from "node-cron";
+import { runWeeklyDatabaseCleanup } from "./jobs/databaseCleanup";
 import { startMorningBriefingJob } from "./jobs/morningBriefing";
-import { getDetailedHealth } from "./lib/healthCheck";
+import { getDetailedHealth, getPublicHealthSnapshot } from "./lib/healthCheck";
+import { redisConnection } from "./lib/redis";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
 import { logger } from "./lib/logger";
 import { prisma } from "./lib/prisma";
@@ -32,6 +35,9 @@ import { socialAccountsRouter } from "./routes/socialAccounts";
 import { voicePostRouter } from "./routes/voicePost";
 import { instagramWebhookRouter } from "./routes/webhook";
 import { webhookRouter } from "./routes/webhooks";
+import { adminSystemRouter } from "./routes/adminSystem";
+import { briefingPublicRouter } from "./routes/briefingPublic";
+import { attachSseRoute } from "./routes/sse";
 
 /** Always allowed in addition to CORS_ORIGIN (when not *). */
 const DEFAULT_CORS_ORIGINS = [
@@ -137,6 +143,9 @@ export function createApp() {
   );
   app.use(globalApiLimiter);
 
+  attachSseRoute(app);
+  app.use("/api/briefing/public", briefingPublicRouter);
+
   app.get("/", (_req, res) => {
     res.json({
       message: "Instagram Growth Copilot API",
@@ -178,12 +187,12 @@ export function createApp() {
         res.json(payload);
         return;
       }
-      const detailed = await getDetailedHealth();
-      payload.dependencies = {
-        database: detailed.database === "ok" ? "connected" : "disconnected",
-        redis: detailed.redis === "ok" ? "connected" : "disconnected"
-      };
-      res.json(payload);
+      const snapshot = await getPublicHealthSnapshot();
+      payload.status = snapshot.status;
+      payload.timestamp = snapshot.timestamp;
+      payload.components = snapshot.components;
+      const dbBad = snapshot.components.database?.status === "error";
+      res.status(dbBad ? 503 : 200).json(payload);
     } catch (err) {
       logger.warn("/api/health failed", {
         message: err instanceof Error ? err.message : String(err)
@@ -250,10 +259,26 @@ export function createApp() {
   app.use("/api/insights", insightsRouter);
   app.use("/api/briefing", briefingRouter);
   app.use("/api/voice", voicePostRouter);
+  app.use("/api/admin", adminSystemRouter);
 
   if (env.NODE_ENV === "production") {
     startMorningBriefingJob();
-    console.log("[PulseOS] Morning briefing job scheduled for 8:00 AM IST (Asia/Kolkata)");
+    console.log("[PulseOS] Morning briefing scheduler: every hour (Asia/Kolkata), per-client briefingHourIst");
+
+    if (!redisConnection) {
+      cron.schedule(
+        "0 2 * * 0",
+        () => {
+          void runWeeklyDatabaseCleanup().catch((e) =>
+            logger.error("Weekly database cleanup failed", {
+              message: e instanceof Error ? e.message : String(e)
+            })
+          );
+        },
+        { timezone: "Asia/Kolkata" }
+      );
+      logger.info("Weekly DB cleanup scheduled (no Redis): Sundays 02:00 IST");
+    }
   }
 
   if (env.SENTRY_DSN) {

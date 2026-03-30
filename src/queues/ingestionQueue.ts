@@ -21,11 +21,24 @@ export async function executeIngestionJobSync(data: IngestionJob): Promise<void>
   logger.info("Processing ingestion (inline, no Redis)", data);
 
   const account = await prisma.socialAccount.findUnique({
-    where: { id: data.socialAccountId }
+    where: { id: data.socialAccountId },
+    include: {
+      client: { select: { ingestionPausedUntil: true, id: true } }
+    }
   });
 
   if (!account) {
     logger.warn("Skipping ingestion for missing social account", data);
+    return;
+  }
+
+  const pausedUntil = account.client.ingestionPausedUntil;
+  if (pausedUntil && pausedUntil.getTime() > Date.now()) {
+    logger.warn("Skipping ingestion (client paused — likely rate limit cooldown)", {
+      clientId: account.clientId,
+      socialAccountId: account.id,
+      ingestionPausedUntil: pausedUntil.toISOString()
+    });
     return;
   }
 

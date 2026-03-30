@@ -1,6 +1,8 @@
 "use client";
 
+import { Link2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
@@ -158,19 +160,42 @@ function AccountsPageContent() {
             </tr>
           </thead>
           <tbody>
-            {accounts.map((a) => (
-              <tr key={a.id}>
-                <td>{a.platform}</td>
-                <td>{a.platformUsername ?? "—"}</td>
-                <td>{msUntil(a.tokenExpiresAt)}</td>
-                <td>{a.lastSyncedAt ? new Date(a.lastSyncedAt).toLocaleString() : "—"}</td>
-                <td>
-                  <button type="button" className="btn-secondary" onClick={() => revoke(a.id)}>
-                    Revoke
-                  </button>
+            {accounts.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-14 text-center">
+                  <div
+                    className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-subtle"
+                    style={{
+                      background: "linear-gradient(145deg, rgba(108,99,255,0.15), rgba(0,212,170,0.1))"
+                    }}
+                    aria-hidden
+                  >
+                    <Link2 className="text-accent-teal" size={36} strokeWidth={1.5} />
+                  </div>
+                  <p className="text-ink m-0 font-medium">No accounts connected</p>
+                  <p className="text-muted mx-auto mt-2 max-w-sm text-sm leading-relaxed">
+                    Link Instagram or another channel to sync posts and show analytics.
+                  </p>
+                  <Link className="button mt-4 inline-block" href="/onboarding">
+                    Open setup
+                  </Link>
                 </td>
               </tr>
-            ))}
+            ) : (
+              accounts.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.platform}</td>
+                  <td>{a.platformUsername ?? "—"}</td>
+                  <td>{msUntil(a.tokenExpiresAt)}</td>
+                  <td>{a.lastSyncedAt ? new Date(a.lastSyncedAt).toLocaleString() : "—"}</td>
+                  <td>
+                    <button type="button" className="btn-secondary" onClick={() => revoke(a.id)}>
+                      Revoke
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

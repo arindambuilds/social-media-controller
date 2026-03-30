@@ -89,7 +89,53 @@ authRouter.get("/me", authenticate, async (req, res) => {
     instagramConnected = !!acc;
   }
 
-  res.json({ success: true, user, instagramConnected });
+  res.json({ success: true, user, instagramConnected, plan: "free" });
+});
+
+authRouter.patch("/me", authenticate, async (req, res) => {
+  const body = z
+    .object({
+      email: z.string().email().optional(),
+      name: z.string().max(120).nullable().optional()
+    })
+    .parse(req.body ?? {});
+
+  if (Object.keys(body).length === 0) {
+    res.status(400).json({ success: false, error: { message: "No updates provided." } });
+    return;
+  }
+
+  if (body.email) {
+    const clash = await prisma.user.findFirst({
+      where: { email: body.email, NOT: { id: req.auth!.userId } }
+    });
+    if (clash) {
+      res.status(409).json({
+        success: false,
+        error: { message: "That email is already in use." }
+      });
+      return;
+    }
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: req.auth!.userId },
+    data: {
+      ...(body.email !== undefined ? { email: body.email } : {}),
+      ...(body.name !== undefined ? { name: body.name } : {})
+    },
+    select: { id: true, email: true, name: true, role: true, clientId: true }
+  });
+
+  let instagramConnected = false;
+  if (updated.clientId) {
+    const acc = await prisma.socialAccount.findFirst({
+      where: { clientId: updated.clientId, platform: "INSTAGRAM" }
+    });
+    instagramConnected = !!acc;
+  }
+
+  res.json({ success: true, user: updated, instagramConnected });
 });
 
 authRouter.get("/oauth/instagram/authorise", authenticate, async (req, res) => {

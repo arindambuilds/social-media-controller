@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { BarChart3 } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -18,6 +19,12 @@ import {
 import { apiFetch, fetchMe, type AnalyticsSummary } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 import { AnalyticsPageSkeleton } from "../../components/page-skeleton";
+import { FollowerGrowthChart } from "../../components/analytics/FollowerGrowthChart";
+import { EngagementHeatStrip } from "../../components/analytics/EngagementHeatStrip";
+import { PostGrid } from "../../components/analytics/PostGrid";
+import { FollowerGrowthChart } from "../../components/analytics/FollowerGrowthChart";
+import { EngagementHeatStrip } from "../../components/analytics/EngagementHeatStrip";
+import { PostGrid } from "../../components/analytics/PostGrid";
 
 const GRID_STROKE = "#1e1e2e";
 const TICK_FILL = "#8b8ba0";
@@ -196,12 +203,23 @@ export default function AnalyticsPage() {
   if (empty) {
     return (
       <div className="page-shell">
-        <section className="gradient-border p-6">
+        <section className="gradient-border p-6 text-center">
+          <div
+            className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border border-subtle"
+            style={{
+              background: "linear-gradient(145deg, rgba(108,99,255,0.2), rgba(0,212,170,0.12))"
+            }}
+            aria-hidden
+          >
+            <BarChart3 className="text-accent-purple" size={44} strokeWidth={1.5} />
+          </div>
           <h2 className="text-ink font-display text-xl font-bold">Analytics</h2>
-          <p className="text-muted mt-3">No posts synced yet — connect Instagram first.</p>
-          <div className="mt-4">
+          <p className="text-muted mx-auto mt-3 max-w-md text-sm leading-relaxed">
+            No data yet — connect your Instagram account to see your analytics here.
+          </p>
+          <div className="mt-6">
             <Link className="button" href="/onboarding">
-              Go to onboarding
+              Connect in setup
             </Link>
           </div>
         </section>
@@ -213,12 +231,6 @@ export default function AnalyticsPage() {
     overview?.timeSeries.points.map((pt) => ({
       ...pt,
       engagementPct: pt.engagementRate * 100
-    })) ?? [];
-
-  const followerLine =
-    overview?.followerGrowth?.points?.map((pt) => ({
-      date: pt.date,
-      followers: pt.followerCount
     })) ?? [];
 
   return (

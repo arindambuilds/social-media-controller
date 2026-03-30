@@ -249,8 +249,27 @@ export default function PostsPage() {
       <p className="text-muted mt-1 text-sm">Drafts, scheduled, and published outbound posts for this client.</p>
 
       {posts.length === 0 ? (
-        <div className="border-subtle text-muted mt-6 rounded-xl border border-dashed bg-surface/50 px-6 py-12 text-center text-sm">
-          No posts in the queue yet. Use <strong className="text-ink">Create post</strong> to add one.
+        <div className="border-subtle mt-6 rounded-xl border border-dashed bg-surface/50 px-6 py-12 text-center">
+          <div
+            className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-subtle"
+            style={{
+              background: "linear-gradient(145deg, rgba(108,99,255,0.15), rgba(0,212,170,0.1))"
+            }}
+            aria-hidden
+          >
+            <ImageIcon className="text-accent-purple h-9 w-9 opacity-90" strokeWidth={1.25} />
+          </div>
+          <p className="text-ink m-0 text-sm font-medium">No posts yet</p>
+          <p className="text-muted mx-auto mt-2 max-w-sm text-sm leading-relaxed">
+            Create a draft or scheduled post here — your queue will show up in this space.
+          </p>
+          <button
+            type="button"
+            className="button mt-5"
+            onClick={() => setCreateOpen(true)}
+          >
+            Create your first post
+          </button>
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

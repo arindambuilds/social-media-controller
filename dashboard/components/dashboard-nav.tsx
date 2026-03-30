@@ -16,7 +16,7 @@ const primaryLinks = [
   { href: "/accounts", label: "Accounts" }
 ] as const;
 
-type SecondaryNavLink = { href: string; label: string; authOnly?: boolean };
+type SecondaryNavLink = { href: string; label: string; authOnly?: boolean; adminOnly?: boolean };
 
 const secondaryLinks: SecondaryNavLink[] = [
   { href: "/", label: "Home" },
@@ -25,6 +25,7 @@ const secondaryLinks: SecondaryNavLink[] = [
   { href: "/dashboard/dm-inbox", label: "DM inbox", authOnly: true },
   { href: "/onboarding", label: "Connect" },
   { href: "/audit", label: "Audit" },
+  { href: "/admin/system", label: "System", authOnly: true, adminOnly: true },
   { href: "/login", label: "Login" }
 ];
 
@@ -52,11 +53,12 @@ type NavLinksProps = {
   pathname: string;
   hasToken: boolean;
   showAuditLink: boolean;
+  showAdminLink: boolean;
   onNavigate: () => void;
   variant: "bar" | "drawer";
 };
 
-function NavLinks({ pathname, hasToken, showAuditLink, onNavigate, variant }: NavLinksProps) {
+function NavLinks({ pathname, hasToken, showAuditLink, showAdminLink, onNavigate, variant }: NavLinksProps) {
   const wrapClass = variant === "drawer" ? "app-nav-drawer-groups" : "app-nav-group-wrap";
   const linkClass = variant === "drawer" ? "app-nav-link app-nav-link--drawer" : "app-nav-link";
 
@@ -78,11 +80,12 @@ function NavLinks({ pathname, hasToken, showAuditLink, onNavigate, variant }: Na
       </div>
       <div className="app-nav-group">
         <span className="app-nav-group-label">More</span>
-        {secondaryLinks.map(({ href, label, authOnly }) => {
+        {secondaryLinks.map(({ href, label, authOnly, adminOnly }) => {
           if (authOnly && !hasToken) return null;
           if (href === "/login" && hasToken) return null;
           if (href === "/onboarding" && !hasToken) return null;
           if (href === "/audit" && !showAuditLink) return null;
+          if (adminOnly && !showAdminLink) return null;
           return (
             <Link
               key={href}
@@ -109,6 +112,7 @@ export function DashboardNav() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const hasToken = isReady && !!token;
   const showAuditLink = !userLoading && user?.role === "AGENCY_ADMIN";
+  const showAdminLink = !userLoading && user?.role === "AGENCY_ADMIN";
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeUserMenu = useCallback(() => setUserMenuOpen(false), []);
@@ -199,6 +203,7 @@ export function DashboardNav() {
             pathname={pathname}
             hasToken={hasToken}
             showAuditLink={showAuditLink}
+            showAdminLink={showAdminLink}
             onNavigate={closeMenu}
             variant="bar"
           />
@@ -286,6 +291,7 @@ export function DashboardNav() {
             pathname={pathname}
             hasToken={hasToken}
             showAuditLink={showAuditLink}
+            showAdminLink={showAdminLink}
             onNavigate={closeMenu}
             variant="drawer"
           />

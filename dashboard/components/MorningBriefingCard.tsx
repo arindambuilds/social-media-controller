@@ -1,6 +1,7 @@
 "use client";
 
 import { RefreshCw, SunMedium } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 
@@ -9,6 +10,7 @@ type BriefingRow = {
   content: string;
   sentAt: string;
   createdAt: string;
+  tipText?: string | null;
 };
 
 type LatestResponse = {
@@ -117,7 +119,15 @@ export function MorningBriefingCard({ clientId }: { clientId: string | null }) {
       ) : error ? (
         <p className="text-error m-0 text-sm">{error}</p>
       ) : briefing ? (
-        <p className="text-ink m-0 text-base leading-relaxed tracking-tight md:text-[1.05rem]">{briefing.content}</p>
+        <div className="space-y-3">
+          <p className="text-ink m-0 text-base leading-relaxed tracking-tight md:text-[1.05rem]">{briefing.content}</p>
+          <Link
+            href={`/briefing/${briefing.id}`}
+            className="text-accent-teal inline-block text-sm font-semibold underline-offset-2 hover:underline"
+          >
+            Open full briefing
+          </Link>
+        </div>
       ) : (
         <p className="text-muted m-0 text-sm leading-relaxed">
           Your 8 AM briefing will appear here once the first run completes. Use Refresh to generate one now.

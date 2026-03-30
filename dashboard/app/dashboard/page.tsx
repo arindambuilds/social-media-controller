@@ -27,6 +27,7 @@ import { CLIENT_ID_KEY, getStoredClientId } from "../../lib/auth-storage";
 import { MorningBriefingCard } from "../../components/MorningBriefingCard";
 import { DashboardPageSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
+import { usePulseSse } from "../../hooks/usePulseSse";
 
 type OverviewResponse = {
   followerCount?: number | null;
@@ -135,6 +136,7 @@ export default function DashboardHomePage() {
   const [engagementChart, setEngagementChart] = useState<
     Array<{ label: string; ratePct: number }>
   >([]);
+  const [liveConnected, setLiveConnected] = useState(false);
 
   const followerTrendPair = useMemo(() => {
     if (followerChart.length < 2) return { prev: null as number | null, curr: null as number | null };
@@ -239,6 +241,13 @@ export default function DashboardHomePage() {
     })();
   }, [isReady, token, router]);
 
+  usePulseSse(clientLabel, {
+    enabled: Boolean(clientLabel),
+    onPulse: () => {
+      setLiveConnected(true);
+    }
+  });
+
   if (!isReady || !token) {
     return <DashboardPageSkeleton />;
   }
@@ -261,7 +270,14 @@ export default function DashboardHomePage() {
                 .join(" · ")
             : "Agency view — open Analytics and pick a client, or assign a client to your user."
         }
-      />
+      >
+        {liveConnected ? (
+          <span className="ml-3 inline-flex items-center gap-1.5 rounded-full border border-accent-teal/40 bg-accent-teal/10 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-accent-teal">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent-teal animate-pulse" />
+            Live
+          </span>
+        ) : null}
+      </PageHeader>
 
       {email ? (
         <p className="text-muted mt-1 text-sm">

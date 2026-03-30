@@ -1,5 +1,6 @@
 import { decrypt } from "../lib/encryption";
 import { prisma } from "../lib/prisma";
+import { logSystemEvent } from "./systemEventService";
 
 type InstagramMediaResponse = {
   data: Array<{
@@ -169,8 +170,27 @@ export async function syncInstagramSocialAccount(socialAccountId: string) {
       }
     });
 
+    if (isInstagramRateLimitError(error)) {
+      const until = new Date(Date.now() + 3600_000);
+      await prisma.client.update({
+        where: { id: socialAccount.clientId },
+        data: { ingestionPausedUntil: until }
+      });
+      await logSystemEvent(
+        "ingestion",
+        "warn",
+        "Instagram rate limited — pausing this client's ingestion for 1 hour",
+        { clientId: socialAccount.clientId, socialAccountId: socialAccount.id }
+      );
+    }
+
     throw error;
   }
+}
+
+function isInstagramRateLimitError(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err);
+  return /rate limit|429|request limit|too many|throttl|usage cap/i.test(m);
 }
 
 async function fetchInstagramMetrics(mediaId: string, accessToken: string) {
@@ -206,7 +226,8 @@ async function fetchJson<T>(url: string): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
     const errorObject = payload.error as { message?: string } | undefined;
-    throw new Error(errorObject?.message ?? response.statusText);
+    const base = errorObject?.message ?? response.statusText;
+    throw new Error(`${base} (HTTP ${response.status})`);
   }
 
   return payload as T;

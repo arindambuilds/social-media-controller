@@ -29,7 +29,7 @@ export function errorHandler(
       success: false,
       error: {
         code: "BAD_REQUEST",
-        message: isProd ? "Request could not be completed." : err.message
+        message: isProd ? "Something went wrong. Please try again." : err.message
       }
     });
     return;
@@ -40,7 +40,7 @@ export function errorHandler(
     if (env.SENTRY_DSN) Sentry.captureException(err);
     res.status(400).json({
       success: false,
-      error: { code: "BAD_REQUEST", message: isProd ? "Invalid request." : err.message }
+      error: { code: "BAD_REQUEST", message: isProd ? "Something went wrong. Please try again." : err.message }
     });
     return;
   }
@@ -80,7 +80,7 @@ export function errorHandler(
       success: false,
       error: {
         code: "INTERNAL_ERROR",
-        message: isProd ? "Internal server error." : err.message
+        message: isProd ? "Something went wrong. Please try again." : err.message
       }
     });
     return;
@@ -90,6 +90,6 @@ export function errorHandler(
   if (env.SENTRY_DSN) Sentry.captureException(err);
   res.status(500).json({
     success: false,
-    error: { code: "INTERNAL_ERROR", message: "Internal server error." }
+    error: { code: "INTERNAL_ERROR", message: "Something went wrong. Please try again." }
   });
 }

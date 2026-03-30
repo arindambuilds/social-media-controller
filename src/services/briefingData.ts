@@ -7,6 +7,10 @@ export type BriefingData = {
   newFollowers: number;
   totalFollowers: number;
   newLeads: number;
+  /** Sum of likes on posts for yesterday (IST). */
+  likesYesterday: number;
+  /** Sum of comments on posts for yesterday (IST). */
+  commentsYesterday: number;
   topPost: { caption: string; reach: number; likes: number } | null;
   scheduledToday: number;
 };
@@ -58,6 +62,8 @@ export async function getBriefingData(clientId: string): Promise<BriefingData> {
     newFollowers: 0,
     totalFollowers: 0,
     newLeads: 0,
+    likesYesterday: 0,
+    commentsYesterday: 0,
     topPost: null,
     scheduledToday: 0
   };
@@ -105,6 +111,16 @@ export async function getBriefingData(clientId: string): Promise<BriefingData> {
         createdAt: { gte: yRange.start, lte: yRange.end }
       }
     });
+
+    const yesterdayMetrics = await prisma.postMetricDaily.aggregate({
+      where: {
+        date: { gte: yRange.start, lte: yRange.end },
+        post: { socialAccount: { clientId } }
+      },
+      _sum: { likes: true, commentsCount: true }
+    });
+    const likesYesterday = yesterdayMetrics._sum.likes ?? 0;
+    const commentsYesterday = yesterdayMetrics._sum.commentsCount ?? 0;
 
     const topMetric = await prisma.postMetricDaily.findFirst({
       where: {
@@ -163,6 +179,8 @@ export async function getBriefingData(clientId: string): Promise<BriefingData> {
       newFollowers,
       totalFollowers,
       newLeads,
+      likesYesterday,
+      commentsYesterday,
       topPost,
       scheduledToday
     };

@@ -102,7 +102,9 @@ const envSchema = z
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.string().optional(),
     SMTP_USER: z.string().optional(),
-    SMTP_PASS: z.string().optional()
+    SMTP_PASS: z.string().optional(),
+    /** Optional From header; defaults to SMTP_USER (works for Gmail; use verified sender for SendGrid). */
+    SMTP_FROM: z.string().optional()
   })
   .superRefine((data, ctx) => {
     // Reject wildcard CORS in production — prevents credentialed abuse from arbitrary sites.

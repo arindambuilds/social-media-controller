@@ -26,14 +26,24 @@ function buildFallbackBriefing(data: BriefingData): string {
   );
 }
 
+/** Shown in WhatsApp/email when Claude is unavailable or errors. */
+export const CLAUDE_TIP_FALLBACK =
+  "Keep posting consistently today! Check your dashboard for latest analytics.";
+
+export type BriefingGenerationResult = {
+  content: string;
+  /** False when API key missing, empty model response, or Claude request threw. */
+  claudeSucceeded: boolean;
+};
+
 /**
  * Generates a warm, short briefing via Claude, or a deterministic fallback if the API is unavailable.
  */
-export async function generateBriefing(data: BriefingData): Promise<string> {
+export async function generateBriefing(data: BriefingData): Promise<BriefingGenerationResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
     console.log("[briefingAgent] ANTHROPIC_API_KEY missing — using fallback briefing");
-    return buildFallbackBriefing(data);
+    return { content: buildFallbackBriefing(data), claudeSucceeded: false };
   }
 
   const model = process.env.ANTHROPIC_BRIEFING_MODEL?.trim() || DEFAULT_MODEL;
@@ -68,13 +78,13 @@ export async function generateBriefing(data: BriefingData): Promise<string> {
     const block = res.content.find((b) => b.type === "text");
     const text = block && block.type === "text" ? block.text.trim() : "";
     if (!text) {
-      return buildFallbackBriefing(data);
+      return { content: buildFallbackBriefing(data), claudeSucceeded: false };
     }
-    return text;
+    return { content: text, claudeSucceeded: true };
   } catch (err) {
     console.warn("[briefingAgent] Claude request failed", {
       message: err instanceof Error ? err.message : String(err)
     });
-    return buildFallbackBriefing(data);
+    return { content: buildFallbackBriefing(data), claudeSucceeded: false };
   }
 }

@@ -21,12 +21,16 @@ export const globalApiLimiter = rateLimit({
     const p = req.path || "";
     if (p === "/health" || p.startsWith("/api/health")) return true;
     if (p.startsWith("/api/webhooks")) return true;
+    if (p === "/api/events" || p.startsWith("/api/events")) return true;
     return false;
   },
   handler: (_req, res, _next, options) => {
     sendLimit(res, options.windowMs, {
       success: false,
-      error: { code: "RATE_LIMIT", message: "Too many requests. Please try again later." }
+      error: {
+        code: "RATE_LIMIT",
+        message: "You have sent too many requests. Please wait a few minutes and try again."
+      }
     });
   }
 });
@@ -55,6 +59,29 @@ export const refreshAuthLimiter = rateLimit({
     sendLimit(res, options.windowMs, {
       success: false,
       error: { code: "RATE_LIMIT", message: "Too many refresh attempts. Try again later." }
+    });
+  }
+});
+
+/** DM reply preview — Claude cost control per client. */
+export const dmPreviewLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const auth = req.auth;
+    const body = (req.body ?? {}) as { clientId?: string };
+    const cid = typeof body.clientId === "string" ? body.clientId : "none";
+    return `${auth?.userId ?? `ip:${req.ip ?? "unknown"}`}:${cid}`;
+  },
+  handler: (_req, res, _next, options) => {
+    sendLimit(res, options.windowMs, {
+      success: false,
+      error: {
+        code: "RATE_LIMIT",
+        message: "Too many preview requests. Wait a minute and try again."
+      }
     });
   }
 });

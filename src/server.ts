@@ -1,5 +1,9 @@
 import "dotenv/config";
 import { createApp } from "./app";
+import { redisConnection } from "./lib/redis";
+import { printStartupSummary } from "./lib/startupSummary";
+import { startBriefingWorker } from "./workers/briefingWorker";
+import { initMaintenanceJobs, startMaintenanceWorker } from "./workers/maintenanceWorker";
 
 if (process.env.NODE_ENV === "production") {
   const dbUrl = process.env.DATABASE_URL ?? "";
@@ -19,8 +23,15 @@ if (process.env.NODE_ENV === "production") {
 const app = createApp();
 const PORT = Number(process.env.PORT) || 8080;
 
+if (process.env.NODE_ENV === "production" && redisConnection) {
+  startBriefingWorker();
+  startMaintenanceWorker();
+  void initMaintenanceJobs();
+}
+
+void printStartupSummary(PORT);
+
 const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server started on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });

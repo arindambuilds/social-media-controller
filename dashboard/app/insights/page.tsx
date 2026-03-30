@@ -288,14 +288,29 @@ export default function InsightsPage() {
           </div>
 
           {!insight && !generating ? (
-            <button
-              type="button"
-              onClick={generateInsightFlow}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
-            >
-              <Sparkles size={18} strokeWidth={2.5} aria-hidden />
-              Generate your first insight
-            </button>
+            <div className="rounded-xl border border-dashed border-subtle bg-surface/40 px-4 py-8 text-center sm:px-8">
+              <div
+                className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-subtle"
+                style={{
+                  background: "linear-gradient(145deg, rgba(108,99,255,0.18), rgba(0,212,170,0.12))"
+                }}
+                aria-hidden
+              >
+                <Brain className="text-accent-purple" size={36} strokeWidth={1.5} />
+              </div>
+              <p className="text-ink m-0 text-sm font-medium">No AI insight yet</p>
+              <p className="text-muted mx-auto mt-2 max-w-md text-sm leading-relaxed">
+                We read your recent posts and turn them into simple tips. Connect Instagram and sync posts if you have not yet.
+              </p>
+              <button
+                type="button"
+                onClick={generateInsightFlow}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
+              >
+                <Sparkles size={18} strokeWidth={2.5} aria-hidden />
+                Generate your first insight
+              </button>
+            </div>
           ) : null}
 
           {generating ? (

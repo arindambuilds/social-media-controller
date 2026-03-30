@@ -66,6 +66,20 @@ function nestedErrorMessage(body: unknown): string | undefined {
   return undefined;
 }
 
+function friendlyHttpMessage(status: number, parsedBody: unknown, fallback: string): string {
+  const nested = nestedErrorMessage(parsedBody);
+  if (nested && nested.trim().length > 0 && !/^HTTP \d+$/.test(nested)) {
+    return nested;
+  }
+  if (status === 401) return "Please log in again.";
+  if (status === 403) return "You do not have access to this.";
+  if (status === 429) {
+    return "You have sent too many requests. Please wait a few minutes and try again.";
+  }
+  if (status >= 500) return "Something went wrong. Please try again.";
+  return fallback;
+}
+
 /** Parse API error payloads (string `error` or nested `{ error: { message, fieldErrors } }`). */
 async function readResponseJson(res: Response): Promise<unknown> {
   const text = await res.text();
@@ -246,11 +260,8 @@ export async function apiFetch<T = unknown>(path: string, options?: ApiFetchInit
       body && typeof body === "object" && "_raw" in body && typeof (body as { _raw: string })._raw === "string"
         ? (body as { _raw: string })._raw.slice(0, 200)
         : undefined;
-    const msg =
-      nestedErrorMessage(body) ??
-      parseApiErrorMessage(body) ??
-      raw ??
-      `HTTP ${res.status}`;
+    const fallback = parseApiErrorMessage(body) ?? raw ?? `HTTP ${res.status}`;
+    const msg = friendlyHttpMessage(res.status, body, fallback);
     throw new Error(msg);
   }
 
@@ -302,9 +313,8 @@ export async function apiFetchFormData<T = unknown>(
     if (res.status === 401 && !p.includes("/auth/login")) {
       forceLogoutToLogin();
     }
-    const msg =
-      nestedErrorMessage(body) ?? parseApiErrorMessage(body) ?? `HTTP ${res.status}`;
-    throw new Error(msg);
+    const fallback = parseApiErrorMessage(body) ?? `HTTP ${res.status}`;
+    throw new Error(friendlyHttpMessage(res.status, body, fallback));
   }
 
   return body as T;
@@ -395,7 +405,8 @@ async function requestWithToken<T>(path: string, token: string, init?: ApiFetchI
       parsed && typeof parsed === "object" && "_raw" in parsed && typeof (parsed as { _raw: string })._raw === "string"
         ? (parsed as { _raw: string })._raw.slice(0, 200)
         : undefined;
-    throw new Error(parseApiErrorMessage(parsed) || raw || `Request failed: ${response.status}`);
+    const fb = parseApiErrorMessage(parsed) || raw || `Request failed: ${response.status}`;
+    throw new Error(friendlyHttpMessage(response.status, parsed, fb));
   }
   return parsed as T;
 }
