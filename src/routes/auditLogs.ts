@@ -12,35 +12,40 @@ auditLogsRouter.use(requireAgency);
 auditLogsRouter.use(tenantRateLimit);
 
 auditLogsRouter.get("/", async (req, res) => {
-  const q = z
-    .object({
-      clientId: z.string().min(1),
-      page: z.coerce.number().int().min(1).default(1),
-      perPage: z.coerce.number().int().min(1).max(100).default(20),
-      action: z.string().optional()
-    })
-    .parse(req.query);
+  try {
+    const q = z
+      .object({
+        clientId: z.string().min(1),
+        page: z.coerce.number().int().min(1).default(1),
+        perPage: z.coerce.number().int().min(1).max(100).default(20),
+        action: z.string().optional()
+      })
+      .parse(req.query);
 
-  const skip = (q.page - 1) * q.perPage;
+    const skip = (q.page - 1) * q.perPage;
 
-  const where = {
-    clientId: q.clientId,
-    ...(q.action ? { action: q.action } : {})
-  };
+    const where = {
+      clientId: q.clientId,
+      ...(q.action ? { action: q.action } : {})
+    };
 
-  const [total, rows] = await prisma.$transaction([
-    prisma.auditLog.count({ where }),
-    prisma.auditLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: q.perPage
-    })
-  ]);
+    const [total, rows] = await prisma.$transaction([
+      prisma.auditLog.count({ where }),
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: q.perPage
+      })
+    ]);
 
-  res.json({
-    success: true,
-    logs: rows,
-    pagination: { page: q.page, perPage: q.perPage, total }
-  });
+    res.json({
+      success: true,
+      logs: rows,
+      pagination: { page: q.page, perPage: q.perPage, total }
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load audit logs.";
+    res.status(400).json({ success: false, error: { code: "AUDIT_LOGS_ERROR", message } });
+  }
 });

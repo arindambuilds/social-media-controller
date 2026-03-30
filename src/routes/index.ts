@@ -3,6 +3,7 @@ import { aiRouter } from "./ai";
 import { auditLogsRouter } from "./auditLogs";
 import { authRouter } from "./auth";
 import { billingRouter } from "./billing";
+import { agencyRouter } from "./agency";
 import { clientsRouter } from "./clients";
 import { healthRouter } from "./health";
 import { leadsRouter } from "./leads";
@@ -10,6 +11,7 @@ import { postsRouter } from "./posts";
 import { socialAccountsRouter } from "./socialAccounts";
 import { webhookRouter } from "./webhooks";
 import { instagramRouter } from "./instagram";
+import { reportsRouter } from "./reports";
 
 export const apiRouter = Router();
 
@@ -18,9 +20,11 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/instagram", instagramRouter);
 apiRouter.use("/ai", aiRouter);
 apiRouter.use("/billing", billingRouter);
+apiRouter.use("/agency", agencyRouter);
 apiRouter.use("/clients", clientsRouter);
 apiRouter.use("/leads", leadsRouter);
 apiRouter.use("/posts", postsRouter);
+apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/audit-logs", auditLogsRouter);
 apiRouter.use("/social-accounts", socialAccountsRouter);
 apiRouter.use("/webhooks", webhookRouter);

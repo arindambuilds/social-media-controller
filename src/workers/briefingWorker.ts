@@ -4,7 +4,9 @@ import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
 import type { BriefingJob } from "../queues/briefingQueue";
-import { runBriefingNow } from "../jobs/morningBriefing";
+import { toBullMqProcessorError } from "../lib/bullmqRetry";
+import { runBriefingNow, runMorningBriefingDispatchTick } from "../jobs/morningBriefing";
+import { jobLogMarkActive, jobLogMarkCompleted, jobLogMarkFailed } from "../services/jobLogService";
 import { logSystemEvent } from "../services/systemEventService";
 
 export function startBriefingWorker(): Worker<BriefingJob> | null {
@@ -13,9 +15,57 @@ export function startBriefingWorker(): Worker<BriefingJob> | null {
   const worker = new Worker<BriefingJob>(
     queueNames.briefing,
     async (job: Job<BriefingJob>) => {
-      await runBriefingNow(job.data.clientId);
+      const q = queueNames.briefing;
+      const jid = String(job.id);
+      await jobLogMarkActive({
+        queue: q,
+        jobId: jid,
+        name: job.name,
+        data:
+          job.name === "dispatch-hour"
+            ? { dispatch: true }
+            : { clientId: job.data?.clientId ?? null },
+        attempts: job.attemptsMade
+      });
+      try {
+        if (job.name === "dispatch-hour") {
+          await runMorningBriefingDispatchTick();
+          await jobLogMarkCompleted({
+            queue: q,
+            jobId: jid,
+            attempts: job.attemptsMade,
+            result: { dispatch: true }
+          });
+          return;
+        }
+        const clientId = job.data?.clientId;
+        if (!clientId) {
+          throw new Error("briefing job missing clientId");
+        }
+        await runBriefingNow(clientId);
+        await jobLogMarkCompleted({
+          queue: q,
+          jobId: jid,
+          attempts: job.attemptsMade,
+          result: { clientId }
+        });
+      } catch (err) {
+        const e = toBullMqProcessorError(err);
+        await jobLogMarkFailed({
+          queue: q,
+          jobId: jid,
+          error: e.message,
+          attempts: job.attemptsMade
+        });
+        throw e;
+      }
     },
-    { connection: redisConnection, concurrency: 2 }
+    {
+      connection: redisConnection,
+      concurrency: 3,
+      maxStalledCount: 2,
+      stalledInterval: 30_000
+    }
   );
 
   worker.on("failed", (job, err) => {

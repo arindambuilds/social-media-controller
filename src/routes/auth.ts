@@ -72,24 +72,37 @@ function respondDbUnavailable(res: Response, err: unknown, context: string): boo
 }
 
 authRouter.get("/me", authenticate, async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.auth!.userId },
-    select: { id: true, email: true, name: true, role: true, clientId: true }
-  });
-  if (!user) {
-    res.status(404).json({ error: "User not found." });
-    return;
-  }
+  try {
+    if (!req.auth?.userId) {
+      res.status(401).json({ success: false, error: { code: "NO_SESSION", message: "Not authenticated." } });
+      return;
+    }
 
-  let instagramConnected = false;
-  if (user.clientId) {
-    const acc = await prisma.socialAccount.findFirst({
-      where: { clientId: user.clientId, platform: "INSTAGRAM" }
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth.userId },
+      select: { id: true, email: true, name: true, role: true, clientId: true, plan: true }
     });
-    instagramConnected = !!acc;
-  }
+    if (!user) {
+      res.status(401).json({ success: false, error: { code: "USER_NOT_FOUND", message: "User not found." } });
+      return;
+    }
 
-  res.json({ success: true, user, instagramConnected, plan: "free" });
+    let instagramConnected = false;
+    if (user.clientId) {
+      const acc = await prisma.socialAccount.findFirst({
+        where: { clientId: user.clientId, platform: "INSTAGRAM" }
+      });
+      instagramConnected = !!acc;
+    }
+
+    res.json({ success: true, user, instagramConnected, plan: user.plan ?? "free" });
+  } catch (err) {
+    if (respondDbUnavailable(res, err, "GET /api/auth/me")) return;
+    logger.error("GET /api/auth/me failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
+    res.status(500).json({ success: false, error: { code: "ME_ERROR", message: "Failed to load user." } });
+  }
 });
 
 authRouter.patch("/me", authenticate, async (req, res) => {

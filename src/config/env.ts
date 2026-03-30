@@ -104,7 +104,23 @@ const envSchema = z
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
     /** Optional From header; defaults to SMTP_USER (works for Gmail; use verified sender for SendGrid). */
-    SMTP_FROM: z.string().optional()
+    SMTP_FROM: z.string().optional(),
+    /** Stripe billing */
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    DASHBOARD_URL: z.string().url().optional().default("http://localhost:3000"),
+    /**
+     * When set, `GET /api/metrics` is enabled and requires header `x-pulse-metrics-key: <value>`.
+     * Omit in production unless you need operator snapshots (treat like a password).
+     */
+    METRICS_SECRET: z.string().min(24).optional(),
+    /** e.g. `http://gotenberg:3000` — when set, PDF worker uses Gotenberg instead of Puppeteer. */
+    GOTENBERG_URL: z.string().url().optional(),
+    /**
+     * `hourly` (default): BullMQ `dispatch-hour` every :00 IST.
+     * `nine_am_ist`: only `whatsapp-briefing` queue at 09:00 IST (requires `startWhatsAppBriefingWorker` in API).
+     */
+    BRIEFING_DISPATCH_MODE: z.string().optional()
   })
   .superRefine((data, ctx) => {
     // Reject wildcard CORS in production — prevents credentialed abuse from arbitrary sites.
@@ -197,5 +213,6 @@ if (!process.env.DIRECT_URL?.trim()) {
 export const env = {
   ...parsed,
   DIRECT_URL: process.env.DIRECT_URL!,
-  APP_BASE_URL: resolveAppBaseUrl()
+  APP_BASE_URL: resolveAppBaseUrl(),
+  METRICS_SECRET: parsed.METRICS_SECRET?.trim() || undefined
 };

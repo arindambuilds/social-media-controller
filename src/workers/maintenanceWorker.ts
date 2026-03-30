@@ -6,6 +6,8 @@ import { queueNames } from "../queues/queueNames";
 import type { MaintenanceJob } from "../queues/maintenanceQueue";
 import { runWeeklyDatabaseCleanup } from "../jobs/databaseCleanup";
 import { registerWeeklyDatabaseCleanupJob } from "../queues/maintenanceQueue";
+import { isBriefingNineAmDispatchMode, registerMorningBriefingDispatchRepeatable } from "../queues/briefingQueue";
+import { registerWhatsAppBriefingNineAmRepeatable } from "../queues/whatsappBriefingQueue";
 
 export function startMaintenanceWorker(): Worker<MaintenanceJob> | null {
   if (!redisConnection) return null;
@@ -42,5 +44,25 @@ export async function initMaintenanceJobs(): Promise<void> {
     logger.warn("registerWeeklyDatabaseCleanupJob failed", {
       message: err instanceof Error ? err.message : String(err)
     });
+  }
+  try {
+    await registerMorningBriefingDispatchRepeatable();
+    if (!isBriefingNineAmDispatchMode()) {
+      logger.info("Morning briefing BullMQ repeatable registered (hourly :00 Asia/Kolkata)");
+    }
+  } catch (err) {
+    logger.warn("registerMorningBriefingDispatchRepeatable failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
+  }
+  if (isBriefingNineAmDispatchMode()) {
+    try {
+      await registerWhatsAppBriefingNineAmRepeatable();
+      logger.info("Briefing: whatsapp-briefing queue @ 09:00 Asia/Kolkata (nine_am_ist mode)");
+    } catch (err) {
+      logger.warn("registerWhatsAppBriefingNineAmRepeatable failed", {
+        message: err instanceof Error ? err.message : String(err)
+      });
+    }
   }
 }

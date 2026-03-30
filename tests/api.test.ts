@@ -1,11 +1,13 @@
 import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.ts";
 import { prisma } from "../src/lib/prisma";
 import { redisConnection } from "../src/lib/redis";
 import { matchesWebhookSignature, signWebhookPayload } from "../src/routes/webhooks";
 import { upsertSocialAccount } from "../src/services/socialAccountService";
 import { writeAuditLog } from "../src/services/auditLogService";
+import { PdfService } from "../src/services/pdfService";
+import { hashPassword } from "../src/services/authService";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 
@@ -34,6 +36,22 @@ run("API MVP smoke", () => {
       timestamp: expect.any(String),
       ingestionMode: expect.any(String)
     });
+  });
+
+  it("GET /api/health/critical returns structured ok or overload signal", async () => {
+    const res = await request(app).get("/api/health/critical");
+    expect([200, 503]).toContain(res.status);
+    expect(res.body).toMatchObject({ timestamp: expect.any(String) });
+    if (res.status === 200) {
+      expect(res.body).toMatchObject({ ok: true });
+    } else {
+      expect(res.body).toMatchObject({ ok: false, reason: expect.any(String) });
+    }
+  });
+
+  it("GET /api/metrics is hidden without valid x-pulse-metrics-key", async () => {
+    const res = await request(app).get("/api/metrics").set("x-pulse-metrics-key", "invalid-key-for-test");
+    expect(res.status).toBe(404);
   });
 
   it("GET /api/health/db returns status ok when database is reachable", async () => {
@@ -157,6 +175,133 @@ run("API MVP smoke", () => {
   it("GET /api/analytics/:clientId/overview returns 401 without token", async () => {
     const res = await request(app).get("/api/analytics/demo-client/overview?days=30");
     expect(res.status).toBe(401);
+  });
+
+  it("POST /api/reports/:clientId/export/pdf returns 401 without token", async () => {
+    const res = await request(app).post("/api/reports/demo-client/export/pdf");
+    expect(res.status).toBe(401);
+  });
+
+  it("POST /api/reports/:clientId/export/pdf analytics returns PDF and chart-marked html", async () => {
+    const login = await request(app).post("/api/auth/login").send({
+      email: "demo@demo.com",
+      password: "Demo1234!"
+    });
+    if (login.status !== 200) {
+      expect(login.status).toBeDefined();
+      return;
+    }
+
+    const spy = vi.spyOn(PdfService, "generatePdf").mockResolvedValue(Buffer.from("%PDF-1.4 test"));
+    try {
+      const token = login.body.accessToken as string;
+      const actorId = login.body.user?.id as string | undefined;
+      if (actorId) {
+        await prisma.auditLog.deleteMany({ where: { actorId, action: "REPORT_EXPORTED_PDF" } });
+      }
+      const res = await request(app)
+        .post("/api/reports/demo-client/export/pdf")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reportType: "analytics" });
+
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toContain("application/pdf");
+      expect(res.headers["content-disposition"]).toContain("attachment");
+      expect(res.headers["x-report-has-charts"]).toBe("1");
+
+      const arg = spy.mock.calls[0]?.[0];
+      expect(arg).toBeDefined();
+      expect(typeof arg?.html).toBe("string");
+      expect(arg?.html).toContain("quickchart.io/chart");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("free plan can export up to 5 times; 6th is blocked", async () => {
+    const suffix = `${Date.now()}`;
+    const email = `free-export-${suffix}@example.com`;
+    const password = "testpasslong1";
+    const passwordHash = await hashPassword(password);
+    const freeUser = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name: "Free Export User",
+        role: "AGENCY_ADMIN",
+        plan: "free"
+      }
+    });
+    const userId = freeUser.id;
+    const client = await prisma.client.create({
+      data: { name: `Free Export Client ${suffix}`, ownerId: userId, agencyId: userId }
+    });
+
+    const login = await request(app).post("/api/auth/login").send({ email, password });
+    expect(login.status).toBe(200);
+    const token = login.body.accessToken as string;
+
+    const spy = vi.spyOn(PdfService, "generatePdf").mockResolvedValue(Buffer.from("%PDF-1.4 test"));
+    try {
+      for (let i = 0; i < 5; i += 1) {
+        const res = await request(app)
+          .post(`/api/reports/${client.id}/export/pdf`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({ reportType: "briefing" });
+        expect(res.status).toBe(200);
+      }
+      const blocked = await request(app)
+        .post(`/api/reports/${client.id}/export/pdf`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reportType: "briefing" });
+      expect(blocked.status).toBe(403);
+      expect(blocked.body.error).toContain("Free plan limit reached");
+    } finally {
+      spy.mockRestore();
+      await prisma.auditLog.deleteMany({ where: { actorId: userId, action: "REPORT_EXPORTED_PDF" } });
+      await prisma.client.deleteMany({ where: { id: client.id } });
+      await prisma.user.deleteMany({ where: { id: userId } });
+    }
+  });
+
+  it("paid plan exports are not blocked and have no watermark", async () => {
+    const suffix = `${Date.now()}`;
+    const email = `paid-export-${suffix}@example.com`;
+    const password = "testpasslong1";
+    const passwordHash = await hashPassword(password);
+    const paidUser = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name: "Paid Export User",
+        role: "AGENCY_ADMIN",
+        plan: "pro"
+      }
+    });
+    const userId = paidUser.id;
+    const client = await prisma.client.create({
+      data: { name: `Paid Export Client ${suffix}`, ownerId: userId, agencyId: userId }
+    });
+    const login = await request(app).post("/api/auth/login").send({ email, password });
+    expect(login.status).toBe(200);
+    const token = login.body.accessToken as string;
+
+    const spy = vi.spyOn(PdfService, "generatePdf").mockResolvedValue(Buffer.from("%PDF-1.4 test"));
+    try {
+      for (let i = 0; i < 6; i += 1) {
+        const res = await request(app)
+          .post(`/api/reports/${client.id}/export/pdf`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({ reportType: "analytics" });
+        expect(res.status).toBe(200);
+        expect(res.headers["x-report-watermark"]).toBe("0");
+      }
+    } finally {
+      spy.mockRestore();
+      await prisma.auditLog.deleteMany({ where: { actorId: userId, action: "REPORT_EXPORTED_PDF" } });
+      await prisma.client.deleteMany({ where: { id: client.id } });
+      await prisma.user.deleteMany({ where: { id: userId } });
+    }
   });
 
   it("GET /api/analytics/:clientId/overview returns data with valid token", async () => {

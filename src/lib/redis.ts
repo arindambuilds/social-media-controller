@@ -18,11 +18,13 @@ const url = effectiveRedisUrl();
 
 if (url) {
   try {
+    /** BullMQ blocking commands require null — avoids stalled workers / odd timeouts. */
     redisClient = new Redis(url, {
-      maxRetriesPerRequest: 1,
+      maxRetriesPerRequest: null,
       enableOfflineQueue: false,
       lazyConnect: true,
-      connectTimeout: 5000
+      connectTimeout: 5000,
+      keepAlive: 10_000
     });
     redisClient.on("error", (err) => {
       console.warn("Redis error:", err.message);
@@ -40,3 +42,17 @@ export default redisClient;
 
 export const redisConnection = redisClient;
 export const redisEnabled = Boolean(redisClient);
+
+/**
+ * BullMQ needs isolated connections (pub/sub + blocking). Fixed count per process — not per request.
+ */
+export function createBullMqConnection(): Redis | null {
+  if (!redisClient) return null;
+  return redisClient.duplicate({
+    maxRetriesPerRequest: null,
+    enableOfflineQueue: false,
+    lazyConnect: true,
+    connectTimeout: 5000,
+    keepAlive: 10_000
+  });
+}

@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /** Standard JSON body for rate limit responses — never echo internal errors. */
 function sendLimit(
@@ -20,6 +20,7 @@ export const globalApiLimiter = rateLimit({
   skip: (req) => {
     const p = req.path || "";
     if (p === "/health" || p.startsWith("/api/health")) return true;
+    if (p === "/api/metrics") return true;
     if (p.startsWith("/api/webhooks")) return true;
     if (p === "/api/events" || p.startsWith("/api/events")) return true;
     return false;
@@ -73,7 +74,8 @@ export const dmPreviewLimiter = rateLimit({
     const auth = req.auth;
     const body = (req.body ?? {}) as { clientId?: string };
     const cid = typeof body.clientId === "string" ? body.clientId : "none";
-    return `${auth?.userId ?? `ip:${req.ip ?? "unknown"}`}:${cid}`;
+    const actor = auth?.userId ?? `ip:${ipKeyGenerator(req.ip ?? "")}`;
+    return `${actor}:${cid}`;
   },
   handler: (_req, res, _next, options) => {
     sendLimit(res, options.windowMs, {
@@ -87,6 +89,29 @@ export const dmPreviewLimiter = rateLimit({
 });
 
 /** Limits account-creation abuse (register + public signup share the same bucket). */
+/** PDF export storm control — per authenticated user (falls back to IP if auth missing). */
+export const reportPdfExportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const auth = (req as { auth?: { userId?: string } }).auth;
+    const uid = auth?.userId;
+    if (uid) return `report_pdf:${uid}`;
+    return `report_pdf:ip:${ipKeyGenerator(req.ip ?? "")}`;
+  },
+  handler: (_req, res, _next, options) => {
+    sendLimit(res, options.windowMs, {
+      success: false,
+      error: {
+        code: "PDF_RATE_LIMIT",
+        message: "Too many PDF exports. Wait a minute and try again."
+      }
+    });
+  }
+});
+
 export const registerAuthLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,

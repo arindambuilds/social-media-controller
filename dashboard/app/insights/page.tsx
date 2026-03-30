@@ -612,6 +612,7 @@ export default function InsightsPage() {
         onClose={() => setShowUpgrade(false)}
         usagePct={upgradeUsagePct}
         estimatedMissedMonthlyRevenue={missedMonthlyRevenue}
+        feature="ai_generations"
         featureName="AI generations"
       />
     </div>

@@ -17,7 +17,7 @@ type PublicBriefing = {
 
 export default function BriefingSharePage() {
   const params = useParams();
-  const token = typeof params.token === "string" ? decodeURIComponent(params.token) : "";
+  const token = typeof params?.token === "string" ? decodeURIComponent(params.token) : "";
   const [briefing, setBriefing] = useState<PublicBriefing | null>(null);
   const [error, setError] = useState("");
 

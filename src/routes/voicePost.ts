@@ -14,9 +14,12 @@ import { transcribeAudio } from "../services/transcribe";
 
 export const voicePostRouter = Router();
 
+/** OpenAI Whisper: stay under ~25MB; smaller uploads improve p95 and avoid throttling. */
+const MAX_VOICE_BYTES = 22 * 1024 * 1024;
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: MAX_VOICE_BYTES }
 });
 
 voicePostRouter.use(authenticate);
@@ -109,33 +112,43 @@ const generateBody = z.object({
 });
 
 voicePostRouter.post("/generate", async (req, res) => {
-  const body = generateBody.parse(req.body ?? {});
-  const resolved = resolveClientId(req, body.clientId);
-  if (!resolved.ok) {
-    res.status(resolved.status).json({ error: resolved.error });
-    return;
+  try {
+    const body = generateBody.parse(req.body ?? {});
+    const resolved = resolveClientId(req, body.clientId);
+    if (!resolved.ok) {
+      res.status(resolved.status).json({ error: resolved.error });
+      return;
+    }
+    if (!canAccessClient(req.auth, resolved.clientId)) {
+      res.status(403).json({ error: "Forbidden for this client." });
+      return;
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { id: resolved.clientId },
+      select: { name: true }
+    });
+    const businessName = client?.name ?? "Your business";
+
+    const intent = await parseVoiceIntent(body.transcript);
+    const result = await generateCaption(intent, businessName);
+
+    res.json({
+      success: true,
+      intent,
+      caption: result.caption,
+      hashtags: result.hashtags,
+      imagePrompt: result.imagePrompt,
+      suggestedTime: result.suggestedTime.toISOString()
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // Treat AI dependency / transient failures as service unavailable, not 500.
+    res.status(503).json({
+      success: false,
+      error: { code: "VOICE_GENERATE_FAILED", message }
+    });
   }
-  if (!canAccessClient(req.auth, resolved.clientId)) {
-    res.status(403).json({ error: "Forbidden for this client." });
-    return;
-  }
-
-  const client = await prisma.client.findUnique({
-    where: { id: resolved.clientId },
-    select: { name: true }
-  });
-  const businessName = client?.name ?? "Your business";
-
-  const intent = await parseVoiceIntent(body.transcript);
-  const result = await generateCaption(intent, businessName);
-
-  res.json({
-    intent,
-    caption: result.caption,
-    hashtags: result.hashtags,
-    imagePrompt: result.imagePrompt,
-    suggestedTime: result.suggestedTime.toISOString()
-  });
 });
 
 const saveBody = z.object({

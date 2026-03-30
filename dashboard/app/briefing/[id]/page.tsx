@@ -9,6 +9,10 @@ import { getStoredToken } from "../../../lib/auth-storage";
 import { usePulseSse } from "../../../hooks/usePulseSse";
 import { useUserPlan } from "../../../hooks/useUserPlan";
 import { UpgradeModal } from "../../../components/UpgradeModal";
+import { FormToast, type FormToastVariant } from "../../../components/form-toast";
+import { useExportPdf } from "../../../hooks/useExportPdf";
+import { getExperimentVariant, getStoredExperimentVariant } from "../../../lib/experiment";
+import { trackEvent } from "../../../lib/trackEvent";
 
 type Metrics = {
   newFollowers?: number;
@@ -67,7 +71,7 @@ function MetricCard({ label, value }: { label: string; value: number }) {
 export default function BriefingReaderPage() {
   const params = useParams();
   const router = useRouter();
-  const id = typeof params.id === "string" ? params.id : "";
+  const id = typeof params?.id === "string" ? params.id : "";
   const [data, setData] = useState<RecordResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -77,6 +81,23 @@ export default function BriefingReaderPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [exportLimitReached, setExportLimitReached] = useState(false);
+  const [toast, setToast] = useState<{ text: string; variant: FormToastVariant } | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
+  const { exportPdf, loading: exportBusy, error: exportError, clearError: clearExportError } = useExportPdf();
+
+  useEffect(() => {
+    if (!exportError) return;
+    const reached = /Free plan limit reached/i.test(exportError);
+    if (reached) {
+      setExportLimitReached(true);
+      setShowUpgradeModal(true);
+      setToast({ text: "Free limit reached. Upgrade to continue.", variant: "error" });
+    } else {
+      setToast({ text: exportError, variant: "error" });
+    }
+    clearExportError();
+  }, [exportError, clearExportError]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -161,6 +182,33 @@ export default function BriefingReaderPage() {
       }
     } finally {
       setShareBusy(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    if (!briefing?.clientId || exportBusy) return;
+    if (userPlan === "free" && !exportLimitReached) {
+      const experimentName = "paywall_vs_pricing";
+      const assignedBefore = getStoredExperimentVariant(experimentName);
+      const variant = getExperimentVariant(experimentName);
+      if (!assignedBefore) {
+        trackEvent("experiment_assigned", {
+          experiment: experimentName,
+          variant,
+          source: "pdf-export-paywall",
+          feature: "pdf_export"
+        });
+      }
+      if (variant === "A") {
+        setShowUpgradeModal(true);
+      } else {
+        router.push("/pricing?source=pdf-export-paywall&feature=pdf_export");
+      }
+      return;
+    }
+    const ok = await exportPdf(briefing.clientId);
+    if (ok) {
+      setToast({ text: "Report exported as PDF", variant: "success" });
     }
   }
 
@@ -252,9 +300,22 @@ export default function BriefingReaderPage() {
             <Copy size={16} aria-hidden />
             {userPlan === "free" ? "Share (Starter only)" : shareBusy ? "…" : copied ? "Copied" : "Copy share link"}
           </button>
+          <button
+            type="button"
+            className="button secondary inline-flex items-center gap-2 text-sm"
+            onClick={() => void handleExportPdf()}
+            disabled={exportBusy || exportLimitReached}
+          >
+            {exportBusy ? "Exporting…" : "Download Report"}
+          </button>
         </div>
       </header>
-
+      {userPlan === "free" ? (
+        <p className="text-muted mb-4 text-xs">Free plan: 5 exports/month • Watermarked</p>
+      ) : null}
+      {exportLimitReached ? (
+        <p className="text-warning mb-4 text-xs font-semibold">Upgrade to export more reports</p>
+      ) : null}
       {metrics ? (
         <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <MetricCard label="New followers (yesterday)" value={metrics.newFollowers ?? 0} />
@@ -343,7 +404,18 @@ export default function BriefingReaderPage() {
         <span>Web view</span>
       </footer>
 
-      <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} feature="share links" />
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        usagePct={95}
+        feature="pdf_export"
+        featureName="share links"
+      />
+      <FormToast
+        message={toast?.text ?? null}
+        variant={toast?.variant ?? "success"}
+        onDismiss={dismissToast}
+      />
     </div>
   );
 }

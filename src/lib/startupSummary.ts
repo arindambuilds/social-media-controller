@@ -37,6 +37,12 @@ export async function printStartupSummary(port: number): Promise<void> {
       : "⚠️ Instagram API: OAuth not configured (optional)"
   );
 
+  lines.push(
+    env.GOTENBERG_URL?.trim()
+      ? "✅ PDF: Gotenberg (GOTENBERG_URL)"
+      : "ℹ️ PDF: Puppeteer when PUPPETEER_EXECUTABLE_PATH set (or configure Gotenberg)"
+  );
+
   lines.push(`✅ Server ready on port ${port}`);
 
   console.log(lines.join("\n"));

@@ -34,21 +34,26 @@ function canAccessClient(
 }
 
 socialAccountsRouter.get("/", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
-  const clientId = z.string().min(1).parse(req.query.clientId);
-  if (!req.auth || !canAccessClient(req.auth, clientId)) {
-    res.status(403).json({ error: "Forbidden for this client." });
-    return;
+  try {
+    const clientId = z.string().min(1).parse(req.query.clientId);
+    if (!req.auth || !canAccessClient(req.auth, clientId)) {
+      res.status(403).json({ error: "Forbidden for this client." });
+      return;
+    }
+
+    const rows = await prisma.socialAccount.findMany({
+      where: { clientId },
+      orderBy: { createdAt: "desc" }
+    });
+
+    const safe = (rows ?? []).map(
+      ({ encryptedToken: _e, encryptedRefreshToken: _r, ...account }) => account
+    );
+    res.json({ success: true, accounts: safe });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(400).json({ success: false, error: { code: "BAD_REQUEST", message } });
   }
-
-  const rows = await prisma.socialAccount.findMany({
-    where: { clientId },
-    orderBy: { createdAt: "desc" }
-  });
-
-  const safe = rows.map(
-    ({ encryptedToken: _e, encryptedRefreshToken: _r, ...account }) => account
-  );
-  res.json({ success: true, accounts: safe });
 });
 
 socialAccountsRouter.delete("/:id", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {

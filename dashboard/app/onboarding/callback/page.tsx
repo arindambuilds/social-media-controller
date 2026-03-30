@@ -20,8 +20,8 @@ function CallbackInner() {
       return;
     }
 
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
+    const code = searchParams?.get("code");
+    const state = searchParams?.get("state");
     if (!code || !state) {
       setPhase("error");
       setMessage("Missing OAuth code or state.");

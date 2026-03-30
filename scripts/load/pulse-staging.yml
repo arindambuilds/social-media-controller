@@ -1,0 +1,27 @@
+# Sustained read-only API probe (no auth). Override target: artillery run -e staging ...
+#   npx artillery@2.0.21 run scripts/load/pulse-staging.yml -e local
+config:
+  environments:
+    local:
+      target: "http://localhost:4000"
+    staging:
+      target: "https://social-media-controller.onrender.com"
+  phases:
+    - duration: 120
+      arrivalRate: 20
+      name: sustained_mix
+  http:
+    timeout: 15
+scenarios:
+  - name: health_and_degraded
+    weight: 70
+    flow:
+      - get:
+          url: "/api/health"
+      - get:
+          url: "/api/health/degraded"
+  - name: health_deps
+    weight: 30
+    flow:
+      - get:
+          url: "/api/health?deps=1"

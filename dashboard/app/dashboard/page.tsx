@@ -38,6 +38,12 @@ function formatHour(h: number | null | undefined): string {
   return `${n} ${suffix}`;
 }
 
+function formatShortDate(input: string): string {
+  const dt = new Date(input);
+  if (Number.isNaN(dt.getTime())) return input;
+  return dt.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
 export default function DashboardHomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,7 +67,7 @@ export default function DashboardHomePage() {
   const [followerChart, setFollowerChart] = useState<Array<{ label: string; followers: number }>>([]);
   const [engagementChart, setEngagementChart] = useState<Array<{ label: string; ratePct: number }>>([]);
 
-  const isFirstSession = searchParams.get("first") === "1";
+  const isFirstSession = searchParams?.get("first") === "1";
   const [showWow, setShowWow] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     const seen = window.localStorage.getItem("pulse_first_session_seen");
@@ -280,14 +286,15 @@ export default function DashboardHomePage() {
                 .join(" · ")
             : "Agency view — open Analytics and pick a client, or assign a client to your user."
         }
-      >
-        {liveConnected ? (
-          <span className="ml-3 inline-flex items-center gap-1.5 rounded-full border border-accent-teal/40 bg-accent-teal/10 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-accent-teal">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent-teal animate-pulse" />
-            Live
-          </span>
-        ) : null}
-      </PageHeader>
+        actions={
+          liveConnected ? (
+            <span className="ml-3 inline-flex items-center gap-1.5 rounded-full border border-accent-teal/40 bg-accent-teal/10 px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-accent-teal">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-teal" />
+              Live
+            </span>
+          ) : null
+        }
+      />
 
       {email ? (
         <p className="text-muted mt-1 text-sm">

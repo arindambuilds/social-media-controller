@@ -32,19 +32,28 @@ function AccountsPageContent() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [error, setError] = useState("");
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [oauthSuccess, setOauthSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async (cid: string) => {
-    const data = await apiFetch<{ accounts: AccountRow[] }>(
-      `/social-accounts?clientId=${encodeURIComponent(cid)}`
-    );
-    setAccounts(data.accounts ?? []);
+    try {
+      const data = await apiFetch<{ accounts?: AccountRow[]; data?: AccountRow[] }>(
+        `/social-accounts?clientId=${encodeURIComponent(cid)}`
+      );
+      setAccounts(data.accounts ?? data.data ?? []);
+    } catch (e) {
+      console.error("[accounts page]", e);
+      setAccounts([]);
+    }
   }, []);
 
   useEffect(() => {
-    const oauthErr = searchParams.get("oauth_error");
-    if (oauthErr) setError(decodeURIComponent(oauthErr));
+    const err = searchParams?.get("oauth_error") ?? null;
+    const success = searchParams?.get("oauth_success") ?? null;
+    setOauthError(err ? decodeURIComponent(err) : null);
+    setOauthSuccess(success);
   }, [searchParams]);
 
   useEffect(() => {
@@ -119,6 +128,46 @@ function AccountsPageContent() {
         title="Social accounts"
         description="Connect Facebook, Instagram, or LinkedIn. Redirect returns here after OAuth."
       />
+      {oauthError && (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-red-400/20 bg-red-400/8 px-4 py-3">
+          <span className="shrink-0 text-lg">⚠️</span>
+          <div>
+            <p className="text-sm font-semibold text-red-300">Instagram connection failed</p>
+            <p className="mt-0.5 text-xs text-red-300/60">
+              {oauthError === "access_denied"
+                ? "You declined the Instagram permission request."
+                : oauthError === "token_exchange_failed"
+                  ? "Could not exchange the auth code. Please try again."
+                  : `Error: ${oauthError}`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.replace("/accounts")}
+            className="ml-auto text-lg leading-none text-red-400/60 hover:text-red-400"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {oauthSuccess && (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/8 px-4 py-3">
+          <span className="shrink-0 text-lg">✅</span>
+          <div>
+            <p className="text-sm font-semibold text-emerald-300">Instagram connected successfully</p>
+            <p className="mt-0.5 text-xs text-emerald-300/60">
+              Data sync will begin shortly. First results appear within a few minutes.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.replace("/accounts")}
+            className="ml-auto text-lg leading-none text-emerald-400/60 hover:text-emerald-400"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {error ? <p className="text-error" style={{ marginBottom: 16 }}>{error}</p> : null}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
@@ -148,41 +197,29 @@ function AccountsPageContent() {
         </button>
       </div>
 
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Platform</th>
-              <th>Handle</th>
-              <th>Token expiry (est.)</th>
-              <th>Last sync</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.length === 0 ? (
+      {!loading && accounts.length === 0 ? (
+        <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/10 text-white/30">
+          <span className="text-3xl">📱</span>
+          <p className="text-sm">No accounts connected yet</p>
+          <p className="text-xs text-white/20">Connect an Instagram account to start tracking performance</p>
+          <Link className="button mt-1 inline-block" href="/onboarding">
+            Open setup
+          </Link>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="py-14 text-center">
-                  <div
-                    className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-subtle"
-                    style={{
-                      background: "linear-gradient(145deg, rgba(108,99,255,0.15), rgba(0,212,170,0.1))"
-                    }}
-                    aria-hidden
-                  >
-                    <Link2 className="text-accent-teal" size={36} strokeWidth={1.5} />
-                  </div>
-                  <p className="text-ink m-0 font-medium">No accounts connected</p>
-                  <p className="text-muted mx-auto mt-2 max-w-sm text-sm leading-relaxed">
-                    Link Instagram or another channel to sync posts and show analytics.
-                  </p>
-                  <Link className="button mt-4 inline-block" href="/onboarding">
-                    Open setup
-                  </Link>
-                </td>
+                <th>Platform</th>
+                <th>Handle</th>
+                <th>Token expiry (est.)</th>
+                <th>Last sync</th>
+                <th />
               </tr>
-            ) : (
-              accounts.map((a) => (
+            </thead>
+            <tbody>
+              {accounts.map((a) => (
                 <tr key={a.id}>
                   <td>{a.platform}</td>
                   <td>{a.platformUsername ?? "—"}</td>
@@ -194,11 +231,11 @@ function AccountsPageContent() {
                     </button>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

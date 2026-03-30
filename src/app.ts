@@ -5,15 +5,25 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import path from "path";
 import { env } from "./config/env";
 import cron from "node-cron";
 import { runWeeklyDatabaseCleanup } from "./jobs/databaseCleanup";
 import { startMorningBriefingJob } from "./jobs/morningBriefing";
-import { getDetailedHealth, getPublicHealthSnapshot } from "./lib/healthCheck";
+import { pdfExportCircuit } from "./lib/circuitBreaker";
+import { getDetailedHealth, getPublicHealthSnapshot, withHealthProbeTimeout } from "./lib/healthCheck";
 import { redisConnection } from "./lib/redis";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
 import { logger } from "./lib/logger";
 import { prisma } from "./lib/prisma";
+import { briefingQueue, isBriefingNineAmDispatchMode } from "./queues/briefingQueue";
+import {
+  PDF_QUEUE_CAP_ACTIVE,
+  PDF_QUEUE_CAP_WAITING,
+  PDF_QUEUE_WARN_ACTIVE,
+  PDF_QUEUE_WARN_WAITING,
+  pdfQueue
+} from "./queues/pdfQueue";
 import { authenticate } from "./middleware/authenticate";
 import { errorHandler } from "./middleware/errorHandler";
 import { globalApiLimiter } from "./middleware/rateLimiter";
@@ -23,7 +33,9 @@ import { analyticsRouter } from "./routes/analytics";
 import { auditLogsRouter } from "./routes/auditLogs";
 import { authRouter } from "./routes/auth";
 import { billingRouter } from "./routes/billing";
+import { billingWebhookRouter } from "./routes/billingWebhook";
 import { briefingRouter } from "./routes/briefing";
+import { agencyRouter } from "./routes/agency";
 import { clientsRouter } from "./routes/clients";
 import { healthRouter } from "./routes/health";
 import { insightsRouter } from "./routes/insights";
@@ -31,6 +43,7 @@ import { instagramRouter } from "./routes/instagram";
 import { leadsRouter } from "./routes/leads";
 import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { postsRouter } from "./routes/posts";
+import { reportsRouter } from "./routes/reports";
 import { socialAccountsRouter } from "./routes/socialAccounts";
 import { voicePostRouter } from "./routes/voicePost";
 import { instagramWebhookRouter } from "./routes/webhook";
@@ -84,9 +97,11 @@ function buildApiRouter(): express.Router {
   api.use("/instagram", instagramRouter);
   api.use("/ai", aiRouter);
   api.use("/billing", billingRouter);
+  api.use("/agency", agencyRouter);
   api.use("/clients", clientsRouter);
   api.use("/leads", leadsRouter);
   api.use("/posts", postsRouter);
+  api.use("/reports", reportsRouter);
   api.use("/audit-logs", auditLogsRouter);
   api.use("/social-accounts", socialAccountsRouter);
   api.use("/webhooks", webhookRouter);
@@ -126,11 +141,13 @@ export function createApp() {
     })
   );
   app.use(cookieParser());
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
   app.use(
     "/api/webhook/instagram",
     express.raw({ type: "application/json", limit: "1mb" }),
     instagramWebhookRouter
   );
+  app.use("/api/billing", billingWebhookRouter);
   app.use(
     express.json({
       limit: "1mb",
@@ -164,7 +181,7 @@ export function createApp() {
 
   app.get("/health", async (_req, res) => {
     try {
-      const body = await getDetailedHealth();
+      const body = await withHealthProbeTimeout(getDetailedHealth());
       res.status(body.database === "error" ? 503 : 200).json(body);
     } catch (err) {
       logger.warn("/health failed", {
@@ -187,25 +204,19 @@ export function createApp() {
         res.json(payload);
         return;
       }
-      const snapshot = await getPublicHealthSnapshot();
+      const snapshot = await withHealthProbeTimeout(getPublicHealthSnapshot());
       payload.status = snapshot.status;
       payload.timestamp = snapshot.timestamp;
       payload.components = snapshot.components;
-      const dbBad = snapshot.components.database?.status === "error";
-      res.status(dbBad ? 503 : 200).json(payload);
+      res.status(200).json(payload);
     } catch (err) {
       logger.warn("/api/health failed", {
         message: err instanceof Error ? err.message : String(err)
       });
-      res.status(503).json({
-        status: "error",
+      res.status(200).json({
+        status: "degraded",
         timestamp: new Date().toISOString(),
-        message:
-          env.NODE_ENV === "production"
-            ? "Health check dependency error."
-            : err instanceof Error
-              ? err.message
-              : String(err)
+        message: "Health check dependency error."
       });
     }
   });
@@ -226,6 +237,147 @@ export function createApp() {
         status: "error",
         ...(env.NODE_ENV === "production" ? {} : { detail })
       });
+    }
+  });
+
+  /**
+   * Load-shedding signal for monitors: PDF circuit state + queue depth (no secrets).
+   * Use with alerts: ok=false or circuit.state=OPEN or queue past PDF_QUEUE_CAP_*.
+   */
+  app.get("/api/health/degraded", async (_req, res) => {
+    try {
+      const circuit = pdfExportCircuit.snapshot();
+      let pdfCounts: { waiting: number; active: number; failed: number; delayed?: number } | null = null;
+      if (pdfQueue) {
+        const raw = await withHealthProbeTimeout(pdfQueue.getJobCounts());
+        pdfCounts = {
+          waiting: raw.waiting,
+          active: raw.active,
+          failed: raw.failed,
+          delayed: raw.delayed
+        };
+      }
+      const queueHot =
+        pdfCounts != null &&
+        (pdfCounts.waiting > PDF_QUEUE_WARN_WAITING || pdfCounts.active > PDF_QUEUE_WARN_ACTIVE);
+      const ok = circuit.state !== "OPEN" && !queueHot;
+      res.status(200).json({
+        ok,
+        timestamp: new Date().toISOString(),
+        circuit,
+        pdfQueue: pdfCounts
+      });
+    } catch (err) {
+      logger.warn("/api/health/degraded partial failure", {
+        message: err instanceof Error ? err.message : String(err)
+      });
+      res.status(200).json({
+        ok: false,
+        timestamp: new Date().toISOString(),
+        circuit: pdfExportCircuit.snapshot(),
+        pdfQueue: null,
+        message: "degraded probe incomplete"
+      });
+    }
+  });
+
+  /**
+   * Load balancer / synthetic probe: **503** when PDF path is unsafe to send traffic.
+   * Stricter than `/api/health/degraded` (which stays 200 for observability).
+   */
+  app.get("/api/health/critical", async (_req, res) => {
+    const circuit = pdfExportCircuit.snapshot();
+    if (circuit.state === "OPEN") {
+      res.status(503).json({
+        ok: false,
+        reason: "PDF_CIRCUIT_OPEN",
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    if (pdfQueue) {
+      try {
+        const raw = await withHealthProbeTimeout(pdfQueue.getJobCounts());
+        if (raw.waiting > PDF_QUEUE_CAP_WAITING || raw.active > PDF_QUEUE_CAP_ACTIVE) {
+          res.status(503).json({
+            ok: false,
+            reason: "PDF_QUEUE_BACKLOG",
+            waiting: raw.waiting,
+            active: raw.active,
+            timestamp: new Date().toISOString()
+          });
+          return;
+        }
+      } catch (err) {
+        logger.warn("/api/health/critical queue probe failed", {
+          message: err instanceof Error ? err.message : String(err)
+        });
+        res.status(503).json({
+          ok: false,
+          reason: "PDF_QUEUE_PROBE_FAILED",
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
+    }
+    res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
+  });
+
+  /**
+   * Operator snapshot: memory, circuit, PDF queue counts, Redis ping.
+   * Disabled unless `METRICS_SECRET` is set; requires `x-pulse-metrics-key` header.
+   */
+  app.get("/api/metrics", async (req, res) => {
+    if (!env.METRICS_SECRET || req.get("x-pulse-metrics-key") !== env.METRICS_SECRET) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    try {
+      const circuit = pdfExportCircuit.snapshot();
+      let pdfCounts: {
+        waiting: number;
+        active: number;
+        failed: number;
+        delayed?: number;
+        completed: number;
+      } | null = null;
+      let failureRatio: number | null = null;
+      if (pdfQueue) {
+        const raw = await withHealthProbeTimeout(pdfQueue.getJobCounts());
+        const completed = raw.completed ?? 0;
+        const failed = raw.failed;
+        const denom = completed + failed;
+        failureRatio = denom > 0 ? Math.round((failed / denom) * 1000) / 1000 : null;
+        pdfCounts = {
+          waiting: raw.waiting,
+          active: raw.active,
+          failed: raw.failed,
+          delayed: raw.delayed,
+          completed
+        };
+      }
+      let redisPing: "ok" | "skipped" | "error" = "skipped";
+      if (redisConnection) {
+        try {
+          const pong = await withHealthProbeTimeout(redisConnection.ping());
+          redisPing = pong === "PONG" ? "ok" : "error";
+        } catch {
+          redisPing = "error";
+        }
+      }
+      res.status(200).json({
+        timestamp: new Date().toISOString(),
+        memory: process.memoryUsage(),
+        circuit,
+        pdfQueue: pdfCounts,
+        failure_ratio: failureRatio,
+        redis: { ping: redisPing }
+      });
+    } catch (err) {
+      logger.warn("/api/metrics failed", {
+        message: err instanceof Error ? err.message : String(err)
+      });
+      res.status(503).json({ error: "metrics_unavailable" });
     }
   });
 
@@ -262,8 +414,20 @@ export function createApp() {
   app.use("/api/admin", adminSystemRouter);
 
   if (env.NODE_ENV === "production") {
-    startMorningBriefingJob();
-    console.log("[PulseOS] Morning briefing scheduler: every hour (Asia/Kolkata), per-client briefingHourIst");
+    if (briefingQueue) {
+      if (isBriefingNineAmDispatchMode()) {
+        console.log(
+          "[PulseOS] Morning briefing: BullMQ whatsapp-briefing @ 09:00 Asia/Kolkata; node-cron disabled"
+        );
+      } else {
+        console.log(
+          "[PulseOS] Morning briefing: BullMQ dispatch-hour (hourly :00 Asia/Kolkata); node-cron disabled"
+        );
+      }
+    } else {
+      startMorningBriefingJob();
+      console.log("[PulseOS] Morning briefing: node-cron hourly (Asia/Kolkata), per-client briefingHourIst");
+    }
 
     if (!redisConnection) {
       cron.schedule(

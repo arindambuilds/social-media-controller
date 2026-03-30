@@ -19,19 +19,24 @@ function canAccessClient(auth: Request["auth"], clientId: string): boolean {
 }
 
 postsRouter.get("/", async (req, res) => {
-  const clientId = z.string().min(1).parse(req.query.clientId);
-  if (!canAccessClient(req.auth, clientId)) {
-    res.status(403).json({ error: "Forbidden for this client." });
-    return;
+  try {
+    const clientId = z.string().min(1).parse(req.query.clientId);
+    if (!canAccessClient(req.auth, clientId)) {
+      res.status(403).json({ error: "Forbidden for this client." });
+      return;
+    }
+
+    const rows = await prisma.scheduledPost.findMany({
+      where: { clientId },
+      orderBy: { updatedAt: "desc" },
+      include: { socialAccount: { select: { platform: true, platformUsername: true } } }
+    });
+
+    res.json({ success: true, posts: rows ?? [] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(400).json({ success: false, error: { code: "BAD_REQUEST", message } });
   }
-
-  const rows = await prisma.scheduledPost.findMany({
-    where: { clientId },
-    orderBy: { updatedAt: "desc" },
-    include: { socialAccount: { select: { platform: true, platformUsername: true } } }
-  });
-
-  res.json({ success: true, posts: rows });
 });
 
 const createBody = z.object({

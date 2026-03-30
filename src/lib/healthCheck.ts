@@ -2,8 +2,27 @@ import { env } from "../config/env";
 import { prisma } from "./prisma";
 import { redisConnection } from "./redis";
 import { logger } from "./logger";
+
+const HEALTH_PROBE_MAX_MS = 5000;
+
+/** Bounded wait so dependency probes cannot wedged the event loop behind slow Redis/Graph. */
+export async function withHealthProbeTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("health_probe_timeout")), HEALTH_PROBE_MAX_MS);
+    promise
+      .then((v) => {
+        clearTimeout(t);
+        resolve(v);
+      })
+      .catch((e) => {
+        clearTimeout(t);
+        reject(e);
+      });
+  });
+}
 import { briefingQueue } from "../queues/briefingQueue";
 import { maintenanceQueue } from "../queues/maintenanceQueue";
+import { pdfQueue } from "../queues/pdfQueue";
 
 export type HealthStatus = {
   status: "ok" | "degraded";
@@ -68,11 +87,16 @@ async function bullmqSnapshot(): Promise<
       status: "ok";
       briefing: { waiting: number; active: number; failed: number; delayed: number };
       maintenance: { waiting: number; active: number; failed: number; delayed: number };
+      pdf: { waiting: number; active: number; failed: number; delayed: number };
     }
 > {
-  if (!redisConnection || !briefingQueue || !maintenanceQueue) return { status: "skipped" };
+  if (!redisConnection || !briefingQueue || !maintenanceQueue || !pdfQueue) return { status: "skipped" };
   try {
-    const [bc, mc] = await Promise.all([briefingQueue.getJobCounts(), maintenanceQueue.getJobCounts()]);
+    const [bc, mc, pc] = await Promise.all([
+      briefingQueue.getJobCounts(),
+      maintenanceQueue.getJobCounts(),
+      pdfQueue.getJobCounts()
+    ]);
     return {
       status: "ok",
       briefing: {
@@ -86,6 +110,12 @@ async function bullmqSnapshot(): Promise<
         active: mc.active,
         failed: mc.failed,
         delayed: mc.delayed ?? 0
+      },
+      pdf: {
+        waiting: pc.waiting,
+        active: pc.active,
+        failed: pc.failed,
+        delayed: pc.delayed ?? 0
       }
     };
   } catch {
@@ -148,7 +178,7 @@ export async function getPublicHealthSnapshot(): Promise<{
   } else {
     components.bullmq = {
       status: "ok",
-      detail: `briefing failed=${bq.briefing.failed} active=${bq.briefing.active}; maintenance failed=${bq.maintenance.failed}`
+      detail: `briefing failed=${bq.briefing.failed} active=${bq.briefing.active}; pdf failed=${bq.pdf.failed} active=${bq.pdf.active}; maintenance failed=${bq.maintenance.failed}`
     };
   }
 

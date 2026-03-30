@@ -23,7 +23,7 @@ function resolveInitialLanguage(): Language {
   if (typeof window === "undefined") return "en";
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "en" || stored === "odia") return stored;
-  const nav = window.navigator as { language?: string; languages?: string[] };
+  const nav = window.navigator as { language?: string; languages?: readonly string[] };
   const lang = (nav.language || nav.languages?.[0] || "").toLowerCase();
   if (lang.startsWith("or") || lang.includes("odia")) return "odia";
   return "en";

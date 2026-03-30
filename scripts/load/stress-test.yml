@@ -1,0 +1,42 @@
+# Sustained API stress (~50 RPS × 10 min). Targets Express only (not Vercel dashboard).
+#   API:   npx artillery@2.0.21 run scripts/load/stress-test.yml -e api_staging
+#   Local: npm run load:stress
+#
+# Dashboard POST /api/analytics is a different host — run separately with dashboard_* env + same processor.
+# Authenticated PDF: export ARTILLERY_BEARER_TOKEN=… then use stress-test-pdf.yml (optional).
+config:
+  environments:
+    api_local:
+      target: "http://localhost:4000"
+    api_staging:
+      target: "https://social-media-controller.onrender.com"
+    dashboard_local:
+      target: "http://localhost:3000"
+    dashboard_staging:
+      target: "https://social-media-controller.vercel.app"
+  phases:
+    - duration: 600
+      arrivalRate: 50
+      name: sustained_50rps_10m
+  http:
+    timeout: 45
+scenarios:
+  - name: health_and_critical
+    weight: 40
+    flow:
+      - get:
+          url: "/api/health"
+      - get:
+          url: "/api/health/critical"
+      - get:
+          url: "/api/health/degraded"
+  - name: health_deps
+    weight: 30
+    flow:
+      - get:
+          url: "/api/health?deps=1"
+  - name: root_health
+    weight: 30
+    flow:
+      - get:
+          url: "/health"

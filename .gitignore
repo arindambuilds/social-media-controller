@@ -26,6 +26,9 @@ Thumbs.db
 *.swo
 *~
 
+# Accidental nested clone (do not commit)
+social-media-controller/
+
 # Prisma / generated (if checked out elsewhere)
 prisma/*.db
 prisma/*.db-journal

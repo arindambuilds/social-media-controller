@@ -1,0 +1,69 @@
+# PulseOS soak: ramp → 100 RPS hold 30m. Weighted PDF / health / analytics / auth.
+#
+# Prerequisites (pass p95/error gates under load):
+#   export ARTILLERY_BEARER_TOKEN="<JWT from POST /api/auth/login>"
+#   export ARTILLERY_PDF_CLIENT_ID=demo-client
+#   export ARTILLERY_ANALYTICS_CLIENT_ID=demo-client   # optional
+#
+# Run:
+#   npm run loadtest
+#   npm run loadtest:staging
+#
+# Report:
+#   npx --yes artillery@2.0.21 run packages/artillery/load-test.yaml -e soak_local --output packages/artillery/report.json
+config:
+  environments:
+    soak_local:
+      target: "http://localhost:4000"
+    soak_staging:
+      target: "https://social-media-controller.onrender.com"
+  processor: "../../scripts/load/stress-processor.cjs"
+  phases:
+    - duration: 300
+      arrivalRate: 1
+      rampTo: 50
+      name: ramp_0_to_50
+    - duration: 300
+      arrivalRate: 50
+      rampTo: 100
+      name: ramp_50_to_100
+    - duration: 1800
+      arrivalRate: 100
+      name: hold_100rps_30m
+  http:
+    timeout: 120
+scenarios:
+  - name: pdf_export_weighted
+    weight: 40
+    flow:
+      - function: "prepareSoakAuth"
+      - post:
+          url: "/api/reports/{{ pdfClientId }}/export/pdf"
+          headers:
+            Authorization: "{{ authHeader }}"
+            Content-Type: "application/json"
+          json:
+            reportType: "briefing"
+  - name: health_weighted
+    weight: 20
+    flow:
+      - get:
+          url: "/api/health"
+      - get:
+          url: "/api/health/critical"
+  - name: analytics_weighted
+    weight: 20
+    flow:
+      - function: "prepareSoakAuth"
+      - get:
+          url: "/api/analytics/{{ analyticsClientId }}/overview?days=7"
+          headers:
+            Authorization: "{{ authHeader }}"
+  - name: auth_weighted
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "demo@demo.com"
+            password: "Demo1234!"

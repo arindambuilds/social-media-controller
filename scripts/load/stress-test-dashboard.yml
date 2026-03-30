@@ -1,0 +1,28 @@
+# Next.js dashboard: POST /api/analytics (run with -e dashboard_local or dashboard_staging).
+#   npx artillery@2.0.21 run scripts/load/stress-test-dashboard.yml -e dashboard_staging
+config:
+  environments:
+    dashboard_local:
+      target: "http://localhost:3000"
+    dashboard_staging:
+      target: "https://social-media-controller.vercel.app"
+  processor: "./scripts/load/stress-processor.cjs"
+  phases:
+    - duration: 600
+      arrivalRate: 20
+      name: analytics_20rps
+  http:
+    timeout: 15
+scenarios:
+  - name: analytics_event
+    flow:
+      - function: "prepareAnalyticsPayload"
+      - post:
+          url: "/api/analytics"
+          headers:
+            Content-Type: "application/json"
+          json:
+            event: "stress_pageview"
+            sessionId: "{{ sessionId }}"
+            timestamp: "{{ ts }}"
+            source: "artillery_stress"

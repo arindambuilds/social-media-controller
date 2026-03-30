@@ -122,19 +122,43 @@ async function dispatchBriefingForClient(clientId: string): Promise<void> {
 }
 
 /**
- * Every hour at :00 Asia/Kolkata — runs briefing for clients whose `briefingHourIst` matches.
+ * One IST clock hour: enqueue (or inline-run) briefings for clients whose `briefingHourIst` matches.
+ * Used by node-cron (no Redis) and by BullMQ repeatable job `dispatch-hour` (Redis).
  */
+export async function runMorningBriefingDispatchTick(): Promise<void> {
+  const hour = currentHourIst();
+  const clients = await prisma.client.findMany({
+    where: { briefingEnabled: true, briefingHourIst: hour },
+    select: { id: true }
+  });
+  console.log(`[MorningBriefing] dispatch tick IST hour=${hour} — ${clients.length} client(s)`);
+  const tasks = clients.map((c) => () => dispatchBriefingForClient(c.id));
+  if (briefingQueue) {
+    await Promise.allSettled(tasks.map((t) => t()));
+  } else {
+    await runWithConcurrency(tasks, 3);
+  }
+}
+
+/** Cap parallel AI/DB work when Redis is off (inline path); matches BullMQ briefing worker concurrency. */
+async function runWithConcurrency(tasks: Array<() => Promise<void>>, concurrency: number): Promise<void> {
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < tasks.length) {
+      const i = next++;
+      await tasks[i]();
+    }
+  }
+  const n = Math.max(1, Math.min(concurrency, tasks.length || 1));
+  await Promise.all(Array.from({ length: tasks.length ? n : 0 }, () => worker()));
+}
+
+/** node-cron fallback when `REDIS_URL` is unset — avoids double-firing with BullMQ repeatable. */
 export function startMorningBriefingJob(): void {
   cron.schedule(
     "0 * * * *",
     async () => {
-      const hour = currentHourIst();
-      const clients = await prisma.client.findMany({
-        where: { briefingEnabled: true, briefingHourIst: hour },
-        select: { id: true }
-      });
-      console.log(`[MorningBriefing] cron tick IST hour=${hour} — ${clients.length} client(s)`);
-      await Promise.allSettled(clients.map((c) => dispatchBriefingForClient(c.id)));
+      await runMorningBriefingDispatchTick();
     },
     { timezone: "Asia/Kolkata" }
   );

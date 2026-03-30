@@ -12,8 +12,15 @@ model User {
   id               String             @id @default(cuid())
   email            String             @unique
   name             String?
+  agencyName       String?
+  brandColor       String?            @default("#06b6d4")
+  logoUrl          String?
   passwordHash     String?
   role             Role               @default(AGENCY_ADMIN)
+  plan             String             @default("free")
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+  planActivatedAt  DateTime?
   clientId         String?
   client           Client?            @relation("ClientMembership", fields: [clientId], references: [id])
   agencyClients    Client[]           @relation("Agency")
@@ -439,4 +446,23 @@ enum BriefingStatus {
   GENERATING
   COMPLETE
   FAILED
+}
+
+/// Optional audit rows for BullMQ processors (best-effort; never throws to callers).
+model JobLog {
+  id        String   @id @default(cuid())
+  queue     String
+  jobId     String
+  name      String   @default("")
+  status    String
+  data      Json?
+  result    Json?
+  error     String?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([queue, jobId])
+  @@index([queue, status])
+  @@index([createdAt])
 }

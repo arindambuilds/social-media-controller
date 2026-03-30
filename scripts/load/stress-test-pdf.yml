@@ -1,0 +1,28 @@
+# Authenticated PDF load — requires ARTILLERY_BEARER_TOKEN and ARTILLERY_PDF_CLIENT_ID (e.g. demo-client).
+#   export ARTILLERY_BEARER_TOKEN=$(curl -s ... | jq -r .accessToken)
+#   export ARTILLERY_PDF_CLIENT_ID=demo-client
+#   npx artillery@2.0.21 run scripts/load/stress-test-pdf.yml -e api_staging
+config:
+  environments:
+    api_local:
+      target: "http://localhost:4000"
+    api_staging:
+      target: "https://social-media-controller.onrender.com"
+  processor: "./scripts/load/stress-processor.cjs"
+  phases:
+    - duration: 300
+      arrivalRate: 5
+      name: pdf_5rps
+  http:
+    timeout: 120000
+scenarios:
+  - name: export_pdf_briefing
+    flow:
+      - function: "preparePdfStress"
+      - post:
+          url: "/api/reports/{{ pdfClientId }}/export/pdf"
+          headers:
+            Authorization: "{{ authHeader }}"
+            Content-Type: "application/json"
+          json:
+            reportType: "briefing"

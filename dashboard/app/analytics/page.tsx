@@ -22,9 +22,12 @@ import { AnalyticsPageSkeleton } from "../../components/page-skeleton";
 import { FollowerGrowthChart } from "../../components/analytics/FollowerGrowthChart";
 import { EngagementHeatStrip } from "../../components/analytics/EngagementHeatStrip";
 import { PostGrid } from "../../components/analytics/PostGrid";
-import { FollowerGrowthChart } from "../../components/analytics/FollowerGrowthChart";
-import { EngagementHeatStrip } from "../../components/analytics/EngagementHeatStrip";
-import { PostGrid } from "../../components/analytics/PostGrid";
+import { FormToast, type FormToastVariant } from "../../components/form-toast";
+import { useExportPdf } from "../../hooks/useExportPdf";
+import { useUserPlan } from "../../hooks/useUserPlan";
+import { UpgradeModal } from "../../components/UpgradeModal";
+import { getExperimentVariant, getStoredExperimentVariant } from "../../lib/experiment";
+import { trackEvent } from "../../lib/trackEvent";
 
 const GRID_STROKE = "#1e1e2e";
 const TICK_FILL = "#8b8ba0";
@@ -122,6 +125,7 @@ function StatusBadge({ status }: { status: PostStatus }) {
 
 export default function AnalyticsPage() {
   const router = useRouter();
+  const userPlan = useUserPlan();
   const [clientId, setClientId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -130,6 +134,49 @@ export default function AnalyticsPage() {
   const [mediaTypes, setMediaTypes] = useState<MediaRow[]>([]);
   const [topPosts, setTopPosts] = useState<PostRow[]>([]);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [exportLimitReached, setExportLimitReached] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [toast, setToast] = useState<{ text: string; variant: FormToastVariant } | null>(null);
+  const { exportPdf, loading: exportBusy, error: exportError, clearError: clearExportError } = useExportPdf();
+
+  const dismissToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    if (!exportError) return;
+    if (/Free plan limit reached/i.test(exportError)) {
+      setExportLimitReached(true);
+      setShowUpgradeModal(true);
+      setToast({ text: "Free limit reached. Upgrade to continue.", variant: "error" });
+    } else {
+      setToast({ text: exportError, variant: "error" });
+    }
+    clearExportError();
+  }, [exportError, clearExportError]);
+
+  const onExportAnalytics = useCallback(async () => {
+    if (!clientId || exportBusy || exportLimitReached) return;
+    if (userPlan === "free") {
+      const experimentName = "paywall_vs_pricing";
+      const assignedBefore = getStoredExperimentVariant(experimentName);
+      const variant = getExperimentVariant(experimentName);
+      if (!assignedBefore) {
+        trackEvent("experiment_assigned", {
+          experiment: experimentName,
+          variant,
+          source: "analytics-export-paywall",
+          feature: "pdf_export"
+        });
+      }
+      if (variant === "A") {
+        setShowUpgradeModal(true);
+      } else {
+        router.push("/pricing?source=analytics-export-paywall&feature=pdf_export");
+      }
+      return;
+    }
+    const ok = await exportPdf(clientId, "analytics");
+    if (ok) setToast({ text: "Report exported as PDF", variant: "success" });
+  }, [clientId, exportBusy, exportLimitReached, exportPdf, userPlan, router]);
 
   const load = useCallback(async (cid: string) => {
     setError("");
@@ -232,12 +279,33 @@ export default function AnalyticsPage() {
       ...pt,
       engagementPct: pt.engagementRate * 100
     })) ?? [];
+  const followerLine =
+    overview?.followerGrowth?.points.map((pt) => ({
+      date: pt.date,
+      followers: pt.followerCount
+    })) ?? [];
 
   return (
     <div className="page-shell">
       <section className="gradient-border mb-6 p-5 md:p-6">
-        <h2 className="text-ink font-display m-0 text-2xl font-bold tracking-tight">Analytics</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h2 className="text-ink font-display m-0 text-2xl font-bold tracking-tight">Analytics</h2>
+          <button
+            type="button"
+            className="button secondary inline-flex items-center gap-2 text-sm"
+            onClick={() => void onExportAnalytics()}
+            disabled={exportBusy || exportLimitReached || !clientId}
+          >
+            {exportBusy ? "Exporting…" : "Download Report"}
+          </button>
+        </div>
         {clientId ? <p className="text-muted mt-2 text-sm">Client {clientId}</p> : null}
+        {userPlan === "free" ? (
+          <p className="text-muted mt-1 text-xs">Free plan: 5 exports/month • Watermarked</p>
+        ) : null}
+        {exportLimitReached ? (
+          <p className="text-warning mt-1 text-xs font-semibold">Upgrade to export more reports</p>
+        ) : null}
         {overview?.instagramHandle ? (
           <p className="text-muted mt-1 text-sm">
             @{overview.instagramHandle}
@@ -248,6 +316,14 @@ export default function AnalyticsPage() {
           </p>
         ) : null}
       </section>
+      <FormToast message={toast?.text ?? null} variant={toast?.variant ?? "success"} onDismiss={dismissToast} />
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        usagePct={100}
+        featureName="PDF export"
+        usageText={exportLimitReached ? "You're using 5/5 free exports this month" : "Free plan: 5 exports/month • Watermarked"}
+      />
 
       {summary ? (
         <section className="mb-6 flex flex-col gap-6">
