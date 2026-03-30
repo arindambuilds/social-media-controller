@@ -1,13 +1,49 @@
-'use client';
+"use client";
+
+import { trackEvent } from "../lib/trackEvent";
+import { useI18n } from "../context/i18n-context";
 
 interface UpgradeModalProps {
   open: boolean;
   onClose: () => void;
-  feature?: string;
+  usagePct: number;
+  estimatedMissedMonthlyRevenue?: number;
+  featureName?: string;
 }
 
-export function UpgradeModal({ open, onClose, feature = "share links" }: UpgradeModalProps) {
+export function UpgradeModal({
+  open,
+  onClose,
+  usagePct,
+  estimatedMissedMonthlyRevenue,
+  featureName
+}: UpgradeModalProps) {
+  const { t } = useI18n();
+
   if (!open) return null;
+
+  const clampedUsage = Math.max(0, Math.min(usagePct, 100));
+
+  const usageColor =
+    clampedUsage >= 90 ? "bg-red-500" : clampedUsage >= 70 ? "bg-amber-500" : "bg-accent-teal";
+  const usageLabelColor = clampedUsage >= 90 ? "text-red-400" : "text-amber-400";
+
+  function handleUpgradeClick() {
+    trackEvent("upgrade_clicked", { usagePct: clampedUsage, featureName });
+    window.location.href = "/settings/billing";
+  }
+
+  const title =
+    clampedUsage >= 90
+      ? t("upgrade.modalTitleLimit")
+      : t("upgrade.modalTitleFeature", { feature: featureName ?? "features" });
+
+  const revenueText =
+    estimatedMissedMonthlyRevenue && estimatedMissedMonthlyRevenue > 0
+      ? t("upgrade.revenueLine", {
+          amount: estimatedMissedMonthlyRevenue.toLocaleString("en-IN")
+        })
+      : null;
 
   return (
     <div
@@ -15,55 +51,59 @@ export function UpgradeModal({ open, onClose, feature = "share links" }: Upgrade
       onClick={onClose}
     >
       <div
-        className="relative mx-4 w-full max-w-sm rounded-3xl border border-cyan-500/30 bg-[#13162a] p-8 shadow-2xl shadow-cyan-900/30"
+        className="mx-4 w-full max-w-sm rounded-2xl border border-white/10 bg-[#111118] p-6 shadow-2xl shadow-black/50"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="absolute -top-px left-1/2 h-px w-32 -translate-x-1/2 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
-
-        <div className="space-y-4 text-center">
-          <div className="text-4xl">🔒</div>
-
-          <h2 className="text-xl font-bold text-white">Unlock {feature}</h2>
-
-          <p className="text-sm leading-relaxed text-white/60">
-            Share your AI report with your CA, business partner, or WhatsApp groups. Upgrade to{" "}
-            <span className="font-semibold text-cyan-400">Starter</span> to unlock share links.
-          </p>
-
-          <div className="space-y-1 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-2xl font-bold text-white">
-              ₹299<span className="text-sm font-normal text-white/40">/month</span>
-            </p>
-            <p className="text-xs text-white/40">Less than your Swiggy bill once a month.</p>
+        <div className="mb-4 flex items-start justify-between">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-lg">
+            <span role="img" aria-label="limit">
+              ⚡
+            </span>
           </div>
-
-          <ul className="space-y-2 text-left text-sm text-white/70">
-            {[
-              "✅ Unlimited share links",
-              "✅ 500 AI DM replies/month",
-              "✅ Daily briefings",
-              "✅ Live Claude preview in settings"
-            ].map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-
           <button
-            onClick={() => {
-              window.location.href = "/settings/billing";
-            }}
-            className="w-full rounded-2xl bg-cyan-500 py-3 text-sm font-bold text-black transition hover:bg-cyan-400"
-          >
-            Upgrade to Starter — ₹299/mo
-          </button>
-
-          <button
+            type="button"
             onClick={onClose}
-            className="w-full py-2 text-xs text-white/30 transition hover:text-white/60"
+            className="text-base text-white/30 transition-colors hover:text-white/60"
+            aria-label="Close"
           >
-            Maybe later
+            ✕
           </button>
         </div>
+
+        <h2 className="mb-2 text-lg font-bold text-white">{title}</h2>
+
+        <div className="mb-4">
+          <div className="mb-1 flex justify-between text-xs text-white/50">
+            <span>{t("upgrade.usageLabel")}</span>
+            <span className={usageLabelColor}>{Math.round(clampedUsage)}%</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div className={`h-full rounded-full transition-all ${usageColor}`} style={{ width: `${clampedUsage}%` }} />
+          </div>
+        </div>
+
+        {revenueText ? (
+          <p className="mb-4 text-sm text-white/60">
+            <span className="font-semibold text-red-400">
+              {revenueText}
+            </span>
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={handleUpgradeClick}
+          className="mb-2 w-full rounded-xl bg-accent-purple px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#7a72ff]"
+        >
+          {t("upgrade.ctaPrimary")}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-2 text-sm text-white/40 transition-colors hover:text-white/60"
+        >
+          {t("upgrade.ctaSecondary")}
+        </button>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { apiFetch, fetchMe } from "../../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../../lib/auth-storage";
 import { PageHeader } from "../../../components/ui/page-header";
+import { trackEvent } from "../../../lib/trackEvent";
 
 type ConversationRow = {
   id: string;
@@ -69,6 +70,7 @@ export default function DmInboxPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [rewardMessage, setRewardMessage] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -158,6 +160,12 @@ export default function DmInboxPage() {
   }, [messages, messagesLoading, selectedId]);
 
   const displayName = (c: ConversationRow) => c.contactName?.trim() || "Instagram user";
+
+  function showReplyReward() {
+    setRewardMessage("Replied! You just improved your engagement. 💬");
+    trackEvent("dm_replied");
+    window.setTimeout(() => setRewardMessage(null), 3000);
+  }
 
   return (
     <div className="page-shell">
@@ -296,6 +304,11 @@ export default function DmInboxPage() {
           )}
         </div>
       </div>
+      {rewardMessage ? (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-accent-teal/30 bg-[#111118] px-5 py-3 text-sm font-medium text-accent-teal shadow-lg">
+          {rewardMessage}
+        </div>
+      ) : null}
     </div>
   );
 }

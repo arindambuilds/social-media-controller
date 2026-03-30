@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { I18nProvider } from "../context/i18n-context";
 
 const STORAGE_KEY = "smc_theme";
 
@@ -19,7 +20,7 @@ export function AppProviders({ children }: Readonly<{ children: React.ReactNode 
     applyTheme("dark");
   }, []);
 
-  return <>{children}</>;
+  return <I18nProvider>{children}</I18nProvider>;
 }
 
 export function toggleTheme(): "light" | "dark" {

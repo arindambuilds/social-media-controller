@@ -4,8 +4,10 @@ import { Brain, Copy, Loader2, Sparkles, Target, ThumbsDown, ThumbsUp, Wand2 } f
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, apiFetchResponse, fetchMe, type CaptionCard } from "../../lib/api";
+import { trackEvent } from "../../lib/trackEvent";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 import { PageHeader } from "../../components/ui/page-header";
+import { UpgradeModal } from "../../components/UpgradeModal";
 
 type InsightPayload = {
   id: string;
@@ -56,6 +58,9 @@ export default function InsightsPage() {
   const [billing, setBilling] = useState<{ generationsUsed: number; generationsLimit: number } | null>(null);
   const [weeklyFocus, setWeeklyFocus] = useState<string | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [rewardMessage, setRewardMessage] = useState<string | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeUsagePct, setUpgradeUsagePct] = useState(0);
 
   const refreshLatest = useCallback(async (cid: string) => {
     const data = await apiFetch<LatestResponse>(
@@ -103,6 +108,15 @@ export default function InsightsPage() {
       }
     })();
   }, [router, refreshLatest]);
+
+  useEffect(() => {
+    if (!billing) return;
+    const { generationsUsed, generationsLimit } = billing;
+    if (!generationsLimit || generationsLimit <= 0) return;
+    const pct = Math.round((generationsUsed / generationsLimit) * 100);
+    setUpgradeUsagePct(pct);
+    if (pct > 80) setShowUpgrade(true);
+  }, [billing]);
 
   useEffect(() => {
     if (!cooldownRemainingSeconds) return;
@@ -207,6 +221,9 @@ export default function InsightsPage() {
         }
       );
       setCaptions(Array.isArray(data.captions) ? data.captions : []);
+      setRewardMessage("Caption ready! Your audience will love this. 🎯");
+      trackEvent("caption_generated", { clientId, tone, goal });
+      window.setTimeout(() => setRewardMessage(null), 3000);
       try {
         const b = await apiFetch<{ generationsUsed: number; generationsLimit: number }>(
           `/billing/${encodeURIComponent(clientId)}/status`
@@ -252,6 +269,8 @@ export default function InsightsPage() {
       </div>
     );
   }
+
+  const missedMonthlyRevenue = 0;
 
   return (
     <div className="page-shell">
@@ -550,18 +569,51 @@ export default function InsightsPage() {
                 ))}
           </div>
 
-          {billing ? (
-            <div className="border-subtle text-muted mt-8 rounded-xl border bg-surface/40 px-4 py-3 text-sm">
-              <span className="text-ink font-semibold tabular-nums">
-                {billing.generationsUsed}
-              </span>
-              <span> / </span>
-              <span className="tabular-nums">{billing.generationsLimit}</span>
-              <span> AI generations used this month</span>
+          {billing && (
+            <div className="mt-8 space-y-2 rounded-xl border border-white/8 bg-white/5 px-4 py-4">
+              <div className="flex justify-between text-xs text-white/50">
+                <span>AI generations this month</span>
+                <span
+                  className={
+                    upgradeUsagePct >= 90 ? "text-red-400" : upgradeUsagePct >= 70 ? "text-amber-400" : "text-teal-400"
+                  }
+                >
+                  {billing.generationsUsed} / {billing.generationsLimit}
+                </span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    upgradeUsagePct >= 90 ? "bg-red-500" : upgradeUsagePct >= 70 ? "bg-amber-500" : "bg-teal-500"
+                  }`}
+                  style={{ width: `${Math.min(upgradeUsagePct, 100)}%` }}
+                />
+              </div>
+              {upgradeUsagePct >= 80 && (
+                <button
+                  type="button"
+                  onClick={() => setShowUpgrade(true)}
+                  className="text-xs font-medium text-accent-purple transition-colors hover:text-accent-purple/80"
+                >
+                  Upgrade for more →
+                </button>
+              )}
             </div>
-          ) : null}
+          )}
         </div>
       </section>
+      {rewardMessage ? (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-accent-teal/30 bg-[#111118] px-5 py-3 text-sm font-medium text-accent-teal shadow-lg">
+          {rewardMessage}
+        </div>
+      ) : null}
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        usagePct={upgradeUsagePct}
+        estimatedMissedMonthlyRevenue={missedMonthlyRevenue}
+        featureName="AI generations"
+      />
     </div>
   );
 }
