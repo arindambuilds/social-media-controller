@@ -24,3 +24,12 @@ Cycle completion notification is **console-only** by design. Real VS Code toast 
 | `npm run quadra:status` | Print persisted cycle state. |
 
 See `TRUTH_TABLE.md` for the authoritative test and smoke baseline.
+
+## First live briefing (Cycle 5)
+
+1. Set **`DEBUG_BRIEFING=1`** on the API + worker processes.
+2. Ensure the test **`Client`** row has **`whatsappNumber`** = your **own** E.164 number (Twilio sandbox rules apply).
+3. Optional one-shot: **`BRIEFING_E2E_TEST_DELAY_MS=120000`** and **`BRIEFING_E2E_TEST_CLIENT_ID=<your-client-id>`** (fires `runBriefingNow` once after delay). Remove after verification.
+4. With Redis off in production, optional **`BRIEFING_CRON_EXPRESSION`** overrides the hourly node-cron pattern for a controlled window (do not leave aggressive crons in prod).
+5. Confirm logs: **`[scheduler] Tick fired at:`**, **`[briefing] Claude response length:`**, **`[briefing] Job enqueued…`**, **`[whatsapp] Job picked up`**, **`[whatsapp] Twilio SID:`**.
+6. Record SID and physical receipt in **`TRUTH_TABLE.md`** (Cycle 5 table).

@@ -1,46 +1,50 @@
-# QuadraPilot — system truth table (Cycle 4 baseline)
+# QuadraPilot — system truth table (Cycle 5 baseline)
 
-Verified state entering Cycle 4. Re-run the commands in the left column before claiming a cycle complete.
+Verified state entering Cycle 5. Re-run the commands in the left column before claiming a cycle complete.
 
 | Metric | Baseline | Verify |
 |--------|----------|--------|
-| Test files | **9** | `npx vitest run --reporter=verbose` |
-| Tests passing | **48/48** | same |
+| Test files | **10** | `npx vitest run --reporter=verbose` |
+| Tests passing | **51/51** | same |
 | TSC errors | **0** | `npx tsc --noEmit` |
 | Lint errors | **0** | `npm run lint` |
 | Smoke (delivery) | **6/6** | `npm run smoke:render` |
+| **smokeGate** | `PASSED` \| `FAILED` \| `SKIPPED` | See `quadrapilot/README.md` — delivery reports require **PASSED** (live Render). |
 | Locked PDF queue files | **0 diff** | `git diff HEAD -- src/lib/pdfQueueObservability.ts src/lib/pdfQueueMetricsFlush.ts` |
 
-## Count correction (Cycle 3 → Cycle 4)
+## History: Cycle 4 floor (48/48, 9 files)
 
-An older spec line assumed **46** tests after adding briefing coverage; arithmetic against git was wrong.
+See archived note: pre-`briefingDispatch` snapshot was **45** tests / **8** files; **`tests/briefingDispatch.test.ts`** +3 → **48**. **`tests/api.test.ts`** and **`tests/whatsapp.test.ts`** explained the old “46 vs 48” confusion (documented Cycle 4).
 
-- At commit `fcceeb3` (last commit **before** `tests/briefingDispatch.test.ts` existed): **45** tests across **8** files.
-- `tests/briefingDispatch.test.ts` adds **3** tests → **48** tests, **9** files (**45 + 3 = 48**).
+**Cycle 5 rule:** Floor is **51/51** until the next intentional test addition. Do not delete passing tests to “fix” counts.
 
-## The “+2” narrative (mapped to files)
+## Cycle 5 — live end-to-end briefing (operator checklist)
 
-Two individual `it()` blocks account for common under-counting vs an informal “43 + 3 briefing = 46” guess:
+Formal delivery requires a **live** run (not `SMOKE_ENV=skip`). Fill in after you run it on infrastructure you control:
 
-1. **`tests/api.test.ts`** — gained **+1** test between `97381d4` and `1d78768` (Cycle 2 delivery work); the file now holds **23** cases (billing, PDF export, audit, webhooks, etc.).
-2. **`tests/whatsapp.test.ts`** — **4** cases total (three executor paths + **`sendWhatsAppStrict` / HTTP 400**). Docs that only counted three executor tests missed the fourth.
+| Field | Value (operator) |
+|-------|------------------|
+| Date (UTC) | _YYYY-MM-DD_ |
+| `DEBUG_BRIEFING` | Should be `1` for first run logs. |
+| `BRIEFING_E2E_TEST_DELAY_MS` / `BRIEFING_E2E_TEST_CLIENT_ID` | Optional one-shot; or cron / BullMQ tick. |
+| Twilio message SID | `SM` + 32 hex (from logs when `DEBUG_BRIEFING=1`) |
+| Phone physically received WhatsApp? | YES / NO |
 
-Together with the **3** briefing-dispatch tests, these explain the **48** total without removing any legitimate coverage.
+**Job payload (actual code contract):** BullMQ job name `send-brief`, queue `whatsapp-send`, data fields **`phoneE164`**, **`briefingText`**, **`dateStr`** (not `to` / `body` — those names are conceptual only).
 
-**Status:** Discovered, legitimate, **baselined at 48/48 (9 files)**. Cycle 4+ must not drop below **48** without an explicit defect and stakeholder sign-off.
-
-## Per-file test inventory (current)
+## Per-file test inventory (Cycle 5)
 
 | File | Tests (approx.) |
 |------|-----------------|
 | `tests/api.test.ts` | 23 |
-| `tests/briefingDispatch.test.ts` | 3 |
+| `tests/briefingDispatch.test.ts` | 4 |
 | `tests/circuitBreaker.test.ts` | 2 |
+| `tests/liveBriefingInstrumentation.test.ts` | 1 |
 | `tests/mergeAnalyticsEvents.test.ts` | 3 |
 | `tests/pdfBranding.test.ts` | 1 |
 | `tests/pdfFairPriority.test.ts` | 5 |
 | `tests/pdfService.test.ts` | 3 |
 | `tests/transcribe.test.ts` | 4 |
-| `tests/whatsapp.test.ts` | 4 |
+| `tests/whatsapp.test.ts` | 5 |
 
 Re-count with: `rg '^\s*it\(' tests -g '*.test.ts'`.
