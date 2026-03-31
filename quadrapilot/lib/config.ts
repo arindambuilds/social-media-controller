@@ -45,6 +45,7 @@ export function loadPipelineConfig(goal: string, cycleNumber: number): PipelineC
     repoRoot: REPO_ROOT,
     claudeModel:
       process.env.QUADRAPILOT_CLAUDE_MODEL?.trim() || "claude-sonnet-4-20250514",
-    currentTestsHint: process.env.QUADRAPILOT_CURRENT_TESTS?.trim() || "33/33 (last known)"
+    currentTestsHint:
+      process.env.QUADRAPILOT_CURRENT_TESTS?.trim() || "48/48 in 9 files (Cycle 4 baseline)"
   };
 }
