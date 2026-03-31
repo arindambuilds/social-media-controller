@@ -1,3 +1,4 @@
+import { isDebugBriefing } from "../lib/debugBriefing";
 import { prisma } from "../lib/prisma";
 import { logSystemEvent } from "../services/systemEventService";
 import { briefingQueue, enqueueBriefingJob } from "../queues/briefingQueue";
@@ -44,7 +45,33 @@ async function runWithConcurrency(tasks: Array<() => Promise<void>>, concurrency
  * Scheduler entry (Quadra Cycle 2): IST hour tick — Claude + persistence run in `runBriefingNow`
  * (or per-client briefing jobs). WhatsApp text delivery is handed to `whatsapp-send` worker when Redis queue is enabled.
  */
+/**
+ * One-shot `runBriefingNow` after a delay — for first live E2E (set `BRIEFING_E2E_TEST_DELAY_MS` + `BRIEFING_E2E_TEST_CLIENT_ID`).
+ * Does not replace production cron; use only on a machine you control with `DEBUG_BRIEFING=1` recommended.
+ */
+export function scheduleBriefingE2EOneShot(): void {
+  const delayRaw = process.env.BRIEFING_E2E_TEST_DELAY_MS?.trim();
+  const clientId = process.env.BRIEFING_E2E_TEST_CLIENT_ID?.trim();
+  if (!delayRaw || !clientId) return;
+  const ms = Number(delayRaw);
+  if (!Number.isFinite(ms) || ms <= 0) return;
+  setTimeout(() => {
+    void (async () => {
+      console.log("[scheduler] Tick fired at:", new Date().toISOString(), "(BRIEFING_E2E_TEST_DELAY_MS)");
+      const { runBriefingNow } = await import("./morningBriefing");
+      try {
+        await runBriefingNow(clientId);
+      } catch (e) {
+        console.error("[BRIEFING_E2E_TEST]", e instanceof Error ? e.message : e);
+      }
+    })();
+  }, ms);
+}
+
 export async function runMorningBriefingDispatchTick(): Promise<void> {
+  if (isDebugBriefing()) {
+    console.log("[scheduler] Tick fired at:", new Date().toISOString());
+  }
   const hour = currentHourIst();
   const clients = await prisma.client.findMany({
     where: { briefingEnabled: true, briefingHourIst: hour },

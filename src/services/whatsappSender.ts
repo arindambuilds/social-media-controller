@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import twilio from "twilio";
+import { isDebugBriefing } from "../lib/debugBriefing";
 
 function normalizeWhatsAppAddress(raw: string): string {
   const t = raw.trim();
@@ -35,8 +36,9 @@ export function isSmtpConfigured(): boolean {
  */
 /**
  * Twilio send for BullMQ worker path: 429+ errors propagate (retries); HTTP 400 is logged and swallowed.
+ * @returns message SID on success; undefined when the send is suppressed (e.g. HTTP 400).
  */
-export async function sendWhatsAppStrict(to: string, message: string): Promise<void> {
+export async function sendWhatsAppStrict(to: string, message: string): Promise<string | undefined> {
   if (!twilioConfigured()) {
     throw new Error("Twilio WhatsApp is not configured");
   }
@@ -47,18 +49,22 @@ export async function sendWhatsAppStrict(to: string, message: string): Promise<v
   const toAddr = normalizeWhatsAppAddress(to);
   const fromAddr = normalizeWhatsAppAddress(from);
   try {
-    await client.messages.create({
+    const msg = await client.messages.create({
       from: fromAddr,
       to: toAddr,
       body: message
     });
     console.log("[WhatsApp] sent successfully to", toAddr);
+    if (isDebugBriefing()) {
+      console.log("[whatsapp] Twilio SID:", msg.sid);
+    }
+    return msg.sid;
   } catch (err: unknown) {
     const status = typeof err === "object" && err !== null && "status" in err ? Number((err as { status?: number }).status) : undefined;
     const code = typeof err === "object" && err !== null && "code" in err ? Number((err as { code?: number }).code) : undefined;
     if (status === 400 || code === 21211) {
       console.log("[WhatsApp] 400 suppressed (invalid request):", err instanceof Error ? err.message : String(err));
-      return;
+      return undefined;
     }
     throw err;
   }

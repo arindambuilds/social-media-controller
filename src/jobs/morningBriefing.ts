@@ -14,6 +14,7 @@ import {
 import { sendBriefingEmailHtml, sendWhatsApp } from "../services/whatsappSender";
 import { publishPulseEvent } from "../lib/pulseEvents";
 import { whatsappSendQueue } from "../queues/whatsappSendQueue";
+import { isDebugBriefing } from "../lib/debugBriefing";
 
 function istDateString(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
@@ -25,6 +26,9 @@ function istDateString(): string {
  * @throws if client is missing or DB write fails
  */
 export async function runBriefingNow(clientId: string): Promise<string> {
+  if (isDebugBriefing()) {
+    console.log("[briefing] Starting for clientId:", clientId);
+  }
   const client = await prisma.client.findUnique({
     where: { id: clientId },
     include: { owner: { select: { email: true } } }
@@ -35,6 +39,9 @@ export async function runBriefingNow(clientId: string): Promise<string> {
 
   const data = await getBriefingData(clientId);
   const { content: text, claudeSucceeded } = await generateBriefing(data);
+  if (isDebugBriefing()) {
+    console.log("[briefing] Claude response length:", text.length);
+  }
   const tip = briefingTipSentence(text, claudeSucceeded);
   const waBody = buildWhatsAppBriefingBody(data, tip);
   const sentAt = new Date();
@@ -54,6 +61,9 @@ export async function runBriefingNow(clientId: string): Promise<string> {
           backoff: { type: "exponential", delay: 1000 }
         }
       );
+      if (isDebugBriefing()) {
+        console.log("[briefing] Job enqueued. Queue: whatsapp-send, name: send-brief");
+      }
       whatsappDelivered = null;
     } else {
       whatsappDelivered = await sendWhatsApp(wa, waBody);
@@ -117,12 +127,16 @@ export async function runBriefingNow(clientId: string): Promise<string> {
 
 /** node-cron fallback when `REDIS_URL` is unset — avoids double-firing with BullMQ repeatable. */
 export function startMorningBriefingJob(): void {
+  const expr = process.env.BRIEFING_CRON_EXPRESSION?.trim() || "0 * * * *";
   cron.schedule(
-    "0 * * * *",
+    expr,
     async () => {
       const { runMorningBriefingDispatchTick } = await import("./scheduleMorningBriefing");
       await runMorningBriefingDispatchTick();
     },
     { timezone: "Asia/Kolkata" }
   );
+  if (isDebugBriefing() && expr !== "0 * * * *") {
+    console.log("[scheduler] BRIEFING_CRON_EXPRESSION active:", expr);
+  }
 }

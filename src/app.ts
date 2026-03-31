@@ -10,6 +10,7 @@ import { env } from "./config/env";
 import cron from "node-cron";
 import { runWeeklyDatabaseCleanup } from "./jobs/databaseCleanup";
 import { startMorningBriefingJob } from "./jobs/morningBriefing";
+import { scheduleBriefingE2EOneShot } from "./jobs/scheduleMorningBriefing";
 import { pdfExportCircuit } from "./lib/circuitBreaker";
 import { getDetailedHealth, getPublicHealthSnapshot, withHealthProbeTimeout } from "./lib/healthCheck";
 import { redisConnection } from "./lib/redis";
@@ -455,6 +456,8 @@ export function createApp() {
     }
   }
   app.use(errorHandler);
+
+  scheduleBriefingE2EOneShot();
 
   return app;
 }

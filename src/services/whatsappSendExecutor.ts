@@ -1,6 +1,7 @@
 import type Redis from "ioredis";
 import { sendWhatsAppStrict } from "./whatsappSender";
 import type { WhatsAppSendBriefJob } from "../queues/whatsappSendQueue";
+import { isDebugBriefing } from "../lib/debugBriefing";
 
 function idempotencyKey(phone: string, dateStr: string): string {
   const n = phone.replace(/^whatsapp:/i, "").trim().toLowerCase();
@@ -12,7 +13,8 @@ export type WhatsAppSendDeps = {
   redisSetNx: (key: string, ttlSec: number) => Promise<string | null>;
   redisSet: (key: string, value: string, ttlSec: number) => Promise<void>;
   redisDel: (key: string) => Promise<void>;
-  sendTwilio: (to: string, body: string) => Promise<void>;
+  /** Twilio send; returns message SID on success (see `sendWhatsAppStrict`). */
+  sendTwilio: (to: string, body: string) => Promise<string | undefined>;
 };
 
 /**
@@ -25,6 +27,9 @@ export async function executeWhatsAppSendJob(
   const key = idempotencyKey(data.phoneE164, data.dateStr);
   const locked = await deps.redisSetNx(key, 172800);
   if (locked !== "OK") return;
+  if (isDebugBriefing()) {
+    console.log("[whatsapp] Job picked up. To:", data.phoneE164);
+  }
   try {
     await deps.sendTwilio(data.phoneE164, data.briefingText);
     await deps.redisSet(key, "1", 172800);
