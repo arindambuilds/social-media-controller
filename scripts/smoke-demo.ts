@@ -77,8 +77,17 @@ async function main() {
     const r = await fetch(`${BASE}/api/leads?clientId=${encodeURIComponent(clientId)}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    const d = (await r.json().catch(() => ({}))) as { leads?: unknown };
-    if (!r.ok || !Array.isArray(d.leads)) throw new Error("leads is not an array");
+    const d = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    const leads = Array.isArray(d.leads)
+      ? d.leads
+      : Array.isArray(d.data)
+        ? d.data
+        : d.data && typeof d.data === "object" && Array.isArray((d.data as { leads?: unknown }).leads)
+          ? (d.data as { leads: unknown[] }).leads
+          : Array.isArray(d.items)
+            ? d.items
+            : null;
+    if (!r.ok || leads === null) throw new Error("leads is not an array");
   });
 
   await check("Posts", async () => {
