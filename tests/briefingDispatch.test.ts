@@ -120,4 +120,18 @@ describe("briefing dispatch chain", () => {
     );
     expect(hoisted.messagesCreate).not.toHaveBeenCalled();
   });
+
+  it("runBriefingNow logs [briefing] Starting when DEBUG_BRIEFING=1", async () => {
+    vi.stubEnv("DEBUG_BRIEFING", "1");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    hoisted.findUnique.mockResolvedValue({
+      id: "dispatch-test-client",
+      whatsappNumber: "+919876543210",
+      owner: { email: null }
+    });
+    await runBriefingNow("dispatch-test-client");
+    expect(logSpy).toHaveBeenCalledWith("[briefing] Starting for clientId:", "dispatch-test-client");
+    logSpy.mockRestore();
+    vi.unstubAllEnvs();
+  });
 });

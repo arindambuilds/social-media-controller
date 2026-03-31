@@ -57,6 +57,20 @@ describe("WhatsApp briefing send (executor)", () => {
 });
 
 describe("sendWhatsAppStrict (Twilio 400 swallowed)", () => {
+  it("logs Twilio SID when DEBUG_BRIEFING=1 and create returns sid", async () => {
+    const sid = "SMaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    mockCreate.mockResolvedValueOnce({ sid });
+    process.env.TWILIO_ACCOUNT_SID = "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+    process.env.TWILIO_AUTH_TOKEN = "token";
+    process.env.TWILIO_WHATSAPP_FROM = "whatsapp:+14155238886";
+    vi.stubEnv("DEBUG_BRIEFING", "1");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await sendWhatsAppStrict("+919876543210", "body");
+    expect(logSpy).toHaveBeenCalledWith("[whatsapp] Twilio SID:", sid);
+    logSpy.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
   it("does not throw on HTTP 400", async () => {
     mockCreate.mockRejectedValueOnce(Object.assign(new Error("bad"), { status: 400 }));
     process.env.TWILIO_ACCOUNT_SID = "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
