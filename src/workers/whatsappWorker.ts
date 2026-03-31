@@ -10,7 +10,7 @@ import { toBullMqProcessorError } from "../lib/bullmqRetry";
 
 /**
  * Twilio-only worker: job data must already include `briefingText` from scheduler (`runBriefingNow`).
- * No Anthropic calls here.
+ * No generative-model API calls in this processor.
  */
 export function startWhatsAppSendWorker(): Worker<WhatsAppSendBriefJob> | null {
   if (!redisConnection) return null;
