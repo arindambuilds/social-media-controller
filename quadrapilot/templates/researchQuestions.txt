@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "question": "What are production-hardening patterns for BullMQ 5.x workers (concurrency, stalledInterval, retries, graceful shutdown) in Node.js 20+?",
+    "versionPin": "BullMQ 5.x",
+    "context": "PDF and briefing queues on Redis; must avoid job loss on deploy."
+  },
+  {
+    "id": 2,
+    "question": "How should Prisma 6.x migrations and connection pooling behave with Supabase PgBouncer (transaction mode) in production?",
+    "versionPin": "Prisma 6.x + Supabase pooler",
+    "context": "Render + Supabase; split DATABASE_URL/DIRECT_URL."
+  },
+  {
+    "id": 3,
+    "question": "What are current best practices for Express 5 rate limiting and health checks behind a sleeping Render dyno?",
+    "versionPin": "Express 5.x",
+    "context": "Cold starts and login rate limits affecting smoke tests."
+  }
+]

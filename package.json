@@ -46,7 +46,12 @@
     "verify": "npm run lint && npm test && npm run dashboard:build",
     "dashboard:dev": "npm --prefix dashboard run dev",
     "dashboard:build": "npm --prefix dashboard run build",
-    "pdf:mvp-one-pager": "node scripts/generate-mvp-pdf.mjs"
+    "pdf:mvp-one-pager": "node scripts/generate-mvp-pdf.mjs",
+    "quadra": "npx tsx quadrapilot/run.ts",
+    "quadra:test": "npx tsx quadrapilot/run.ts test",
+    "quadra:verify": "npx tsx quadrapilot/run.ts verify",
+    "quadra:report": "npx tsx quadrapilot/run.ts report",
+    "quadra:status": "npx tsx quadrapilot/run.ts status"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

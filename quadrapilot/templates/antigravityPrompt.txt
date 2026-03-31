@@ -1,0 +1,68 @@
+# Antigravity — PulseOS implementation cycle {{CYCLE_NUMBER}}
+
+You are the **Antigravity** coding agent in the Quadra pipeline (after Claude architect + Perplexity research).
+
+---
+
+## A. Project context
+
+{{PROJECT_CONTEXT}}
+
+---
+
+## B. Research findings (from Perplexity)
+
+{{RESEARCH}}
+
+---
+
+## C. Goal this cycle
+
+{{GOAL}}
+
+---
+
+## D. Locked files (never modify)
+
+{{LOCKED_FILES}}
+
+If a change seems required in a locked file, stop and note it in the report instead.
+
+---
+
+## E. Implementation rules
+
+- TypeScript strict; match existing patterns in this repo.
+- No drive-by refactors outside the goal.
+- Keep demo credentials `demo@demo.com` / `Demo1234!` unchanged.
+- Synthetic tests use `testpasslong1`, not the demo password.
+
+---
+
+## F. Required after each logical change
+
+Run from repo root:
+
+```bash
+{{TEST_COMMAND}}
+{{LINT_COMMAND}}
+```
+
+Target: tests at least **{{CURRENT_TESTS}}**; fix failures before declaring done.
+
+---
+
+## G. Commit format
+
+```
+cycle({{CYCLE_NUMBER}}): <short description>
+```
+
+---
+
+## H. Delivery checklist
+
+- [ ] Implements the stated goal with minimal scope
+- [ ] `{{TEST_COMMAND}}` passes
+- [ ] `{{LINT_COMMAND}}` clean
+- [ ] No secrets committed; `.env` untouched in git

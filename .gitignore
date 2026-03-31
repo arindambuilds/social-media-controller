@@ -32,3 +32,6 @@ social-media-controller/
 # Prisma / generated (if checked out elsewhere)
 prisma/*.db
 prisma/*.db-journal
+
+# QuadraPilot local cycle state (machine-specific)
+quadrapilot/state.json
