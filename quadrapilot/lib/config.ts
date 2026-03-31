@@ -46,6 +46,6 @@ export function loadPipelineConfig(goal: string, cycleNumber: number): PipelineC
     claudeModel:
       process.env.QUADRAPILOT_CLAUDE_MODEL?.trim() || "claude-sonnet-4-20250514",
     currentTestsHint:
-      process.env.QUADRAPILOT_CURRENT_TESTS?.trim() || "51/51 in 10 files (Cycle 5 baseline)"
+      process.env.QUADRAPILOT_CURRENT_TESTS?.trim() || "51/51 in 10 files (Cycle 6 baseline; C1 live E2E pending operator)"
   };
 }
