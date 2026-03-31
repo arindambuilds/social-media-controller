@@ -58,11 +58,14 @@ jobs:
       - name: Seed database
         run: npm run prisma:seed
 
-      - name: Lint API (TypeScript)
-        run: npm run lint
+      - name: Generate Prisma client
+        run: npx prisma generate
 
       - name: Test API (Vitest)
         run: npm test
+
+      - name: Lint API (TypeScript)
+        run: npm run lint
 
       - name: Build dashboard
         run: npm run dashboard:build
