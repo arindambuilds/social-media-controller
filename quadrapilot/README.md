@@ -4,9 +4,9 @@ Orchestrated research → prompt → **Stage 4 quality gates** (Prisma generate,
 
 ## Notifications (Cycle 4)
 
-Cycle completion and **SMOKE_GATE** outcomes are **console-only** by design. Surfacing a real VS Code toast or OS notification would require a VS Code extension, custom task/problem-matcher wiring, or an external notifier.
+Cycle completion notification is **console-only** by design. Real VS Code toast requires an extension API or task integration. Revisit when QuadraPilot has **≥5 cycles** of proven stability.
 
-**Policy:** Revisit native IDE notifications only after QuadraPilot has several cycles of stable use in this repo.
+**SMOKE_GATE** and other Stage 4 outcomes are emitted on the terminal the same way (no IDE toast unless you add tooling).
 
 ## Smoke modes
 
