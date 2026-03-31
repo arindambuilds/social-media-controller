@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import type { PipelineConfig, StageResult, TestRunRecord } from "../types/pipeline";
+import type { PipelineConfig, SmokeGateStatus, StageResult, TestRunRecord } from "../types/pipeline";
 
 function runCmd(
   cmd: string,
@@ -106,15 +106,27 @@ export async function runTestRunner(config: PipelineConfig): Promise<StageResult
     console.log(`✅ Tests: ${testCount}`);
   }
 
-  console.log("⏳ npm run smoke:render…");
-  const smokeProc = await runCmd("npm", ["run", "smoke:render"], cwd);
-  const smokeOut = `${smokeProc.stdout}\n${smokeProc.stderr}`;
-  const smokePassed = smokeProc.code === 0 && /Overall:\s*6\/6\s+passed/i.test(smokeOut);
+  const smokeMode = (process.env.SMOKE_ENV ?? "remote").trim().toLowerCase();
+  let smokeGate: SmokeGateStatus;
+  let smokeOut: string;
 
-  if (!smokePassed) {
-    console.log("❌ SMOKE_GATE: FAILED (npm run smoke:render)");
+  if (smokeMode === "skip") {
+    console.log(
+      "[Stage 4] Smoke skipped (SMOKE_ENV=skip). Set SMOKE_ENV=remote or unset to enforce Render smoke."
+    );
+    smokeGate = "SKIPPED";
+    smokeOut = "[Stage 4] smoke:render not run (SMOKE_ENV=skip)\n";
   } else {
-    console.log("✅ Smoke: 6/6 passed");
+    console.log("⏳ npm run smoke:render…");
+    const smokeProc = await runCmd("npm", ["run", "smoke:render"], cwd);
+    smokeOut = `${smokeProc.stdout}\n${smokeProc.stderr}`;
+    const remoteOk = smokeProc.code === 0 && /Overall:\s*6\/6\s+passed/i.test(smokeOut);
+    smokeGate = remoteOk ? "PASSED" : "FAILED";
+    if (!remoteOk) {
+      console.log("❌ SMOKE_GATE: FAILED (npm run smoke:render)");
+    } else {
+      console.log("✅ Smoke: 6/6 passed");
+    }
   }
 
   const duration = Date.now() - t0;
@@ -124,7 +136,7 @@ export async function runTestRunner(config: PipelineConfig): Promise<StageResult
     testsPassed: testsOk,
     testCount,
     lintClean,
-    smokePassed,
+    smokeGate,
     testOutput: testOut.slice(-120_000),
     lintOutput: lintOut.slice(-60_000),
     smokeOutput: smokeOut.slice(-60_000),
@@ -136,7 +148,8 @@ export async function runTestRunner(config: PipelineConfig): Promise<StageResult
   await fs.mkdir(config.outputDir, { recursive: true });
   await fs.writeFile(jsonPath, JSON.stringify(record, null, 2), "utf8");
 
-  const success = genOk && tscOk && testsOk && lintClean && smokePassed;
+  const smokeStageOk = smokeGate === "PASSED" || smokeGate === "SKIPPED";
+  const success = genOk && tscOk && testsOk && lintClean && smokeStageOk;
   return {
     stage: "Test runner",
     success,

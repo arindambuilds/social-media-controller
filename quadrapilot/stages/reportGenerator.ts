@@ -26,9 +26,12 @@ function executiveSummary(result: PipelineResult): string {
     result.testsPassed && result.lintClean
       ? `Tests ${result.testCount} and lint are clean.`
       : `Tests/lint need attention (${result.testCount}, lint ${result.lintClean ? "ok" : "errors"}).`;
-  const smokeLine = result.smokePassed
-    ? "SMOKE_GATE: PASSED (6/6)."
-    : "SMOKE_GATE: FAILED — review `npm run smoke:render`.";
+  const smokeLine =
+    result.smokeGate === "PASSED"
+      ? "SMOKE_GATE: PASSED (6/6)."
+      : result.smokeGate === "SKIPPED"
+        ? "SMOKE_GATE: SKIPPED (offline only — not valid for delivery sign-off)."
+        : "SMOKE_GATE: FAILED — review `npm run smoke:render`.";
   return `Cycle ${result.cycleNumber} completed with status **${status}**. ${testLine} ${smokeLine} Goal: ${result.goal.slice(0, 120)}${result.goal.length > 120 ? "…" : ""}`;
 }
 
@@ -62,7 +65,12 @@ export async function runReportGenerator(
   const lintStatus = result.lintClean ? "Clean" : "Errors";
   const durationSec = (result.totalDuration / 1000).toFixed(1);
 
-  const smokeGate = result.smokePassed ? "SMOKE_GATE: PASSED" : "SMOKE_GATE: FAILED";
+  const smokeGateLabel =
+    result.smokeGate === "PASSED"
+      ? "SMOKE_GATE: PASSED"
+      : result.smokeGate === "SKIPPED"
+        ? "SMOKE_GATE: SKIPPED"
+        : "SMOKE_GATE: FAILED";
 
   const md = inject(tpl, {
     CYCLE_NUMBER: String(result.cycleNumber),
@@ -73,7 +81,7 @@ export async function runReportGenerator(
     IMPLEMENTATION_STATUS: `_Antigravity / Cursor work tracked outside this file. Goal:_ ${result.goal}`,
     TEST_COUNT: result.testCount,
     LINT_STATUS: lintStatus,
-    SMOKE_GATE: smokeGate,
+    SMOKE_GATE: smokeGateLabel,
     DURATION_SEC: durationSec,
     RISKS: risks,
     NEXT_ACTIONS: nextActions,

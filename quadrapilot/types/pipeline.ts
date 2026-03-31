@@ -23,6 +23,8 @@ export interface StageResult {
   error?: string;
 }
 
+export type SmokeGateStatus = "PASSED" | "FAILED" | "SKIPPED";
+
 export interface PipelineResult {
   cycleNumber: number;
   goal: string;
@@ -30,8 +32,11 @@ export interface PipelineResult {
   testsPassed: boolean;
   testCount: string;
   lintClean: boolean;
-  /** Stage 4 smoke gate (`npm run smoke:render` → 6/6). */
-  smokePassed: boolean;
+  /**
+   * Remote Render smoke: PASSED (6/6), FAILED, or SKIPPED when `SMOKE_ENV=skip`.
+   * Delivery reports must use PASSED only after a real remote run.
+   */
+  smokeGate: SmokeGateStatus;
   totalDuration: number;
   reportPath: string;
   antigravityPromptPath: string;
@@ -58,8 +63,8 @@ export interface TestRunRecord {
   testsPassed: boolean;
   testCount: string;
   lintClean: boolean;
-  /** Stage 4: Render API smoke (`npm run smoke:render`). */
-  smokePassed: boolean;
+  /** Remote smoke outcome, or SKIPPED when `SMOKE_ENV=skip`. */
+  smokeGate: SmokeGateStatus;
   prismaGenerateOk: boolean;
   tscOk: boolean;
   testOutput: string;

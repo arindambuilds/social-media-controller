@@ -1,6 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { PerplexityQuestion, PipelineConfig, PipelineResult, StageResult } from "./types/pipeline";
+import type {
+  PerplexityQuestion,
+  PipelineConfig,
+  PipelineResult,
+  SmokeGateStatus,
+  StageResult
+} from "./types/pipeline";
 import { readState, writeState } from "./lib/state";
 import type { QuadraState } from "./types/pipeline";
 import { loadPipelineConfig } from "./lib/config";
@@ -10,6 +16,15 @@ import { runPromptBuilder } from "./stages/promptBuilder";
 import { runTestRunner } from "./stages/testRunner";
 import { runReportGenerator } from "./stages/reportGenerator";
 import { openInVsCode } from "./lib/openInEditor";
+
+function smokeGateFromTestJson(tj: unknown): SmokeGateStatus {
+  const o = tj as { smokeGate?: string; smokePassed?: boolean };
+  if (o.smokeGate === "PASSED" || o.smokeGate === "FAILED" || o.smokeGate === "SKIPPED") {
+    return o.smokeGate;
+  }
+  if (o.smokePassed === true) return "PASSED";
+  return "FAILED";
+}
 
 async function runStage(
   name: string,
@@ -77,18 +92,18 @@ export async function runFullPipeline(goal: string): Promise<PipelineResult> {
   let testCount = "?/?";
   let testsPassed = false;
   let lintClean = false;
-  let smokePassed = false;
+  let smokeGate: SmokeGateStatus = "FAILED";
   try {
-    const tj = JSON.parse(await fs.readFile(tests.output, "utf8")) as {
+    const raw = await fs.readFile(tests.output, "utf8");
+    const tj = JSON.parse(raw) as {
       testCount: string;
       testsPassed: boolean;
       lintClean: boolean;
-      smokePassed?: boolean;
     };
     testCount = tj.testCount;
     testsPassed = tj.testsPassed;
     lintClean = tj.lintClean;
-    smokePassed = tj.smokePassed === true;
+    smokeGate = smokeGateFromTestJson(tj);
   } catch {
     /* keep defaults */
   }
@@ -100,8 +115,13 @@ export async function runFullPipeline(goal: string): Promise<PipelineResult> {
   if (!testsPassed || !lintClean) {
     nextActions.push("Fix failing tests or lint, then run: npm run quadra:test");
   }
-  if (!smokePassed) {
+  if (smokeGate === "FAILED") {
     nextActions.push("SMOKE_GATE: FAILED — fix `npm run smoke:render` before marking the cycle successful.");
+  }
+  if (smokeGate === "SKIPPED") {
+    nextActions.push(
+      "Smoke was skipped (SMOKE_ENV=skip). Run `npm run smoke:render` (6/6) before any formal delivery report."
+    );
   }
   if (!perplexity.success) {
     nextActions.push("Review Perplexity errors; re-run cycle with PERPLEXITY_API_KEY if missing.");
@@ -116,7 +136,7 @@ export async function runFullPipeline(goal: string): Promise<PipelineResult> {
     testsPassed,
     testCount,
     lintClean,
-    smokePassed,
+    smokeGate,
     totalDuration: Date.now() - startTime,
     reportPath: path.join(config.outputDir, `cycle-${cycleNumber}-report.md`),
     antigravityPromptPath: prompt.output,
@@ -164,7 +184,7 @@ NEXT ACTION:
    npm run quadra:verify
 `);
 
-  if (!smokePassed) {
+  if (smokeGate === "FAILED") {
     console.log("\nCycle complete — SMOKE FAILED. Review needed.\n");
   }
 
@@ -199,23 +219,23 @@ export async function runReportOnly(): Promise<void> {
   let testsPassed = true;
   let testCount = "?/?";
   let lintClean = true;
-  let smokePassed = false;
+  let smokeGate: SmokeGateStatus = "FAILED";
   const testsPath = path.join(config.outputDir, `cycle-${cycle}-tests.json`);
   try {
-    const tj = JSON.parse(await fs.readFile(testsPath, "utf8")) as {
+    const raw = await fs.readFile(testsPath, "utf8");
+    const tj = JSON.parse(raw) as {
       testCount: string;
       testsPassed: boolean;
       lintClean: boolean;
-      smokePassed?: boolean;
     };
     testCount = tj.testCount;
     testsPassed = tj.testsPassed;
     lintClean = tj.lintClean;
-    smokePassed = tj.smokePassed === true;
+    smokeGate = smokeGateFromTestJson(tj);
   } catch {
     testsPassed = false;
     lintClean = false;
-    smokePassed = false;
+    smokeGate = "FAILED";
   }
 
   const stages: StageResult[] = [
@@ -229,7 +249,7 @@ export async function runReportOnly(): Promise<void> {
   ];
 
   const status: PipelineResult["status"] =
-    testsPassed && lintClean && smokePassed ? "SUCCESS" : "NEEDS_REVIEW";
+    testsPassed && lintClean && smokeGate === "PASSED" ? "SUCCESS" : "NEEDS_REVIEW";
 
   const result: PipelineResult = {
     cycleNumber: cycle,
@@ -238,7 +258,7 @@ export async function runReportOnly(): Promise<void> {
     testsPassed,
     testCount,
     lintClean,
-    smokePassed,
+    smokeGate,
     totalDuration: 0,
     reportPath: path.join(config.outputDir, `cycle-${cycle}-report.md`),
     antigravityPromptPath: path.join(config.outputDir, `cycle-${cycle}-prompt.md`),
