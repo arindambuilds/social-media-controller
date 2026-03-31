@@ -4,7 +4,7 @@ import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
 import type { WhatsAppBriefingJob } from "../queues/whatsappBriefingQueue";
-import { runMorningBriefingDispatchTick } from "../jobs/morningBriefing";
+import { runMorningBriefingDispatchTick } from "../jobs/scheduleMorningBriefing";
 import { jobLogMarkActive, jobLogMarkCompleted, jobLogMarkFailed } from "../services/jobLogService";
 import { toBullMqProcessorError } from "../lib/bullmqRetry";
 

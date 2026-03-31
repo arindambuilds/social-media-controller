@@ -8,7 +8,7 @@ export type CaptionResult = {
   suggestedTime: Date;
 };
 
-const DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
+const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
 function extractJson(text: string): string {
   const t = text.trim();

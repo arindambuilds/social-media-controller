@@ -33,6 +33,37 @@ export function isSmtpConfigured(): boolean {
 /**
  * Sends a WhatsApp text via Twilio. Returns false on misconfiguration or failure — never throws.
  */
+/**
+ * Twilio send for BullMQ worker path: 429+ errors propagate (retries); HTTP 400 is logged and swallowed.
+ */
+export async function sendWhatsAppStrict(to: string, message: string): Promise<void> {
+  if (!twilioConfigured()) {
+    throw new Error("Twilio WhatsApp is not configured");
+  }
+  const sid = process.env.TWILIO_ACCOUNT_SID!.trim();
+  const token = process.env.TWILIO_AUTH_TOKEN!.trim();
+  const from = process.env.TWILIO_WHATSAPP_FROM!.trim();
+  const client = twilio(sid, token);
+  const toAddr = normalizeWhatsAppAddress(to);
+  const fromAddr = normalizeWhatsAppAddress(from);
+  try {
+    await client.messages.create({
+      from: fromAddr,
+      to: toAddr,
+      body: message
+    });
+    console.log("[WhatsApp] sent successfully to", toAddr);
+  } catch (err: unknown) {
+    const status = typeof err === "object" && err !== null && "status" in err ? Number((err as { status?: number }).status) : undefined;
+    const code = typeof err === "object" && err !== null && "code" in err ? Number((err as { code?: number }).code) : undefined;
+    if (status === 400 || code === 21211) {
+      console.log("[WhatsApp] 400 suppressed (invalid request):", err instanceof Error ? err.message : String(err));
+      return;
+    }
+    throw err;
+  }
+}
+
 export async function sendWhatsApp(to: string, message: string): Promise<boolean> {
   try {
     if (!twilioConfigured()) {

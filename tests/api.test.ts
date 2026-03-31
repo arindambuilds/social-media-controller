@@ -182,6 +182,11 @@ run("API MVP smoke", () => {
     expect(res.status).toBe(401);
   });
 
+  it("POST /api/reports returns 401 without token", async () => {
+    const res = await request(app).post("/api/reports").send({ clientId: "demo-client", reportType: "analytics" });
+    expect(res.status).toBe(401);
+  });
+
   it("POST /api/reports/:clientId/export/pdf analytics returns PDF and chart-marked html", async () => {
     const login = await request(app).post("/api/auth/login").send({
       email: "demo@demo.com",

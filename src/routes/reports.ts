@@ -1,8 +1,9 @@
+import type { Request, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
-import { resolveTenant } from "../middleware/resolveTenant";
+import { resolveTenant, resolveTenantFromBody } from "../middleware/resolveTenant";
 import { reportPdfExportLimiter } from "../middleware/rateLimiter";
 import { tenantRateLimit } from "../middleware/tenantRateLimit";
 import { writeAuditLog } from "../services/auditLogService";
@@ -19,17 +20,13 @@ reportsRouter.use(tenantRateLimit);
 
 const FREE_MONTHLY_EXPORT_LIMIT = 5;
 
-reportsRouter.post("/:clientId/export/pdf", reportPdfExportLimiter, resolveTenant, async (req, res) => {
+async function exportClientPdf(
+  req: Request,
+  res: Response,
+  clientId: string,
+  reportType: "briefing" | "analytics"
+): Promise<void> {
   try {
-    const { clientId } = z.object({ clientId: z.string().min(1) }).parse(req.params);
-    const body = z
-      .object({
-        reportType: z.enum(["briefing", "analytics"]).optional()
-      })
-      .strict()
-      .parse((req.body as unknown) ?? {});
-    const reportType = body.reportType ?? "briefing";
-
     const userId = req.auth?.userId;
     if (!userId) {
       res.status(401).json({ error: "Please log in again." });
@@ -134,4 +131,35 @@ reportsRouter.post("/:clientId/export/pdf", reportPdfExportLimiter, resolveTenan
       : 500;
     res.status(status).json({ error: message });
   }
+}
+
+/** POST /api/reports — same PDF export as `/:clientId/export/pdf`, clientId in JSON body. */
+reportsRouter.post(
+  "/",
+  reportPdfExportLimiter,
+  resolveTenantFromBody("clientId"),
+  async (req, res) => {
+    const raw = (req.body ?? {}) as Record<string, unknown>;
+    const clientId = typeof raw.clientId === "string" ? raw.clientId : "";
+    const body = z
+      .object({
+        reportType: z.enum(["briefing", "analytics"]).optional()
+      })
+      .strict()
+      .parse((req.body as unknown) ?? {});
+    const reportType = body.reportType ?? "briefing";
+    await exportClientPdf(req, res, clientId, reportType);
+  }
+);
+
+reportsRouter.post("/:clientId/export/pdf", reportPdfExportLimiter, resolveTenant, async (req, res) => {
+  const { clientId } = z.object({ clientId: z.string().min(1) }).parse(req.params);
+  const body = z
+    .object({
+      reportType: z.enum(["briefing", "analytics"]).optional()
+    })
+    .strict()
+    .parse((req.body as unknown) ?? {});
+  const reportType = body.reportType ?? "briefing";
+  await exportClientPdf(req, res, clientId, reportType);
 });

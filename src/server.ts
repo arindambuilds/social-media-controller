@@ -10,11 +10,13 @@ import { startRedisStreamMaintenance } from "./jobs/redisStreamMaintenance";
 import { briefingQueue, isBriefingNineAmDispatchMode } from "./queues/briefingQueue";
 import { pdfQueue } from "./queues/pdfQueue";
 import { whatsappBriefingQueue } from "./queues/whatsappBriefingQueue";
+import { whatsappSendQueue } from "./queues/whatsappSendQueue";
 import { PdfService } from "./services/pdfService";
 import { startBriefingWorker } from "./workers/briefingWorker";
 import { initMaintenanceJobs, startMaintenanceWorker } from "./workers/maintenanceWorker";
 import { startPdfWorker } from "./workers/pdfWorker";
 import { startWhatsAppBriefingWorker } from "./workers/whatsappBriefingWorker";
+import { gracefulShutdownWhatsAppWorker, startWhatsAppSendWorker } from "./workers/whatsappWorker";
 
 /**
  * Default: embed PDF worker when Redis is on (single-dyno friendly).
@@ -47,6 +49,7 @@ let workerBriefing: Worker | null = null;
 let workerPdf: Worker | null = null;
 let workerMaintenance: Worker | null = null;
 let workerWhatsAppBriefing: Worker | null = null;
+let workerWhatsAppSend: Worker | null = null;
 
 if (process.env.NODE_ENV === "production" && redisConnection) {
   if (pdfQueue && process.env.START_PDF_WORKER_IN_API === "false") {
@@ -62,6 +65,7 @@ if (process.env.NODE_ENV === "production" && redisConnection) {
   if (isBriefingNineAmDispatchMode()) {
     workerWhatsAppBriefing = startWhatsAppBriefingWorker();
   }
+  workerWhatsAppSend = startWhatsAppSendWorker();
   void initMaintenanceJobs();
   startPdfQueueMaintenance();
   startRedisStreamMaintenance();
@@ -72,6 +76,11 @@ function registerQueueShutdownHooks(): void {
   if (workerPdf) registerShutdownHook(() => workerPdf!.close());
   if (workerBriefing) registerShutdownHook(() => workerBriefing!.close());
   if (workerWhatsAppBriefing) registerShutdownHook(() => workerWhatsAppBriefing!.close());
+  if (workerWhatsAppSend) {
+    registerShutdownHook(async () => {
+      await gracefulShutdownWhatsAppWorker(workerWhatsAppSend!);
+    });
+  }
   if (workerMaintenance) registerShutdownHook(() => workerMaintenance!.close());
   const pq = pdfQueue;
   if (pq) registerShutdownHook(() => pq.close());
@@ -79,6 +88,8 @@ function registerQueueShutdownHooks(): void {
   if (bq) registerShutdownHook(() => bq.close());
   const wbq = whatsappBriefingQueue;
   if (wbq) registerShutdownHook(() => wbq.close());
+  const wsq = whatsappSendQueue;
+  if (wsq) registerShutdownHook(() => wsq.close());
   registerShutdownHook(() => PdfService.closeSharedBrowser());
 }
 

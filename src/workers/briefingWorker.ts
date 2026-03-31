@@ -5,7 +5,8 @@ import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
 import type { BriefingJob } from "../queues/briefingQueue";
 import { toBullMqProcessorError } from "../lib/bullmqRetry";
-import { runBriefingNow, runMorningBriefingDispatchTick } from "../jobs/morningBriefing";
+import { runBriefingNow } from "../jobs/morningBriefing";
+import { runMorningBriefingDispatchTick } from "../jobs/scheduleMorningBriefing";
 import { jobLogMarkActive, jobLogMarkCompleted, jobLogMarkFailed } from "../services/jobLogService";
 import { logSystemEvent } from "../services/systemEventService";
 

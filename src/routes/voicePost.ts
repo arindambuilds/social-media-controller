@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { ErrorRequestHandler, Request } from "express";
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
@@ -14,12 +14,13 @@ import { transcribeAudio } from "../services/transcribe";
 
 export const voicePostRouter = Router();
 
-/** OpenAI Whisper: stay under ~25MB; smaller uploads improve p95 and avoid throttling. */
-const MAX_VOICE_BYTES = 22 * 1024 * 1024;
+/** Transport cap (Multer) — Whisper hard ceiling; app layer enforces 15 MB for transcribe. */
+const MAX_MULTIPART_BYTES = 25 * 1024 * 1024;
+const MAX_APP_TRANSCRIBE_BYTES = 15 * 1024 * 1024;
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_VOICE_BYTES }
+  limits: { fileSize: MAX_MULTIPART_BYTES }
 });
 
 voicePostRouter.use(authenticate);
@@ -85,6 +86,13 @@ voicePostRouter.post("/transcribe", upload.single("audio"), async (req, res) => 
     return;
   }
 
+  if (file.size > MAX_APP_TRANSCRIBE_BYTES) {
+    res.status(413).json({
+      error: "File too large. Maximum is 15 MB. Chunked upload coming in a future cycle."
+    });
+    return;
+  }
+
   const bodyClientId =
     typeof req.body?.clientId === "string" && req.body.clientId.trim() ? req.body.clientId.trim() : undefined;
   const resolved = resolveClientId(req, bodyClientId);
@@ -97,12 +105,39 @@ voicePostRouter.post("/transcribe", upload.single("audio"), async (req, res) => 
     return;
   }
 
+  const client = await prisma.client.findUnique({
+    where: { id: resolved.clientId },
+    select: { name: true }
+  });
+  const businessName = client?.name ?? "Your business";
+
   try {
     const transcript = await transcribeAudio(file.buffer, file.mimetype || "audio/webm");
-    res.json({ transcript });
+    try {
+      const intent = await parseVoiceIntent(transcript);
+      const result = await generateCaption(intent, businessName);
+      res.json({
+        transcript,
+        captions: {
+          caption: result.caption,
+          hashtags: result.hashtags,
+          imagePrompt: result.imagePrompt,
+          suggestedTime: result.suggestedTime.toISOString()
+        }
+      });
+    } catch {
+      res.status(503).json({ error: "Caption generation unavailable." });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Transcription failed";
-    res.status(503).json({ error: message });
+    const status =
+      typeof err === "object" &&
+      err !== null &&
+      "status" in err &&
+      Number((err as { status?: number }).status) === 429
+        ? 503
+        : 503;
+    res.status(status).json({ error: message });
   }
 });
 
@@ -217,3 +252,13 @@ voicePostRouter.post("/save", async (req, res) => {
 
   res.status(201).json({ success: true, post: row });
 });
+
+const multerTooLargeHandler: ErrorRequestHandler = (err, _req, res, next) => {
+  if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+    res.status(413).json({ error: "File too large. Maximum upload is 25 MB." });
+    return;
+  }
+  next(err);
+};
+
+voicePostRouter.use(multerTooLargeHandler);
