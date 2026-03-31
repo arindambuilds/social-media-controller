@@ -1,6 +1,6 @@
-# QuadraPilot — system truth table (Cycle 5 baseline)
+# QuadraPilot — system truth table (Cycle 6 baseline)
 
-Verified state entering Cycle 5. Re-run the commands in the left column before claiming a cycle complete.
+Re-run the **Verify** column before claiming a cycle complete.
 
 | Metric | Baseline | Verify |
 |--------|----------|--------|
@@ -9,30 +9,54 @@ Verified state entering Cycle 5. Re-run the commands in the left column before c
 | TSC errors | **0** | `npx tsc --noEmit` |
 | Lint errors | **0** | `npm run lint` |
 | Smoke (delivery) | **6/6** | `npm run smoke:render` |
-| **smokeGate** | `PASSED` \| `FAILED` \| `SKIPPED` | See `quadrapilot/README.md` — delivery reports require **PASSED** (live Render). |
+| **smokeGate** | `PASSED` \| `FAILED` \| `SKIPPED` | Formal delivery ⇒ **PASSED** (live Render), never **SKIPPED**. |
 | Locked PDF queue files | **0 diff** | `git diff HEAD -- src/lib/pdfQueueObservability.ts src/lib/pdfQueueMetricsFlush.ts` |
+| **Live E2E sign-off (C1)** | **PENDING** | Operator: phone + Render logs — see below. |
 
-## History: Cycle 4 floor (48/48, 9 files)
+**Job payload (frozen — do not change):** queue **`whatsapp-send`**, name **`send-brief`**, data **`{ phoneE164, briefingText, dateStr }`**.
 
-See archived note: pre-`briefingDispatch` snapshot was **45** tests / **8** files; **`tests/briefingDispatch.test.ts`** +3 → **48**. **`tests/api.test.ts`** and **`tests/whatsapp.test.ts`** explained the old “46 vs 48” confusion (documented Cycle 4).
+**Floor:** **51** tests. New tests only increase the count.
 
-**Cycle 5 rule:** Floor is **51/51** until the next intentional test addition. Do not delete passing tests to “fix” counts.
+---
 
-## Cycle 5 — live end-to-end briefing (operator checklist)
+## Blocker C1 — live WhatsApp E2E (blocks F1–F3 until PASS)
 
-Formal delivery requires a **live** run (not `SMOKE_ENV=skip`). Fill in after you run it on infrastructure you control:
+This step is **not executable from CI or Cursor**: you must use **Render logs + your phone**. Follow **`quadrapilot/README.md`** (First live briefing) and Cycle 6 protocol steps 1–8.
 
-| Field | Value (operator) |
-|-------|------------------|
-| Date (UTC) | _YYYY-MM-DD_ |
-| `DEBUG_BRIEFING` | Should be `1` for first run logs. |
-| `BRIEFING_E2E_TEST_DELAY_MS` / `BRIEFING_E2E_TEST_CLIENT_ID` | Optional one-shot; or cron / BullMQ tick. |
-| Twilio message SID | `SM` + 32 hex (from logs when `DEBUG_BRIEFING=1`) |
-| Phone physically received WhatsApp? | YES / NO |
+| Field | Operator fills after run |
+|-------|---------------------------|
+| Live E2E sign-off date | _YYYY-MM-DD_ |
+| Test `clientId` used | e.g. `demo-client` |
+| `[scheduler] Loaded` seen at boot? | YES / NO |
+| `[scheduler] Tick fired at:` (E2E or cron) | _ISO timestamp_ |
+| `[briefing] Claude response length:` | _N > 0_ |
+| `[briefing] Job enqueued…` | YES / NO |
+| `[whatsapp] Job picked up. To:` | _E.164_ |
+| Twilio SID | `SM` + 32 hex **or** exact Twilio **error code** |
+| Phone received WhatsApp? | **YES** / NO (if NO: paste **Twilio Messaging log status** — constraint 19) |
+| E2E env vars removed + clean redeploy? | YES / NO |
 
-**Job payload (actual code contract):** BullMQ job name `send-brief`, queue `whatsapp-send`, data fields **`phoneE164`**, **`briefingText`**, **`dateStr`** (not `to` / `body` — those names are conceptual only).
+**Status:** **PENDING** until **YES** on phone + SID + cleanup. **F1, F2, F3 are deferred** until C1 = PASS (constraint 18).
 
-## Per-file test inventory (Cycle 5)
+---
+
+## Feature work after C1 (Cycle 6 protocol — do not start until C1 PASS)
+
+| ID | Task | Status |
+|----|------|--------|
+| **F1** | Audit `DEBUG_BRIEFING` guards; test: no `[briefing]` / `[whatsapp]` logs when unset during executor | **DEFERRED** (blocked by C1) |
+| **F2** | Production cron + TZ log + test for IST intent | **DEFERRED** — operator must set intended send time (constraint 21) |
+| **F3** | Answer Q1–Q3 (client list, briefing flag, Year-1 scale) in this file | **DEFERRED** until C1 PASS |
+
+---
+
+## History
+
+- **Cycle 5:** Instrumentation + tests → **51/51**, **10** files; live phone **not** verified in-repo.
+- **Cycle 4:** **48/48**, **9** files; count correction vs mistaken “46”.
+- **Job contract** codified Cycle 5 (`phoneE164` / `briefingText`, not `to` / `body`).
+
+## Per-file test inventory (Cycle 5–6 until F1)
 
 | File | Tests (approx.) |
 |------|-----------------|
@@ -47,4 +71,4 @@ Formal delivery requires a **live** run (not `SMOKE_ENV=skip`). Fill in after yo
 | `tests/transcribe.test.ts` | 4 |
 | `tests/whatsapp.test.ts` | 5 |
 
-Re-count with: `rg '^\s*it\(' tests -g '*.test.ts'`.
+Re-count: `rg '^\s*it\(' tests -g '*.test.ts'`.

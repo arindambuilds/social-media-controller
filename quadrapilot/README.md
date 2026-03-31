@@ -25,11 +25,13 @@ Cycle completion notification is **console-only** by design. Real VS Code toast 
 
 See `TRUTH_TABLE.md` for the authoritative test and smoke baseline.
 
-## First live briefing (Cycle 5)
+## First live briefing — **Cycle 6 blocker C1** (operator only)
 
-1. Set **`DEBUG_BRIEFING=1`** on the API + worker processes.
-2. Ensure the test **`Client`** row has **`whatsappNumber`** = your **own** E.164 number (Twilio sandbox rules apply).
-3. Optional one-shot: **`BRIEFING_E2E_TEST_DELAY_MS=120000`** and **`BRIEFING_E2E_TEST_CLIENT_ID=<your-client-id>`** (fires `runBriefingNow` once after delay). Remove after verification.
-4. With Redis off in production, optional **`BRIEFING_CRON_EXPRESSION`** overrides the hourly node-cron pattern for a controlled window (do not leave aggressive crons in prod).
-5. Confirm logs: **`[scheduler] Tick fired at:`**, **`[briefing] Claude response length:`**, **`[briefing] Job enqueued…`**, **`[whatsapp] Job picked up`**, **`[whatsapp] Twilio SID:`**.
-6. Record SID and physical receipt in **`TRUTH_TABLE.md`** (Cycle 5 table).
+Nothing in Cursor replaces this: **watch Render logs and confirm WhatsApp on your phone**. After boot you should see **`[scheduler] Loaded`** once per API process (confirms `scheduleMorningBriefing` module loaded).
+
+1. Set **`DEBUG_BRIEFING=1`** on **API + worker**; same **`REDIS_URL`** on both.
+2. **`Client`** row: **`whatsappNumber`** = **your** E.164 (sandbox: recipient must text `join <keyword>` to the sandbox number first).
+3. One-shot: **`BRIEFING_E2E_TEST_DELAY_MS=120000`**, **`BRIEFING_E2E_TEST_CLIENT_ID=demo-client`** (or your test id). **Remove both after success** + redeploy.
+4. Optional **`BRIEFING_CRON_EXPRESSION`** only when debugging node-cron path (Redis off); do not leave aggressive crons in prod.
+5. Log sequence to verify: **`[scheduler] Loaded`** → **`[scheduler] Tick fired at:`** → **`[briefing] Starting…`** → **`[briefing] Claude response length:`** → **`[briefing] Job enqueued…`** → **`[whatsapp] Job picked up…`** → **`[whatsapp] Twilio SID:`**. If Twilio returns an **error**, paste the **exact code** (e.g. 63016, 21211) — check Twilio console **before** changing code.
+6. Fill **`TRUTH_TABLE.md`** C1 table (date, SID, phone YES, env cleaned up). **F1–F3 stay deferred until C1 = PASS.**
