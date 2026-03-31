@@ -4,6 +4,11 @@ import { logSystemEvent } from "../services/systemEventService";
 import { briefingQueue, enqueueBriefingJob } from "../queues/briefingQueue";
 import { runBriefingNow } from "./morningBriefing";
 
+/** Confirms dispatch module loaded on the API process (Cycle 6 C1 — if missing, import path / boot is wrong). */
+if (process.env.NODE_ENV === "production") {
+  console.log("[scheduler] Loaded");
+}
+
 function currentHourIst(): number {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
