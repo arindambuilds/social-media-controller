@@ -1,22 +1,43 @@
 /**
  * API smoke test. Requires: API + DB seeded. Logs in with primary operator demo@demo.com / Demo1234!.
  *
+ * Single source of truth (team, CI, docs): **7 checks**, fixed order below.
+ * Canonical line: "Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts)."
+ *
  * Usage:
  *   npm run smoke:local
  *   npm run smoke:render
+ *   npm run smoke:render -- --base https://your-api.example.com   # overrides baked-in --url
  *   npx tsx scripts/smoke-demo.ts --url https://your-api.example.com
+ *   SMOKE_BASE_URL=https://... npx tsx scripts/smoke-demo.ts
+ *
+ * Always pass the **API** origin (e.g. Render `https://…onrender.com`), not the Vercel dashboard URL.
  */
 
 import { parseArgs } from "node:util";
 
+/** Keep identical to quadrapilot/README.md, TRUTH_TABLE.md, and docs/cycle3-antigravity-tech-status.md */
+const SMOKE_CONTRACT_LINE =
+  "Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).";
+
 const { values } = parseArgs({
   args: process.argv.slice(2),
-  options: { url: { type: "string", default: "http://localhost:4000" } },
+  options: {
+    /** API origin only (alias of --url); wins over --url when both are passed (e.g. after npm run smoke:render --). */
+    base: { type: "string" },
+    url: { type: "string" }
+  },
   strict: false
 });
 
+function resolveBaseUrl(): string {
+  const fromFlag = (values.base ?? values.url)?.trim();
+  const fromEnv = (process.env.SMOKE_BASE_URL ?? process.env.SMOKE_URL)?.trim();
+  return (fromFlag || fromEnv || "http://localhost:4000").replace(/\/$/, "");
+}
+
 async function main() {
-  const BASE = (values.url ?? "http://localhost:4000").replace(/\/$/, "");
+  const BASE = resolveBaseUrl();
   const results: { name: string; passed: boolean; duration: number; error?: string }[] = [];
 
   async function check(name: string, fn: () => Promise<void>) {
@@ -39,18 +60,33 @@ async function main() {
   });
 
   await check("Login", async () => {
-    const r = await fetch(`${BASE}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "demo@demo.com", password: "Demo1234!" })
-    });
-    const d = (await r.json().catch(() => ({}))) as {
-      accessToken?: string;
-      user?: { clientId?: string | null };
-    };
-    if (!r.ok || !d.accessToken) throw new Error("No accessToken in response");
-    token = d.accessToken;
-    clientId = d.user?.clientId ?? "";
+    const body = JSON.stringify({ email: "demo@demo.com", password: "Demo1234!" });
+    let lastErr = "No accessToken in response";
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const r = await fetch(`${BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body
+      });
+      const d = (await r.json().catch(() => ({}))) as {
+        accessToken?: string;
+        user?: { clientId?: string | null };
+      };
+      if (r.status === 429) {
+        lastErr = "login rate limited (429) — wait or retry from another network";
+        const waitMs = Math.min(30_000, 2000 * 2 ** attempt);
+        await new Promise((res) => setTimeout(res, waitMs));
+        continue;
+      }
+      if (r.ok && d.accessToken) {
+        token = d.accessToken;
+        clientId = d.user?.clientId ?? "";
+        return;
+      }
+      lastErr = !r.ok ? `HTTP ${r.status}` : "No accessToken in response";
+      break;
+    }
+    throw new Error(lastErr);
   });
 
   await check("Analytics", async () => {
@@ -77,17 +113,35 @@ async function main() {
     const r = await fetch(`${BASE}/api/leads?clientId=${encodeURIComponent(clientId)}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    const d = (await r.json().catch(() => ({}))) as Record<string, unknown>;
-    const leads = Array.isArray(d.leads)
-      ? d.leads
-      : Array.isArray(d.data)
-        ? d.data
-        : d.data && typeof d.data === "object" && Array.isArray((d.data as { leads?: unknown }).leads)
-          ? (d.data as { leads: unknown[] }).leads
-          : Array.isArray(d.items)
-            ? d.items
-            : null;
-    if (!r.ok || leads === null) throw new Error("leads is not an array");
+    const d = (await r.json().catch(() => ({}))) as Record<string, unknown> & {
+      pagination?: { total?: unknown };
+    };
+    if (!r.ok || !Array.isArray(d.leads)) throw new Error("response.leads is not an array");
+    const total =
+      typeof d.total === "number"
+        ? d.total
+        : typeof d.pagination?.total === "number"
+          ? d.pagination.total
+          : undefined;
+    if (total === undefined || !Number.isFinite(total)) {
+      throw new Error("response.total is not a number (need top-level total or pagination.total)");
+    }
+  });
+
+  await check("Gov preview", async () => {
+    const paths = [`${BASE}/api/pulse/gov-preview`, `${BASE}/api/gov-preview`];
+    let lastStatus = 0;
+    for (const url of paths) {
+      const r = await fetch(url);
+      lastStatus = r.status;
+      const d = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!r.ok) continue;
+      if (typeof d.msmes !== "number") throw new Error("missing msmes");
+      if (typeof d.leadsThisWeek !== "number") throw new Error("missing leadsThisWeek");
+      if (typeof d.odiaPercent !== "number") throw new Error("missing odiaPercent");
+      return;
+    }
+    throw new Error(`gov-preview status ${lastStatus} (tried /api/pulse/gov-preview and /api/gov-preview)`);
   });
 
   await check("Posts", async () => {
@@ -114,8 +168,17 @@ async function main() {
   }
   console.log("└─────────────────────┴────────┴──────────┘");
   const passed = results.filter((r) => r.passed).length;
-  console.log(`\nOverall: ${passed}/${results.length} passed`);
-  process.exit(passed === results.length ? 0 : 1);
+  const total = results.length;
+  console.log(`\nOverall: ${passed}/${total} passed`);
+  if (total !== 7) {
+    console.warn(`[smoke] Expected exactly 7 checks; found ${total}. Update SMOKE_CONTRACT_LINE and docs if intentional.`);
+  }
+  if (passed === total && total === 7) {
+    console.log(`✓ ${SMOKE_CONTRACT_LINE}`);
+  } else {
+    console.log(`Gate not met. When green: ${SMOKE_CONTRACT_LINE}`);
+  }
+  process.exit(passed === total ? 0 : 1);
 }
 
 main().catch((err) => {

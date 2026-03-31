@@ -1,6 +1,12 @@
 # Instagram Growth Copilot (MVP)
 
-**Status:** **MVP release candidate** — frozen scope; prioritize demos, pilots, and smoke verification over new features.
+**Status:** **Production-ready (March 2026)** — live API on Render, gov-facing dashboard on Vercel (`/gov-preview`). Odia-first morning briefings use **`morningBriefing`** in `src/lib/claudeClient.ts` when **`Client.language`** is **`or`** (or alias **`odia`**). BullMQ **9:00 Asia/Kolkata** dispatch uses **`upsertJobScheduler`** id **`whatsapp-briefing-9am-ist`** when **`BRIEFING_DISPATCH_MODE=nine_am_ist`**.
+
+**Live:** API **`https://social-media-controller.onrender.com`** · Dashboard gov preview **`https://pulseos.vercel.app/gov-preview`** (set `NEXT_PUBLIC_API_URL` to the Render origin).
+
+**Smoke test (single source of truth):** 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts). `npm run smoke-demo` / `npm run smoke:render` / `npm run smoke:render -- --base https://<api-host>` / `SMOKE_BASE_URL`.
+
+**CI:** `npm run lint` + **`npm test`** → **68/68** Vitest tests (includes Odia **`morningBriefing`** contract tests in `tests/briefing.test.ts`).
 
 **What it is:** An **Instagram-first AI copilot** for **local businesses and creators in India** — connect Instagram, see clear performance signals, and get AI-backed insights and content help. Built for **demos, pilots, and early revenue**, not as an all-platform social suite.
 
@@ -96,6 +102,16 @@ npm run dashboard:dev
 | [docs/demo-script.md](docs/demo-script.md) | 8-step live demo story (local business) |
 | [docs/incubation-readiness.md](docs/incubation-readiness.md) | Metrics, language, pilot evidence (no hype) |
 | [docs/launch-checklist.md](docs/launch-checklist.md) | Pre-demo env + smoke + manual pass |
+| [docs/cycle3-antigravity-tech-status.md](docs/cycle3-antigravity-tech-status.md) | **Cycle 3 / Antigravity** — Slack/Notion copy: **7/7** Render smoke, **9:00 Asia/Kolkata** cron (`0 9 * * *`, `tz: "Asia/Kolkata"`), **Task 15** Gov preview, migrate wording (Supabase vs laptop) |
+| [docs/production-parity-runbook.md](docs/production-parity-runbook.md) | **Render + DB parity** — gov-preview curl, `migrate deploy`, parity log line |
+| [docs/vercel-gov-preview-wiring.md](docs/vercel-gov-preview-wiring.md) | **Vercel → Render** — `NEXT_PUBLIC_API_URL`, `/gov-preview`, ISR **3600s** |
+| [docs/briefing-9am-ist-rehearsal.md](docs/briefing-9am-ist-rehearsal.md) | **9:00 IST briefings** — `upsertJobScheduler`, deck line, rehearsal |
+| [docs/gov-demo.md](docs/gov-demo.md) | **Gov / Startup Odisha** — live URLs, `/gov-preview`, production status |
+| [docs/PRODUCTION-READY-DELIVERABLES.md](docs/PRODUCTION-READY-DELIVERABLES.md) | **31 Mar 2026** deliverables pack (demo script, pilot blurb, QuadraPilot) |
+| [docs/stripe-pioneer-plan.md](docs/stripe-pioneer-plan.md) | **Stripe Pioneer ₹600/mo** — `STRIPE_PRICE_PIONEER600_INR`, `src/config/stripe.ts`, checkout |
+| [docs/odia-demo-sanity-check.md](docs/odia-demo-sanity-check.md) | **Odia-first** — prompts, WhatsApp rehearsal, proof assets |
+| [docs/final-demo-hardening.md](docs/final-demo-hardening.md) | **Last 24h** — E2E, freeze list, narratives for gov vs angels |
+| [docs/smoke-harness-runbook.md](docs/smoke-harness-runbook.md) | **Smoke 7/7** — local vs Render URLs, triage, CI, Slack one-liner |
 | [docs/completion-report.md](docs/completion-report.md) | Endpoints, workers, founder Done / next (repo-aligned) |
 | [docs/implementation-roadmap.md](docs/implementation-roadmap.md) | Longer-term phases |
 | [docs/mvp-status-one-pager.md](docs/mvp-status-one-pager.md) | Status, investor/pilot outline, Phases 2–3 + GTM |
@@ -135,7 +151,8 @@ See `docs/completion-report.md` for a fuller route table.
 | `npm run prisma:seed` | Seed demo data |
 | `npm run prisma:deploy` | Run production migrations using `DIRECT_URL` |
 | `npm run dashboard:build` | Production build of dashboard |
-| `npm run smoke:demo` | Hit health, login, me, analytics, insights, leads (API must be up) |
+| `npm run smoke-demo` / `npm run smoke:demo` | Configurable URL smoke (`scripts/smoke-demo.ts`) |
+| `npm run smoke:render` | **7/7** vs default Render URL; `-- --base <url>` or `SMOKE_BASE_URL` for another API |
 | `npm run pdf:mvp-one-pager` | Build `docs/mvp-status-one-pager.pdf` from the Markdown (uses Microsoft Edge) |
 | `npm test` | Vitest API smoke (needs `DATABASE_URL`; `REDIS_URL` optional — OAuth state falls back to memory) |
 | `npm run verify` | `lint` + `test` + `dashboard:build` (release gate before deploy; same steps as [CI](.github/workflows/ci.yml)) |

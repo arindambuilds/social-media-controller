@@ -1,8 +1,14 @@
+/**
+ * Pioneer ₹600/mo: resolve Price id from **`STRIPE_PRICE_PIONEER600_INR`** or **`NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID`**.
+ * Parity with API `getPioneerSubscriptionPriceId()` in repo root **`src/config/stripe.ts`** (same env var on Render).
+ */
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 
 type Body = {
   priceId?: string;
+  /** When `pioneer`, server resolves price from env (same id as API Pioneer helper / dashboard public var). */
+  planId?: string;
   source?: string;
   feature?: string;
 };
@@ -49,11 +55,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const body = (req.body ?? {}) as Body;
-  const priceId = body.priceId?.trim();
+  const planIdRaw = body.planId?.trim();
+  const pioneerFromServer = process.env.STRIPE_PRICE_PIONEER600_INR?.trim();
+  const pioneerPublic = process.env.NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID?.trim();
+  const resolvedPioneer = pioneerFromServer || pioneerPublic;
+  let priceId = body.priceId?.trim();
+  if (planIdRaw === "pioneer") {
+    if (!resolvedPioneer) {
+      res.status(503).json({
+        error:
+          "Pioneer price not configured. Set STRIPE_PRICE_PIONEER600_INR or NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID to your Stripe Price id."
+      });
+      return;
+    }
+    priceId = resolvedPioneer;
+  }
   const source = body.source?.trim() || null;
   const feature = body.feature?.trim() || null;
   if (!priceId) {
-    res.status(400).json({ error: "Missing priceId" });
+    res.status(400).json({ error: "Missing priceId (or use planId: \"pioneer\" with pioneer env set)" });
     return;
   }
 
@@ -67,6 +87,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const successUrl = `${process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3000"}/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3000"}/billing?canceled=true`;
 
+    const planIdMeta = planIdRaw ?? "";
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
@@ -77,7 +99,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         source: source ?? "",
         feature: feature ?? "",
         userId: user.id,
-        priceId
+        priceId,
+        planId: planIdMeta
+      },
+      subscription_data: {
+        metadata: {
+          userId: user.id,
+          priceId,
+          planId: planIdMeta,
+          source: source ?? "",
+          feature: feature ?? ""
+        }
       }
     });
 

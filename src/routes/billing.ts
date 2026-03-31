@@ -2,6 +2,7 @@ import { Router } from "express";
 import Stripe from "stripe";
 import { z } from "zod";
 import { env } from "../config/env";
+import { getPioneerSubscriptionPriceId } from "../config/stripe";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { requireAgency } from "../middleware/requireAgency";
@@ -15,8 +16,6 @@ billingRouter.use(authenticate);
 const stripe = env.STRIPE_SECRET_KEY
   ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-03-25.dahlia" })
   : null;
-
-type UpgradablePlan = "starter" | "growth" | "agency";
 
 function assertStripeEnabled(): Stripe | null {
   if (!stripe) return null;
@@ -33,10 +32,31 @@ billingRouter.post("/checkout", requireAgency, async (req, res) => {
   try {
     const parsed = z
       .object({
-        priceId: z.string().min(1),
-        planId: z.enum(["starter", "growth", "agency"])
+        planId: z.enum(["starter", "growth", "agency", "pioneer"]),
+        /** Ignored for `pioneer` — server uses `STRIPE_PRICE_PIONEER600_INR`. */
+        priceId: z.string().optional()
       })
       .parse(req.body ?? {});
+
+    const pioneerPrice = getPioneerSubscriptionPriceId();
+    let resolvedPriceId: string;
+    if (parsed.planId === "pioneer") {
+      if (!pioneerPrice) {
+        res.status(503).json({
+          error: "Pioneer plan is not configured. Set STRIPE_PRICE_PIONEER600_INR to your Stripe Price id (INR 600/mo)."
+        });
+        return;
+      }
+      resolvedPriceId = pioneerPrice;
+    } else {
+      const pid = parsed.priceId?.trim();
+      if (!pid) {
+        res.status(400).json({ error: "priceId is required for this plan." });
+        return;
+      }
+      resolvedPriceId = pid;
+    }
+
     const stripeClient = assertStripeEnabled();
     if (!stripeClient) {
       res.status(503).json({ error: "Stripe is not configured." });
@@ -76,12 +96,12 @@ billingRouter.post("/checkout", requireAgency, async (req, res) => {
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
-      line_items: [{ price: parsed.priceId, quantity: 1 }],
+      line_items: [{ price: resolvedPriceId, quantity: 1 }],
       success_url: `${env.DASHBOARD_URL}/billing?success=1`,
       cancel_url: `${env.DASHBOARD_URL}/billing?cancelled=1`,
       metadata: { agencyUserId: agencyUser.id, planId: parsed.planId },
       subscription_data: {
-        metadata: { agencyUserId: agencyUser.id, planId: parsed.planId as UpgradablePlan }
+        metadata: { agencyUserId: agencyUser.id, planId: parsed.planId }
       }
     });
 

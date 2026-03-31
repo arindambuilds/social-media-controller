@@ -11,6 +11,14 @@ import {
   briefingTipSentence,
   fullBriefingToEmailHtml
 } from "../services/briefingDelivery";
+import {
+  computeStreakAfterBriefing,
+  formatStreakLine,
+  maybeWeeklyRetentionLine,
+  onPulseBriefingSent
+} from "../services/pulseRetention";
+import { mapUserPlanToPulseTier } from "../services/pulsePlanResolver";
+import { elitePerformanceAlertLine, getPulseUpgradeAppendix } from "../services/pulseUpgradeNudges";
 import { sendBriefingEmailHtml, sendWhatsApp } from "../services/whatsappSender";
 import { publishPulseEvent } from "../lib/pulseEvents";
 import { whatsappSendQueue } from "../queues/whatsappSendQueue";
@@ -31,19 +39,44 @@ export async function runBriefingNow(clientId: string): Promise<string> {
   }
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    include: { owner: { select: { email: true } } }
+    select: {
+      language: true,
+      whatsappNumber: true,
+      briefingStreakLastDateIst: true,
+      briefingStreakCurrent: true,
+      owner: { select: { email: true, plan: true } }
+    }
   });
   if (!client) {
     throw new Error("Client not found");
   }
 
-  const data = await getBriefingData(clientId);
-  const { content: text, claudeSucceeded } = await generateBriefing(data);
+  const tier = mapUserPlanToPulseTier(client.owner.plan);
+  const expandedMetrics = tier !== "free";
+  const data = await getBriefingData(clientId, { expandedMetrics });
+  const { content: text, claudeSucceeded } = await generateBriefing(data, {
+    tier,
+    clientLanguage: client.language
+  });
   if (isDebugBriefing()) {
     console.log("[briefing] Claude response length:", text.length);
   }
   const tip = briefingTipSentence(text, claudeSucceeded);
-  const waBody = buildWhatsAppBriefingBody(data, tip);
+  const upgradeLines = await getPulseUpgradeAppendix(clientId, tier, data);
+  const weeklyLine = await maybeWeeklyRetentionLine(clientId, tier, data);
+  const streakAfter = computeStreakAfterBriefing(
+    client.briefingStreakLastDateIst,
+    client.briefingStreakCurrent
+  );
+  const streakLine =
+    tier === "elite" || tier === "standard" ? formatStreakLine(streakAfter) : null;
+  const eliteAlertLine = tier === "elite" ? elitePerformanceAlertLine(data) : null;
+  const waBody = buildWhatsAppBriefingBody(data, tip, tier, {
+    upgradeLines,
+    streakLine,
+    weeklyLine,
+    eliteAlertLine
+  });
   const sentAt = new Date();
 
   let whatsappDelivered: boolean | null = null;
@@ -57,7 +90,7 @@ export async function runBriefingNow(clientId: string): Promise<string> {
         { phoneE164: wa, briefingText: waBody, dateStr },
         {
           jobId: `wa-brief:${clientId}:${dateStr}`,
-          attempts: 5,
+          attempts: 3,
           backoff: { type: "exponential", delay: 1000 }
         }
       );
@@ -101,7 +134,9 @@ export async function runBriefingNow(clientId: string): Promise<string> {
     likesYesterday: data.likesYesterday,
     commentsYesterday: data.commentsYesterday,
     totalFollowers: data.totalFollowers,
-    businessName: data.businessName
+    businessName: data.businessName,
+    newLeads: data.newLeads,
+    pulseTier: tier
   };
 
   const created = await prisma.briefing.create({
@@ -113,9 +148,12 @@ export async function runBriefingNow(clientId: string): Promise<string> {
       emailDelivered,
       tipText: tip,
       metricsJson: metricsPayload as object,
-      status: "COMPLETE"
+      status: "COMPLETE",
+      pulseTierSnapshot: tier
     }
   });
+
+  await onPulseBriefingSent(clientId);
 
   await publishPulseEvent(clientId, "briefing.complete", {
     briefingId: created.id,

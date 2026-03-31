@@ -44,6 +44,8 @@ import { instagramRouter } from "./routes/instagram";
 import { leadsRouter } from "./routes/leads";
 import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { postsRouter } from "./routes/posts";
+import { pulseGovPreviewRouter } from "./routes/govPreview";
+import { pulseRouter } from "./routes/pulse";
 import { reportsRouter } from "./routes/reports";
 import { socialAccountsRouter } from "./routes/socialAccounts";
 import { voicePostRouter } from "./routes/voicePost";
@@ -106,6 +108,8 @@ function buildApiRouter(): express.Router {
   api.use("/audit-logs", auditLogsRouter);
   api.use("/social-accounts", socialAccountsRouter);
   api.use("/webhooks", webhookRouter);
+  /** Public gov metrics: `GET /api/gov-preview` (alias of `/api/pulse/gov-preview` for older clients). */
+  api.use(pulseGovPreviewRouter);
   return api;
 }
 
@@ -411,6 +415,8 @@ export function createApp() {
   app.use("/api/ai/insights", aiInsightsRouter);
   app.use("/api/insights", insightsRouter);
   app.use("/api/briefing", briefingRouter);
+  app.use("/api/pulse", pulseGovPreviewRouter);
+  app.use("/api/pulse", pulseRouter);
   app.use("/api/voice", voicePostRouter);
   app.use("/api/admin", adminSystemRouter);
 
