@@ -124,3 +124,14 @@ export const registerAuthLimiter = rateLimit({
     });
   }
 });
+
+/** High-throughput webhook endpoint (Meta retries on non-200). */
+export const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res, _next, options) => {
+    sendLimit(res, options.windowMs, { error: "Too many webhook requests" });
+  }
+});

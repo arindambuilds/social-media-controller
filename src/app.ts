@@ -27,7 +27,7 @@ import {
 } from "./queues/pdfQueue";
 import { authenticate } from "./middleware/authenticate";
 import { errorHandler } from "./middleware/errorHandler";
-import { globalApiLimiter } from "./middleware/rateLimiter";
+import { globalApiLimiter, webhookLimiter } from "./middleware/rateLimiter";
 import { aiRouter } from "./routes/ai";
 import { aiInsightsRouter } from "./routes/aiInsights";
 import { analyticsRouter } from "./routes/analytics";
@@ -51,6 +51,7 @@ import { socialAccountsRouter } from "./routes/socialAccounts";
 import { voicePostRouter } from "./routes/voicePost";
 import { instagramWebhookRouter } from "./routes/webhook";
 import { webhookRouter } from "./routes/webhooks";
+import { waWebhookRouter } from "./whatsapp/webhook.router";
 import { adminSystemRouter } from "./routes/adminSystem";
 import { briefingPublicRouter } from "./routes/briefingPublic";
 import { attachSseRoute } from "./routes/sse";
@@ -109,7 +110,6 @@ function buildApiRouter(): express.Router {
   api.use("/social-accounts", socialAccountsRouter);
   api.use("/webhooks", webhookRouter);
   /** Public gov metrics: `GET /api/gov-preview` (alias of `/api/pulse/gov-preview` for older clients). */
-  api.use(pulseGovPreviewRouter);
   return api;
 }
 
@@ -151,6 +151,12 @@ export function createApp() {
     "/api/webhook/instagram",
     express.raw({ type: "application/json", limit: "1mb" }),
     instagramWebhookRouter
+  );
+  app.use(
+    "/whatsapp/webhook",
+    express.raw({ type: "*/*", limit: "5mb" }),
+    webhookLimiter,
+    waWebhookRouter
   );
   app.use("/api/billing", billingWebhookRouter);
   app.use(
