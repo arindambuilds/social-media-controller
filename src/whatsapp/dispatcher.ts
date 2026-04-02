@@ -56,8 +56,11 @@ async function claimWhatsAppMessageDelivery(redis: Redis, messageId: string): Pr
   }
 }
 
+/** BullMQ custom jobId must not contain `:`. Session ids use `wa:sess:…` — use `-` separators and strip colons from parts. */
 function jobIdFor(message: PulseNormalisedWhatsAppMessage): string {
-  const raw = `wa:${message.messageId}:${message.sessionId}`;
+  const mid = message.messageId.replace(/:/g, "-");
+  const sid = message.sessionId.replace(/:/g, "-");
+  const raw = `wa-${mid}-${sid}`;
   return raw.length <= 128 ? raw : raw.slice(0, 128);
 }
 
