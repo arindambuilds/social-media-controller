@@ -69,6 +69,8 @@ leadsRouter.get("/", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res
   res.json({
     success: true,
     leads,
+    /** Total rows matching filters (all pages); smoke tests expect this top-level key. */
+    total,
     pagination: {
       page,
       limit,

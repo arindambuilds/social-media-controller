@@ -51,6 +51,7 @@ import { socialAccountsRouter } from "./routes/socialAccounts";
 import { voicePostRouter } from "./routes/voicePost";
 import { instagramWebhookRouter } from "./routes/webhook";
 import { webhookRouter } from "./routes/webhooks";
+import { waWebhookRouter } from "./whatsapp/webhook.router";
 import { adminSystemRouter } from "./routes/adminSystem";
 import { briefingPublicRouter } from "./routes/briefingPublic";
 import { attachSseRoute } from "./routes/sse";
@@ -109,7 +110,7 @@ function buildApiRouter(): express.Router {
   api.use("/social-accounts", socialAccountsRouter);
   api.use("/webhooks", webhookRouter);
   /** Public gov metrics: `GET /api/gov-preview` (alias of `/api/pulse/gov-preview` for older clients). */
-  api.use(pulseGovPreviewRouter);
+
   return api;
 }
 
@@ -151,6 +152,11 @@ export function createApp() {
     "/api/webhook/instagram",
     express.raw({ type: "application/json", limit: "1mb" }),
     instagramWebhookRouter
+  );
+  app.use(
+    "/whatsapp/webhook",
+    express.raw({ type: "*/*", limit: "5mb" }),
+    waWebhookRouter
   );
   app.use("/api/billing", billingWebhookRouter);
   app.use(
@@ -213,6 +219,9 @@ export function createApp() {
       payload.status = snapshot.status;
       payload.timestamp = snapshot.timestamp;
       payload.components = snapshot.components;
+      payload.whatsapp_ingress = snapshot.whatsapp_ingress;
+      payload.whatsapp_outbound = snapshot.whatsapp_outbound;
+      payload.redis = snapshot.redis;
       res.status(200).json(payload);
     } catch (err) {
       logger.warn("/api/health failed", {
@@ -414,6 +423,7 @@ export function createApp() {
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/ai/insights", aiInsightsRouter);
   app.use("/api/insights", insightsRouter);
+  app.use("/api/whatsapp/webhook", express.raw({ type: "*/*", limit: "5mb" }), waWebhookRouter);
   app.use("/api/briefing", briefingRouter);
   app.use("/api/pulse", pulseGovPreviewRouter);
   app.use("/api/pulse", pulseRouter);

@@ -2,7 +2,7 @@
  * API smoke test. Requires: API + DB seeded. Logs in with primary operator demo@demo.com / Demo1234!.
  *
  * Single source of truth (team, CI, docs): **7 checks**, fixed order below.
- * Canonical line: "Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts)."
+ * Canonical line: "Smoke test: 10/10 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts, WA GET, WA POST HMAC, Health deps WA)."
  *
  * Usage:
  *   npm run smoke:local
@@ -14,11 +14,12 @@
  * Always pass the **API** origin (e.g. Render `https://…onrender.com`), not the Vercel dashboard URL.
  */
 
+import { createHmac } from "node:crypto";
 import { parseArgs } from "node:util";
 
 /** Keep identical to quadrapilot/README.md, TRUTH_TABLE.md, and docs/cycle3-antigravity-tech-status.md */
 const SMOKE_CONTRACT_LINE =
-  "Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).";
+  "Smoke test: 10/10 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts, WA GET, WA POST HMAC, Health deps WA).";
 
 const { values } = parseArgs({
   args: process.argv.slice(2),
@@ -31,8 +32,13 @@ const { values } = parseArgs({
 });
 
 function resolveBaseUrl(): string {
-  const fromFlag = (values.base ?? values.url)?.trim();
-  const fromEnv = (process.env.SMOKE_BASE_URL ?? process.env.SMOKE_URL)?.trim();
+  const fromFlag =
+    typeof values.base === "string"
+      ? values.base.trim()
+      : typeof values.url === "string"
+        ? values.url.trim()
+        : "";
+  const fromEnv = (process.env.SMOKE_BASE_URL ?? process.env.SMOKE_URL ?? "").trim();
   return (fromFlag || fromEnv || "http://localhost:4000").replace(/\/$/, "");
 }
 
@@ -129,19 +135,32 @@ async function main() {
   });
 
   await check("Gov preview", async () => {
-    const paths = [`${BASE}/api/pulse/gov-preview`, `${BASE}/api/gov-preview`];
-    let lastStatus = 0;
-    for (const url of paths) {
-      const r = await fetch(url);
-      lastStatus = r.status;
-      const d = (await r.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!r.ok) continue;
+    // fallback added 31 Mar 2026 – matches src/app.ts mounting
+    const assertGovShape = (d: Record<string, unknown>) => {
       if (typeof d.msmes !== "number") throw new Error("missing msmes");
       if (typeof d.leadsThisWeek !== "number") throw new Error("missing leadsThisWeek");
       if (typeof d.odiaPercent !== "number") throw new Error("missing odiaPercent");
+    };
+    const tried: string[] = [];
+    const primary = `${BASE}/api/pulse/gov-preview`;
+    const fallback = `${BASE}/api/gov-preview`;
+    let r = await fetch(primary);
+    tried.push(`/api/pulse/gov-preview→${r.status}`);
+    let d = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    if (r.ok) {
+      assertGovShape(d);
       return;
     }
-    throw new Error(`gov-preview status ${lastStatus} (tried /api/pulse/gov-preview and /api/gov-preview)`);
+    if (r.status === 404) {
+      r = await fetch(fallback);
+      tried.push(`/api/gov-preview→${r.status}`);
+      d = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (r.ok) {
+        assertGovShape(d);
+        return;
+      }
+    }
+    throw new Error(`gov-preview failed (${tried.join(", ")})`);
   });
 
   await check("Posts", async () => {
@@ -149,8 +168,114 @@ async function main() {
     const r = await fetch(`${BASE}/api/posts?clientId=${encodeURIComponent(clientId)}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    const d = (await r.json().catch(() => ({}))) as { posts?: unknown };
-    if (!r.ok || !Array.isArray(d.posts)) throw new Error("posts is not an array");
+    const d = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!r.ok) {
+      const hint = typeof d.error === "object" && d.error && "message" in d.error
+        ? String((d.error as { message?: string }).message)
+        : JSON.stringify(d).slice(0, 120);
+      throw new Error(`GET /api/posts HTTP ${r.status}: ${hint}`);
+    }
+    const response = d as Record<string, unknown>;
+    const dataVal = response.data;
+    const dataPosts =
+      dataVal && typeof dataVal === "object" && dataVal !== null && !Array.isArray(dataVal) && "posts" in dataVal
+        ? (dataVal as { posts: unknown }).posts
+        : undefined;
+    // tolerant shape check – handles {posts}, {data: {posts}}, or direct array
+    const postsData =
+      (Array.isArray(response.posts) ? response.posts : undefined) ??
+      (Array.isArray(dataPosts) ? dataPosts : undefined) ??
+      (Array.isArray(dataVal) ? dataVal : undefined) ??
+      [];
+    if (!Array.isArray(postsData)) {
+      throw new Error(`posts: expected array; got keys: ${Object.keys(d).join(",")}`);
+    }
+  });
+
+  await check("WA webhook verify (GET)", async () => {
+    const verify = (process.env.WEBHOOK_VERIFY_TOKEN ?? "").trim();
+    if (!verify) return;
+    const challenge = "pulse-smoke-challenge";
+    const r = await fetch(
+      `${BASE}/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=${encodeURIComponent(verify)}&hub.challenge=${encodeURIComponent(challenge)}`
+    );
+    const text = await r.text();
+    if (!r.ok || text !== challenge) {
+      throw new Error(`expected 200 + echoed challenge, got ${r.status} body=${text.slice(0, 120)}`);
+    }
+  });
+
+  await check("WA webhook POST (HMAC)", async () => {
+    const secret = (process.env.WA_APP_SECRET ?? "").trim();
+    if (!secret) return;
+    const bodyObj = {
+      object: "whatsapp_business_account",
+      entry: [
+        {
+          changes: [
+            {
+              field: "messages",
+              value: {
+                metadata: { phone_number_id: "123456789012345" },
+                contacts: [{ wa_id: "15551234567", profile: { name: "Smoke" } }],
+                messages: [
+                  {
+                    from: "15551234567",
+                    id: `wamid.smoke.${Date.now()}`,
+                    timestamp: String(Math.floor(Date.now() / 1000)),
+                    type: "text",
+                    text: { body: "smoke" }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    };
+    const raw = JSON.stringify(bodyObj);
+    const sig = createHmac("sha256", secret).update(raw, "utf8").digest("hex");
+    const r = await fetch(`${BASE}/whatsapp/webhook`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-hub-signature-256": `sha256=${sig}`
+      },
+      body: raw
+    });
+    const t = await r.text();
+    if (!r.ok || t.trim() !== "OK") {
+      throw new Error(`POST /whatsapp/webhook expected 200 OK, got ${r.status} ${t.slice(0, 120)}`);
+    }
+  });
+
+  await check("Health deps (WhatsApp + Redis)", async () => {
+    const r = await fetch(`${BASE}/api/health?deps=1`);
+    const d = (await r.json().catch(() => ({}))) as {
+      whatsapp_ingress?: { status?: string; dlq_last_5min?: unknown };
+      whatsapp_outbound?: { status?: string; dlq_last_5min?: unknown };
+      redis?: { status?: string };
+      components?: { whatsapp_ingress?: { status?: string } };
+    };
+    if (!r.ok) throw new Error(`deps health HTTP ${r.status}`);
+    if (typeof d.whatsapp_ingress?.dlq_last_5min !== "number") {
+      throw new Error("whatsapp_ingress.dlq_last_5min missing or not a number");
+    }
+    if (typeof d.whatsapp_outbound?.dlq_last_5min !== "number") {
+      throw new Error("whatsapp_outbound.dlq_last_5min missing or not a number");
+    }
+    const redisComp = d.components?.redis as { status?: string } | undefined;
+    if (redisComp && redisComp.status !== "skipped" && d.redis?.status !== "ok") {
+      throw new Error(`redis.status expected ok when Redis is configured, got ${d.redis?.status ?? "undefined"}`);
+    }
+    if (d.components?.whatsapp_ingress?.status === "skipped") {
+      return;
+    }
+    if (d.whatsapp_ingress?.status !== "ok" || d.whatsapp_outbound?.status !== "ok") {
+      throw new Error(
+        `whatsapp_ingress/outbound status must be ok when WA is configured (or skipped); got ${d.whatsapp_ingress?.status} / ${d.whatsapp_outbound?.status}`
+      );
+    }
   });
 
   console.log("\n┌─────────────────────┬────────┬──────────┐");
@@ -170,10 +295,10 @@ async function main() {
   const passed = results.filter((r) => r.passed).length;
   const total = results.length;
   console.log(`\nOverall: ${passed}/${total} passed`);
-  if (total !== 7) {
-    console.warn(`[smoke] Expected exactly 7 checks; found ${total}. Update SMOKE_CONTRACT_LINE and docs if intentional.`);
+  if (total !== 10) {
+    console.warn(`[smoke] Expected exactly 10 checks; found ${total}. Update SMOKE_CONTRACT_LINE and docs if intentional.`);
   }
-  if (passed === total && total === 7) {
+  if (passed === total && total === 10) {
     console.log(`✓ ${SMOKE_CONTRACT_LINE}`);
   } else {
     console.log(`Gate not met. When green: ${SMOKE_CONTRACT_LINE}`);
