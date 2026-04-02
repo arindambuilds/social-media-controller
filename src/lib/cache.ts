@@ -29,13 +29,3 @@ export async function cacheSet(key: string, value: unknown, ttlSec = DEFAULT_TTL
     /* Redis optional for MVP — analytics still works without cache */
   }
 }
-
-export async function cacheDelByPrefix(prefix: string): Promise<void> {
-  if (!redisConnection) return;
-  const stream = redisConnection.scanStream({ match: `${prefix}*`, count: 100 });
-  const keys: string[] = [];
-  for await (const batch of stream) {
-    keys.push(...batch);
-  }
-  if (keys.length) await redisConnection.del(...keys);
-}

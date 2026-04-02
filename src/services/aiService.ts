@@ -9,19 +9,6 @@ export type CaptionCard = {
   hashtags: string[];
 };
 
-export async function generateContentPerformanceInsight(clientId: string) {
-  // Legacy endpoint kept for compatibility. Use /api/ai/insights/* instead.
-  const deterministic = "Use /api/ai/insights/content-performance/:clientId for the new insights pipeline.";
-  return prisma.aiInsight.create({
-    data: {
-      clientId,
-      platform: "INSTAGRAM",
-      summary: deterministic,
-      recommendations: []
-    }
-  });
-}
-
 function parseCaptionBlob(raw: string, index: number): CaptionCard {
   const hashtags = (raw.match(/#[\w\u00c0-\u024f]+/g) ?? []).slice(0, 12);
   const lines = raw.split(/\n/).map((l) => l.trim()).filter(Boolean);
