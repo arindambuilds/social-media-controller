@@ -1,9 +1,15 @@
 import path from "path";
+import fs from "fs";
 import { config as loadEnv } from "dotenv";
 import { defineConfig } from "prisma/config";
 
-// Prisma skips auto-loading .env when prisma.config.ts exists — load root .env explicitly.
-loadEnv({ path: path.resolve(process.cwd(), ".env") });
+// Prisma skips auto-loading env when prisma.config.ts exists — load the correct file explicitly.
+// For test runs we want `.env.test`, otherwise migrations target the wrong datasource.
+const envFile =
+  process.env.NODE_ENV === "test" && fs.existsSync(path.resolve(process.cwd(), ".env.test"))
+    ? ".env.test"
+    : ".env";
+loadEnv({ path: path.resolve(process.cwd(), envFile), override: true });
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) {

@@ -1,8 +1,13 @@
 import { defineConfig } from "vitest/config";
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
-/** Ensure createApp() env validation passes when .env is absent (CI); DATABASE_URL still required for DB-backed tests. */
-const JWT_PLACEHOLDER = "vitest-jwt-secret-must-be-at-least-32-chars";
-const REFRESH_PLACEHOLDER = "vitest-refresh-secret-min-32-characters-x";
+// Vitest doesn't auto-load `.env.test`; load it so test DB gating can enable DB-backed suites.
+const envTestPath = path.resolve(process.cwd(), ".env.test");
+if (fs.existsSync(envTestPath)) {
+  dotenv.config({ path: envTestPath, override: false });
+}
 
 export default defineConfig({
   test: {
@@ -10,9 +15,11 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     testTimeout: 30_000,
     env: {
-      JWT_SECRET: process.env.JWT_SECRET ?? JWT_PLACEHOLDER,
-      JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ?? REFRESH_PLACEHOLDER,
-      NODE_ENV: process.env.NODE_ENV ?? "test"
+      NODE_ENV: process.env.NODE_ENV ?? "test",
+      DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://test:test@localhost:5432/test",
+      JWT_SECRET: process.env.JWT_SECRET ?? "vitest-jwt-secret-must-be-at-least-32-chars",
+      JWT_REFRESH_SECRET:
+        process.env.JWT_REFRESH_SECRET ?? "vitest-refresh-secret-min-32-characters-x"
     }
   }
 });
