@@ -71,6 +71,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
 
 import { runBriefingNow } from "../src/jobs/morningBriefing";
 import { executeWhatsAppSendJob } from "../src/services/whatsappSendExecutor";
+import { logger } from "../src/lib/logger";
 
 describe("briefing dispatch chain", () => {
   beforeEach(() => {
@@ -140,7 +141,7 @@ describe("briefing dispatch chain", () => {
 
   it("runBriefingNow logs [briefing] Starting when DEBUG_BRIEFING=1", async () => {
     vi.stubEnv("DEBUG_BRIEFING", "1");
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(logger, "info").mockImplementation(() => logger);
     hoisted.findUnique.mockResolvedValue({
       id: "dispatch-test-client",
       whatsappNumber: "+919876543210",
@@ -150,7 +151,7 @@ describe("briefing dispatch chain", () => {
       owner: { email: null, plan: "free" }
     });
     await runBriefingNow("dispatch-test-client");
-    expect(logSpy).toHaveBeenCalledWith("[briefing] Starting for clientId:", "dispatch-test-client");
+    expect(logSpy).toHaveBeenCalledWith("[briefing] Starting", { clientId: "dispatch-test-client" });
     logSpy.mockRestore();
     vi.unstubAllEnvs();
   });

@@ -15,6 +15,7 @@ vi.mock("twilio", () => ({
 }));
 
 import { sendWhatsAppStrict } from "../src/services/whatsappSender";
+import { logger } from "../src/lib/logger";
 
 describe("WhatsApp briefing send (executor)", () => {
   it("happy-path: Twilio called once when Redis lock acquired", async () => {
@@ -64,9 +65,9 @@ describe("sendWhatsAppStrict (Twilio 400 swallowed)", () => {
     process.env.TWILIO_AUTH_TOKEN = "token";
     process.env.TWILIO_WHATSAPP_FROM = "whatsapp:+14155238886";
     vi.stubEnv("DEBUG_BRIEFING", "1");
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logSpy = vi.spyOn(logger, "info").mockImplementation(() => logger);
     await sendWhatsAppStrict("+919876543210", "body");
-    expect(logSpy).toHaveBeenCalledWith("[whatsapp] Twilio SID:", sid);
+    expect(logSpy).toHaveBeenCalledWith("[WhatsApp] Twilio SID", { sid });
     logSpy.mockRestore();
     vi.unstubAllEnvs();
   });
