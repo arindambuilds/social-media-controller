@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import twilio from "twilio";
 import { isDebugBriefing } from "../lib/debugBriefing";
+import { logger } from "../lib/logger";
 
 function normalizeWhatsAppAddress(raw: string): string {
   const t = raw.trim();
@@ -54,16 +55,18 @@ export async function sendWhatsAppStrict(to: string, message: string): Promise<s
       to: toAddr,
       body: message
     });
-    console.log("[WhatsApp] sent successfully to", toAddr);
+    logger.info("[WhatsApp] sent successfully", { to: toAddr });
     if (isDebugBriefing()) {
-      console.log("[whatsapp] Twilio SID:", msg.sid);
+      logger.info("[WhatsApp] Twilio SID", { sid: msg.sid });
     }
     return msg.sid;
   } catch (err: unknown) {
     const status = typeof err === "object" && err !== null && "status" in err ? Number((err as { status?: number }).status) : undefined;
     const code = typeof err === "object" && err !== null && "code" in err ? Number((err as { code?: number }).code) : undefined;
     if (status === 400 || code === 21211) {
-      console.log("[WhatsApp] 400 suppressed (invalid request):", err instanceof Error ? err.message : String(err));
+      logger.warn("[WhatsApp] 400 suppressed (invalid request)", {
+        message: err instanceof Error ? err.message : String(err)
+      });
       return undefined;
     }
     throw err;
@@ -73,7 +76,7 @@ export async function sendWhatsAppStrict(to: string, message: string): Promise<s
 export async function sendWhatsApp(to: string, message: string): Promise<boolean> {
   try {
     if (!twilioConfigured()) {
-      console.log("WhatsApp skipped: Twilio not configured");
+      logger.warn("WhatsApp skipped: Twilio not configured");
       return false;
     }
 
@@ -90,10 +93,10 @@ export async function sendWhatsApp(to: string, message: string): Promise<boolean
       to: toAddr,
       body: message
     });
-    console.log("[WhatsApp] sent successfully to", toAddr);
+    logger.info("[WhatsApp] sent successfully", { to: toAddr });
     return true;
   } catch (err) {
-    console.log("[WhatsApp] send failed:", err instanceof Error ? err.message : String(err));
+    logger.warn("[WhatsApp] send failed", { message: err instanceof Error ? err.message : String(err) });
     return false;
   }
 }
@@ -104,7 +107,7 @@ export async function sendWhatsApp(to: string, message: string): Promise<boolean
 export async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
   try {
     if (!smtpConfigured()) {
-      console.log("Email skipped: SMTP not configured");
+      logger.warn("Email skipped: SMTP not configured");
       return false;
     }
 
@@ -128,10 +131,10 @@ export async function sendEmail(to: string, subject: string, body: string): Prom
       subject,
       text: body
     });
-    console.log("[Email] sent successfully to", to);
+    logger.info("[Email] sent successfully", { to });
     return true;
   } catch (err) {
-    console.log("[Email] send failed:", err instanceof Error ? err.message : String(err));
+    logger.warn("[Email] send failed", { message: err instanceof Error ? err.message : String(err), to });
     return false;
   }
 }
@@ -147,7 +150,7 @@ export async function sendBriefingEmailHtml(params: {
 }): Promise<boolean> {
   try {
     if (!smtpConfigured()) {
-      console.log("Email skipped: SMTP not configured");
+      logger.warn("Email skipped: SMTP not configured");
       return false;
     }
 
@@ -172,10 +175,13 @@ export async function sendBriefingEmailHtml(params: {
       text: params.text,
       html: params.html
     });
-    console.log("[Email] sent successfully to", params.to);
+    logger.info("[Email] sent successfully", { to: params.to });
     return true;
   } catch (err) {
-    console.log("[Email] send failed:", err instanceof Error ? err.message : String(err));
+    logger.warn("[Email] send failed", {
+      message: err instanceof Error ? err.message : String(err),
+      to: params.to
+    });
     return false;
   }
 }

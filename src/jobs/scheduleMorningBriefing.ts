@@ -1,12 +1,13 @@
 import { isDebugBriefing } from "../lib/debugBriefing";
 import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
 import { logSystemEvent } from "../services/systemEventService";
 import { briefingQueue, enqueueBriefingJob } from "../queues/briefingQueue";
 import { runBriefingNow } from "./morningBriefing";
 
 /** Confirms dispatch module loaded on the API process (Cycle 6 C1 — if missing, import path / boot is wrong). */
 if (process.env.NODE_ENV === "production") {
-  console.log("[scheduler] Loaded");
+  logger.info("[scheduler] Loaded");
 }
 
 function currentHourIst(): number {
@@ -26,10 +27,10 @@ async function dispatchBriefingForClient(clientId: string): Promise<void> {
     } else {
       await runBriefingNow(clientId);
     }
-    console.log(`[MorningBriefing] queued or completed clientId=${clientId}`);
+    logger.info("[MorningBriefing] queued or completed", { clientId });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.log(`[MorningBriefing] failed clientId=${clientId}`, { message });
+    logger.warn("[MorningBriefing] failed", { clientId, message });
     await logSystemEvent("briefing", "error", message, { clientId });
   }
 }
@@ -62,12 +63,16 @@ export function scheduleBriefingE2EOneShot(): void {
   if (!Number.isFinite(ms) || ms <= 0) return;
   setTimeout(() => {
     void (async () => {
-      console.log("[scheduler] Tick fired at:", new Date().toISOString(), "(BRIEFING_E2E_TEST_DELAY_MS)");
+      logger.info("[scheduler] Tick fired (BRIEFING_E2E_TEST_DELAY_MS)", {
+        at: new Date().toISOString()
+      });
       const { runBriefingNow } = await import("./morningBriefing");
       try {
         await runBriefingNow(clientId);
       } catch (e) {
-        console.error("[BRIEFING_E2E_TEST]", e instanceof Error ? e.message : e);
+        logger.error("[BRIEFING_E2E_TEST] failed", {
+          message: e instanceof Error ? e.message : String(e)
+        });
       }
     })();
   }, ms);
@@ -75,14 +80,14 @@ export function scheduleBriefingE2EOneShot(): void {
 
 export async function runMorningBriefingDispatchTick(): Promise<void> {
   if (isDebugBriefing()) {
-    console.log("[scheduler] Tick fired at:", new Date().toISOString());
+    logger.info("[scheduler] Tick fired", { at: new Date().toISOString() });
   }
   const hour = currentHourIst();
   const clients = await prisma.client.findMany({
     where: { briefingEnabled: true, briefingHourIst: hour },
     select: { id: true }
   });
-  console.log(`[MorningBriefing] dispatch tick IST hour=${hour} — ${clients.length} client(s)`);
+  logger.info("[MorningBriefing] dispatch tick", { istHour: hour, clients: clients.length });
   const tasks = clients.map((c) => () => dispatchBriefingForClient(c.id));
   if (briefingQueue) {
     await Promise.allSettled(tasks.map((t) => t()));

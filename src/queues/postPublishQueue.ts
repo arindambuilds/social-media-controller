@@ -70,7 +70,7 @@ export async function addPostPublishJob(
 ): Promise<void> {
   if (!postPublishQueue) {
     const delay = typeof opts?.delay === "number" ? opts.delay : 0;
-    console.warn(`[post-publish] No Redis — running inline after delay ${delay}ms: ${name}`);
+    logger.warn("[post-publish] No Redis — running inline", { name, delay });
     if (delay > 0) {
       await new Promise((r) => setTimeout(r, delay));
     }

@@ -2,6 +2,7 @@ import { Router, raw } from "express";
 import Stripe from "stripe";
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
 
 export const billingWebhookRouter = Router();
 
@@ -25,7 +26,9 @@ billingWebhookRouter.post("/webhook", raw({ type: "application/json" }), async (
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error("[billing webhook] signature verification failed", err);
+    logger.warn("[billing webhook] signature verification failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(400).json({ error: "Invalid signature" });
     return;
   }
@@ -78,7 +81,9 @@ billingWebhookRouter.post("/webhook", raw({ type: "application/json" }), async (
         break;
     }
   } catch (err) {
-    console.error("[billing webhook] handler error", err);
+    logger.error("[billing webhook] handler error", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(500).json({ error: "Webhook handler failed" });
     return;
   }

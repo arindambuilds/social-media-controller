@@ -1,5 +1,6 @@
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
 import { recordAiGeneration } from "./usageService";
 
 type EngagementStats = {
@@ -93,7 +94,7 @@ export async function generateInsight(clientId: string, platform: string) {
   try {
     await recordAiGeneration(clientId);
   } catch (e) {
-    console.warn("[aiInsight] recordAiGeneration failed (insight row saved)", {
+    logger.warn("[aiInsight] recordAiGeneration failed (insight row saved)", {
       clientId,
       message: e instanceof Error ? e.message : String(e)
     });

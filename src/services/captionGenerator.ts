@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { VoiceIntent } from "./intentParser";
+import { logger } from "../lib/logger";
 
 export type CaptionResult = {
   caption: string;
@@ -108,7 +109,7 @@ Style rules:
       suggestedTime
     };
   } catch (err) {
-    console.warn("[captionGenerator] failed, using fallback", {
+    logger.warn("[captionGenerator] failed, using fallback", {
       message: err instanceof Error ? err.message : String(err)
     });
     return fallbackCaption(intent, businessName);

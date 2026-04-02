@@ -1,5 +1,6 @@
 import Redis from "ioredis";
 import { env } from "../config/env";
+import { logger } from "../lib/logger";
 
 const PROCESSED_TTL_SEC = 24 * 60 * 60;
 const HISTORY_MAX = 10;
@@ -21,7 +22,7 @@ function getRedis(): Redis | null {
   if (!redis) {
     redis = new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: true });
     redis.on("error", (err) => {
-      console.warn("[dmDedup] Redis error:", err instanceof Error ? err.message : String(err));
+      logger.warn("[dmDedup] Redis error", { message: err instanceof Error ? err.message : String(err) });
     });
   }
   return redis;

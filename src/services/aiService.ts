@@ -190,10 +190,6 @@ async function callOpenAI(prompt: string, system: string) {
   return text;
 }
 
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 function extractResponseText(payload: Record<string, unknown>) {
   const direct = payload.output_text;
   if (typeof direct === "string" && direct.trim()) {

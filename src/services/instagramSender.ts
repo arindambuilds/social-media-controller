@@ -1,4 +1,5 @@
 import { env } from "../config/env";
+import { logger } from "../lib/logger";
 
 /**
  * Sends an Instagram DM via the Messenger-compatible Graph API (page access token).
@@ -10,13 +11,13 @@ export async function sendInstagramDm(
   pageAccessToken: string
 ): Promise<boolean> {
   if (env.INSTAGRAM_MOCK_MODE === true) {
-    console.log("[DM Mock] Would send to", recipientIgId, ":", message);
+    logger.info("[DM Mock] Would send", { recipientIgId, message });
     return true;
   }
 
   const token = pageAccessToken?.trim();
   if (!token) {
-    console.log("[instagramSender] skipped: empty page access token");
+    logger.warn("[instagramSender] skipped: empty page access token");
     return false;
   }
 
@@ -36,13 +37,18 @@ export async function sendInstagramDm(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      console.log("[instagramSender] Graph API error", res.status, errText.slice(0, 500));
+      logger.warn("[instagramSender] Graph API error", {
+        status: res.status,
+        body: errText.slice(0, 500)
+      });
       return false;
     }
 
     return true;
   } catch (err) {
-    console.log("[instagramSender] request failed:", err instanceof Error ? err.message : String(err));
+    logger.warn("[instagramSender] request failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     return false;
   }
 }

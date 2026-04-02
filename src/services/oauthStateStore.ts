@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { redisConnection } from "../lib/redis";
+import { logger } from "../lib/logger";
 
 const ttlSeconds = 600;
 
@@ -23,7 +24,7 @@ export async function issueOAuthState(context: Record<string, string>): Promise<
       await redisConnection.set(key, value, "EX", ttlSeconds);
       return state;
     } catch {
-      console.warn("Redis unavailable for OAuth state — using in-memory store (single-instance only).");
+      logger.warn("Redis unavailable for OAuth state — using in-memory store (single-instance only).");
     }
   }
 
@@ -43,7 +44,7 @@ export async function consumeOAuthState(state: string): Promise<Record<string, s
         return JSON.parse(payload) as Record<string, string>;
       }
     } catch {
-      console.warn("Redis get failed for OAuth state — checking memory store.");
+      logger.warn("Redis get failed for OAuth state — checking memory store.");
     }
   }
 

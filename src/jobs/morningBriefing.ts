@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { env } from "../config/env";
 import { generateBriefing } from "../services/briefingAgent";
 import { getBriefingData } from "../services/briefingData";
+import { logger } from "../lib/logger";
 import {
   buildBriefingEmailSubject,
   buildBriefingEmailHtml,
@@ -35,7 +36,7 @@ function istDateString(): string {
  */
 export async function runBriefingNow(clientId: string): Promise<string> {
   if (isDebugBriefing()) {
-    console.log("[briefing] Starting for clientId:", clientId);
+    logger.info("[briefing] Starting", { clientId });
   }
   const client = await prisma.client.findUnique({
     where: { id: clientId },
@@ -59,7 +60,7 @@ export async function runBriefingNow(clientId: string): Promise<string> {
     clientLanguage: client.language
   });
   if (isDebugBriefing()) {
-    console.log("[briefing] Claude response length:", text.length);
+    logger.info("[briefing] Claude response length", { length: text.length, clientId });
   }
   const tip = briefingTipSentence(text, claudeSucceeded);
   const upgradeLines = await getPulseUpgradeAppendix(clientId, tier, data);
@@ -95,7 +96,7 @@ export async function runBriefingNow(clientId: string): Promise<string> {
         }
       );
       if (isDebugBriefing()) {
-        console.log("[briefing] Job enqueued. Queue: whatsapp-send, name: send-brief");
+        logger.info("[briefing] Job enqueued", { queue: "whatsapp-send", name: "send-brief", clientId });
       }
       whatsappDelivered = null;
     } else {
@@ -175,6 +176,6 @@ export function startMorningBriefingJob(): void {
     { timezone: "Asia/Kolkata" }
   );
   if (isDebugBriefing() && expr !== "0 * * * *") {
-    console.log("[scheduler] BRIEFING_CRON_EXPRESSION active:", expr);
+    logger.info("[scheduler] BRIEFING_CRON_EXPRESSION active", { expr });
   }
 }

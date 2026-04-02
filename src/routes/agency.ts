@@ -3,6 +3,7 @@ import fs from "fs";
 import multer from "multer";
 import path from "path";
 import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
 import { authenticate } from "../middleware/authenticate";
 import { requireAgency } from "../middleware/requireAgency";
 
@@ -142,7 +143,9 @@ agencyRouter.get("/usage", async (req, res) => {
     });
   } catch (err) {
     // Keep frontend stable with explicit route-level failure payload.
-    console.error("[GET /api/agency/usage]", err);
+    logger.error("[GET /api/agency/usage] failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(500).json({ error: "Failed to load usage data" });
   }
 });
@@ -165,7 +168,9 @@ agencyRouter.get("/branding", async (req, res) => {
       logoUrl: user?.logoUrl ?? null
     });
   } catch (err) {
-    console.error("[GET /api/agency/branding]", err);
+    logger.error("[GET /api/agency/branding] failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(500).json({ error: "Failed to load branding" });
   }
 });
@@ -193,7 +198,9 @@ agencyRouter.post("/branding", async (req, res) => {
     });
     res.json({ ok: true });
   } catch (err) {
-    console.error("[POST /api/agency/branding]", err);
+    logger.error("[POST /api/agency/branding] failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(500).json({ error: "Failed to save branding" });
   }
 });
@@ -221,7 +228,9 @@ agencyRouter.post("/branding/logo", upload.single("file"), async (req, res) => {
     });
     res.json({ url: logoUrl });
   } catch (err) {
-    console.error("[POST /api/agency/branding/logo]", err);
+    logger.error("[POST /api/agency/branding/logo] failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(500).json({ error: "Logo upload failed" });
   }
 });

@@ -1,13 +1,14 @@
 import Redis from "ioredis";
+import { logger } from "./logger";
 
 function effectiveRedisUrl(): string | undefined {
   const raw = process.env.REDIS_URL?.trim();
   if (!raw) return undefined;
   const lower = raw.toLowerCase();
   if (lower.includes("localhost") || lower.includes("127.0.0.1")) {
-    console.warn(
-      "REDIS_URL points to localhost — treating Redis as unavailable (set a real Redis URL or unset REDIS_URL)"
-    );
+    logger.warn("REDIS_URL points to localhost — treating Redis as unavailable", {
+      reason: "localhost_redis_url"
+    });
     return undefined;
   }
   return raw;
@@ -28,14 +29,14 @@ if (url) {
       keepAlive: 10_000
     });
     redisClient.on("error", (err) => {
-      console.warn("Redis error:", err.message);
+      logger.warn("Redis error", { message: err.message });
     });
   } catch (err) {
-    console.warn("Redis init failed:", err);
+    logger.warn("Redis init failed", { message: err instanceof Error ? err.message : String(err) });
     redisClient = null;
   }
 } else {
-  console.warn("No REDIS_URL - running without Redis");
+  logger.warn("No REDIS_URL - running without Redis", { reason: "missing_redis_url" });
 }
 
 /** @deprecated Prefer `redisConnection` — default export for compatibility. */

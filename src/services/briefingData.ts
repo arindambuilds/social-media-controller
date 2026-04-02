@@ -1,5 +1,6 @@
 import { OutboundPostStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
 
 export type BriefingData = {
   businessName: string;
@@ -240,7 +241,7 @@ export async function getBriefingData(clientId: string, opts?: GetBriefingDataOp
       avgLikesPrior7d
     };
   } catch (err) {
-    console.warn("[briefingData] getBriefingData failed", {
+    logger.warn("[briefingData] getBriefingData failed", {
       clientId,
       message: err instanceof Error ? err.message : String(err)
     });

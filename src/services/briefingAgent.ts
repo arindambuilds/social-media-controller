@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { PulseTier } from "../config/pulseTiers";
 import { BriefingGenerationError, isOdiaBriefingLanguage, morningBriefing } from "../lib/claudeClient";
+import { logger } from "../lib/logger";
 import type { BriefingData } from "./briefingData";
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
@@ -141,14 +142,14 @@ export async function generateBriefing(
 
   if (isOdiaBriefingLanguage(options?.clientLanguage)) {
     if (!apiKey) {
-      console.log("[briefingAgent] ANTHROPIC_API_KEY missing — Odia fallback briefing");
+      logger.warn("[briefingAgent] ANTHROPIC_API_KEY missing — Odia fallback briefing");
       return { content: buildOdiaFallbackBriefing(data, tier), claudeSucceeded: false };
     }
     try {
       const text = await morningBriefing(userPayload, "odia");
       return { content: text, claudeSucceeded: true };
     } catch (err) {
-      console.warn("[briefingAgent] Odia morningBriefing failed", {
+      logger.warn("[briefingAgent] Odia morningBriefing failed", {
         message: err instanceof BriefingGenerationError ? err.message : String(err)
       });
       return { content: buildOdiaFallbackBriefing(data, tier), claudeSucceeded: false };
@@ -156,7 +157,7 @@ export async function generateBriefing(
   }
 
   if (!apiKey) {
-    console.log("[briefingAgent] ANTHROPIC_API_KEY missing — using fallback briefing");
+    logger.warn("[briefingAgent] ANTHROPIC_API_KEY missing — using fallback briefing");
     return { content: buildFallbackBriefing(data, tier), claudeSucceeded: false };
   }
 
@@ -185,7 +186,7 @@ export async function generateBriefing(
     }
     return { content: text, claudeSucceeded: true };
   } catch (err) {
-    console.warn("[briefingAgent] Claude request failed", {
+    logger.warn("[briefingAgent] Claude request failed", {
       message: err instanceof Error ? err.message : String(err)
     });
     return { content: buildFallbackBriefing(data, tier), claudeSucceeded: false };

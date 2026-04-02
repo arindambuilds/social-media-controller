@@ -123,7 +123,7 @@ export async function addTokenRefreshJob(
   opts?: JobsOptions
 ): Promise<void> {
   if (!tokenRefreshQueue) {
-    console.warn(`[token-refresh] No Redis — running inline: ${name}`);
+    logger.warn("[token-refresh] No Redis — running inline", { name });
     await executeTokenRefreshJobSync(data);
     return;
   }

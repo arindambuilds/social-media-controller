@@ -423,17 +423,25 @@ export function createApp() {
   if (env.NODE_ENV === "production") {
     if (briefingQueue) {
       if (isBriefingNineAmDispatchMode()) {
-        console.log(
-          "[PulseOS] Morning briefing: BullMQ whatsapp-briefing @ 09:00 Asia/Kolkata; node-cron disabled"
-        );
+        logger.info("[PulseOS] Morning briefing configured", {
+          mode: "bullmq_whatsapp_briefing",
+          schedule: "09:00 Asia/Kolkata",
+          cron: "disabled"
+        });
       } else {
-        console.log(
-          "[PulseOS] Morning briefing: BullMQ dispatch-hour (hourly :00 Asia/Kolkata); node-cron disabled"
-        );
+        logger.info("[PulseOS] Morning briefing configured", {
+          mode: "bullmq_dispatch_hour",
+          schedule: "hourly :00 Asia/Kolkata",
+          cron: "disabled"
+        });
       }
     } else {
       startMorningBriefingJob();
-      console.log("[PulseOS] Morning briefing: node-cron hourly (Asia/Kolkata), per-client briefingHourIst");
+      logger.info("[PulseOS] Morning briefing configured", {
+        mode: "node_cron_hourly",
+        timezone: "Asia/Kolkata",
+        note: "per-client briefingHourIst"
+      });
     }
 
     if (!redisConnection) {

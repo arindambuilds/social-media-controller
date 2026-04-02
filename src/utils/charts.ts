@@ -63,8 +63,8 @@ export function engagementTrendChart(points: SeriesPoint[], brandColor: string):
         {
           label: "Engagement %",
           data: values,
-          borderColor: "#0ea5e9",
-          backgroundColor: colorWithAlpha("#0ea5e9", "1A"),
+          borderColor: brandColor,
+          backgroundColor: colorWithAlpha(brandColor, "1A"),
           borderWidth: 2,
           fill: true,
           tension: 0.35,

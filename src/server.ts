@@ -23,6 +23,7 @@ import {
 } from "./workers/whatsappOutboundWorker";
 import { gracefulShutdownWhatsAppWorker, startWhatsAppSendWorker } from "./workers/whatsappWorker";
 import { scheduleMorningBriefing } from "./jobs/briefingDispatch";
+import { logger } from "./lib/logger";
 
 /**
  * Default: embed PDF worker when Redis is on (single-dyno friendly).
@@ -47,10 +48,9 @@ if (process.env.NODE_ENV === "production") {
     dbUrl.includes("127.0.0.1") ||
     dbUrl.includes("@0.0.0.0")
   ) {
-    console.error(
-      "FATAL: DATABASE_URL points to localhost in production. " +
-        "Set DATABASE_URL to the Supabase transaction pooler (:6543) and DIRECT_URL to the direct Postgres connection (:5432) in your production environment variables."
-    );
+    logger.error("FATAL: DATABASE_URL points to localhost in production", {
+      event: "fatal_database_url_localhost"
+    });
     process.exit(1);
   }
 }
@@ -67,14 +67,12 @@ let workerWhatsAppOutbound: Worker | null = null;
 
 if (process.env.NODE_ENV === "production" && redisConnection) {
   if (pdfQueue && process.env.START_PDF_WORKER_IN_API === "false") {
-    console.warn(
-      "[pulse] In-process PDF worker disabled — ensure a separate service runs `npm run worker:pdf` or PDF exports will stall."
-    );
+    logger.warn("[pulse] In-process PDF worker disabled", { hint: "run npm run worker:pdf" });
   }
   if (!shouldEmbedWhatsAppOutboundWorkerInApi()) {
-    console.warn(
-      "[pulse] In-process Meta WhatsApp outbound worker disabled — ensure `npm run worker:wa:outbound` runs on a worker service or outbound sends will queue only."
-    );
+    logger.warn("[pulse] In-process Meta WhatsApp outbound worker disabled", {
+      hint: "run npm run worker:wa:outbound"
+    });
   }
   workerBriefing = startBriefingWorker();
   if (shouldEmbedPdfWorkerInApiProcess()) {
@@ -129,9 +127,11 @@ void printStartupSummary(PORT);
 const server = app.listen(PORT, "0.0.0.0", () => {
   const inst =
     process.env.NODE_APP_INSTANCE ?? process.env.pm_id ?? process.env.INSTANCE_ID ?? "0";
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`Instance: ${inst}`);
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
+  logger.info("Server started", {
+    environment: process.env.NODE_ENV,
+    instance: inst,
+    health: `http://localhost:${PORT}/api/health`
+  });
 });
 
 installProcessShutdownHandlers(async () => {
@@ -142,15 +142,15 @@ installProcessShutdownHandlers(async () => {
 });
 
 server.on("error", (err) => {
-  console.error("Server error:", err);
+  logger.error("Server error", { message: err instanceof Error ? err.message : String(err) });
 });
 
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught exception:", err);
+  logger.error("Uncaught exception", { message: err instanceof Error ? err.message : String(err) });
 });
 
 process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled rejection:", reason);
+  logger.error("Unhandled rejection", { reason: String(reason) });
 });
 
 export default app;

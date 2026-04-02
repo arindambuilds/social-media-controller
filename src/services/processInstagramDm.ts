@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { decrypt } from "../lib/encryption";
+import { logger } from "../lib/logger";
 import { sendWhatsApp } from "./whatsappSender";
 import { addToHistory, getConversationHistory, isProcessed, markProcessed } from "./dmDedup";
 import { generateDmReply } from "./dmReplyAgent";
@@ -75,13 +76,13 @@ async function handleMessagingEvent(evt: unknown): Promise<void> {
   });
 
   if (!socialAccount) {
-    console.log("[processInstagramDm] No INSTAGRAM SocialAccount for recipient", recipientId);
+    logger.warn("[processInstagramDm] No INSTAGRAM SocialAccount for recipient", { recipientId });
     return;
   }
 
   const { client } = socialAccount;
   if (!client.dmAutoReplyEnabled) {
-    console.log("[processInstagramDm] dmAutoReplyEnabled=false for client", client.id);
+    logger.info("[processInstagramDm] dmAutoReplyEnabled=false", { clientId: client.id });
     return;
   }
 
@@ -89,7 +90,9 @@ async function handleMessagingEvent(evt: unknown): Promise<void> {
   try {
     pageToken = decrypt(socialAccount.encryptedToken);
   } catch (err) {
-    console.log("[processInstagramDm] token decrypt failed", err instanceof Error ? err.message : String(err));
+    logger.warn("[processInstagramDm] token decrypt failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     return;
   }
 
@@ -144,7 +147,9 @@ async function handleMessagingEvent(evt: unknown): Promise<void> {
         data: { leadCaptured: true, leadId: lead.id }
       });
     } catch (err) {
-      console.log("[processInstagramDm] lead upsert failed", err instanceof Error ? err.message : String(err));
+      logger.warn("[processInstagramDm] lead upsert failed", {
+        message: err instanceof Error ? err.message : String(err)
+      });
     }
   }
 
@@ -171,7 +176,9 @@ async function handleMessagingEvent(evt: unknown): Promise<void> {
         `AI was unsure how to reply. Please respond manually.`;
       await sendWhatsApp(ownerPhone, alert);
     } else {
-      console.log("[processInstagramDm] Low confidence / empty reply; no client.whatsappNumber for alert");
+      logger.info("[processInstagramDm] Low confidence / empty reply; no client.whatsappNumber for alert", {
+        clientId: client.id
+      });
     }
     await prisma.dmConversation.update({
       where: { id: conversation.id },

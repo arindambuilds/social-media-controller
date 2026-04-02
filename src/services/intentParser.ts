@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logger } from "../lib/logger";
 
 export type VoicePlatform = "instagram" | "facebook" | "both";
 
@@ -118,7 +119,7 @@ Return one JSON object with keys: topic, platform, scheduledTime, tone, language
       rawTranscript: trimmed
     };
   } catch (err) {
-    console.warn("[intentParser] parse failed, using defaults", {
+    logger.warn("[intentParser] parse failed, using defaults", {
       message: err instanceof Error ? err.message : String(err)
     });
     return defaultIntent(trimmed);

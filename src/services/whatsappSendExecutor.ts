@@ -2,6 +2,7 @@ import type Redis from "ioredis";
 import { sendWhatsAppStrict } from "./whatsappSender";
 import type { WhatsAppSendBriefJob } from "../queues/whatsappSendQueue";
 import { isDebugBriefing } from "../lib/debugBriefing";
+import { logger } from "../lib/logger";
 
 function idempotencyKey(phone: string, dateStr: string): string {
   const n = phone.replace(/^whatsapp:/i, "").trim().toLowerCase();
@@ -28,7 +29,7 @@ export async function executeWhatsAppSendJob(
   const locked = await deps.redisSetNx(key, 172800);
   if (locked !== "OK") return;
   if (isDebugBriefing()) {
-    console.log("[whatsapp] Job picked up. To:", data.phoneE164);
+    logger.info("[whatsapp] Job picked up", { to: data.phoneE164 });
   }
   try {
     await deps.sendTwilio(data.phoneE164, data.briefingText);

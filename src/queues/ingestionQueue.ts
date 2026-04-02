@@ -74,7 +74,7 @@ export async function addIngestionJob(
   opts?: JobsOptions
 ): Promise<void> {
   if (!ingestionQueue) {
-    console.warn(`[ingestion] No Redis — running inline: ${name}`);
+    logger.warn("[ingestion] No Redis — running inline", { name });
     await executeIngestionJobSync(data);
     return;
   }

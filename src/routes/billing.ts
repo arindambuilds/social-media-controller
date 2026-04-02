@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { z } from "zod";
 import { env } from "../config/env";
 import { getPioneerSubscriptionPriceId } from "../config/stripe";
+import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { requireAgency } from "../middleware/requireAgency";
@@ -107,7 +108,9 @@ billingRouter.post("/checkout", requireAgency, async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error("[POST /billing/checkout]", err);
+    logger.error("[POST /billing/checkout] failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(500).json({ error: "Checkout failed" });
   }
 });
@@ -140,7 +143,9 @@ billingRouter.post("/portal", requireAgency, async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error("[POST /billing/portal]", err);
+    logger.error("[POST /billing/portal] failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
     res.status(500).json({ error: "Portal failed" });
   }
 });

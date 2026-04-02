@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../config/env";
+import { logger } from "../lib/logger";
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
@@ -83,7 +84,7 @@ export async function generateDmReply(
 ): Promise<DmReplyResult> {
   const apiKey = env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
-    console.log("[dmReplyAgent] ANTHROPIC_API_KEY missing — escalation path");
+    logger.warn("[dmReplyAgent] ANTHROPIC_API_KEY missing — escalation path");
     return { ...FALLBACK };
   }
 
@@ -133,7 +134,7 @@ Generate the reply JSON.`;
     const parsed = text ? parseDmReplyJson(text) : null;
     return parsed ?? { ...FALLBACK };
   } catch (err) {
-    console.warn("[dmReplyAgent] Claude request failed", {
+    logger.warn("[dmReplyAgent] Claude request failed", {
       message: err instanceof Error ? err.message : String(err)
     });
     return { ...FALLBACK };

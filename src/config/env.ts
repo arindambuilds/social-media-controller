@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { z } from "zod";
+import { logger } from "../lib/logger";
 
 /** Repo root `.env` — independent of shell cwd (works when `npm run dev` is invoked from a parent directory). */
 const envPath = path.resolve(__dirname, "../../.env");
@@ -15,13 +16,10 @@ const hasCoreEnvFromProcess =
   Boolean(process.env.JWT_REFRESH_SECRET?.trim());
 
 if (!envFileExists && !hasCoreEnvFromProcess && process.env.NODE_ENV !== "production") {
-  console.error(
-    `[env] FATAL: .env file not found at ${envPath}\n` +
-      `and DATABASE_URL / JWT_SECRET / JWT_REFRESH_SECRET are not set in the environment.\n` +
-      `Run from the directory that contains package.json and .env (e.g. social-media-controller), then:\n` +
-      `  npm run dev\n` +
-      `Or use: npm run dev:safe`
-  );
+  logger.error("[env] FATAL: missing .env and core env vars", {
+    envPath,
+    required: ["DATABASE_URL", "JWT_SECRET", "JWT_REFRESH_SECRET"]
+  });
   process.exit(1);
 }
 
@@ -236,7 +234,7 @@ try {
   parsed = envSchema.parse(processEnv);
 } catch (e) {
   if (e instanceof z.ZodError) {
-    console.error("Invalid environment configuration:", e.flatten().fieldErrors);
+    logger.error("Invalid environment configuration", { fieldErrors: e.flatten().fieldErrors });
   }
   throw e;
 }
