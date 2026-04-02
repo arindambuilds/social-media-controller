@@ -160,7 +160,19 @@ export function createApp() {
     express.raw({ type: "application/json", limit: "1mb" }),
     instagramWebhookRouter
   );
-  app.use(
+  app.get("/whatsapp/webhook", (req, res) => {
+    const mode = typeof req.query["hub.mode"] === "string" ? req.query["hub.mode"] : "";
+    const token = typeof req.query["hub.verify_token"] === "string" ? req.query["hub.verify_token"] : "";
+    const challenge = typeof req.query["hub.challenge"] === "string" ? req.query["hub.challenge"] : "";
+    const expected = process.env.WEBHOOK_VERIFY_TOKEN?.trim() ?? "";
+
+    if (mode === "subscribe" && token === expected) {
+      res.status(200).type("text/plain").send(challenge);
+      return;
+    }
+    res.status(403).type("text/plain").send("Forbidden");
+  });
+  app.post(
     "/whatsapp/webhook",
     express.raw({ type: "*/*", limit: "5mb" }),
     webhookLimiter,
