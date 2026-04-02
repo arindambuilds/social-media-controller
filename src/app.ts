@@ -42,12 +42,14 @@ import { healthRouter } from "./routes/health";
 import { insightsRouter } from "./routes/insights";
 import { instagramRouter } from "./routes/instagram";
 import { leadsRouter } from "./routes/leads";
+import { messageRouter } from "./routes/message";
 import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { postsRouter } from "./routes/posts";
 import { pulseGovPreviewRouter } from "./routes/govPreview";
 import { pulseRouter } from "./routes/pulse";
 import { reportsRouter } from "./routes/reports";
 import { socialAccountsRouter } from "./routes/socialAccounts";
+import { executeRouter } from "./routes/execute";
 import { voicePostRouter } from "./routes/voicePost";
 import { instagramWebhookRouter } from "./routes/webhook";
 import { webhookRouter } from "./routes/webhooks";
@@ -96,6 +98,9 @@ function securityHelmet() {
 
 function buildApiRouter(): express.Router {
   const api = express.Router();
+  api.get("/", (_req, res) => {
+    res.type("text/plain").send("PulseOS Quadrapilot Ready 🚀");
+  });
   api.use("/health", healthRouter);
   api.use("/auth", authRouter);
   api.use("/instagram", instagramRouter);
@@ -109,6 +114,8 @@ function buildApiRouter(): express.Router {
   api.use("/audit-logs", auditLogsRouter);
   api.use("/social-accounts", socialAccountsRouter);
   api.use("/webhooks", webhookRouter);
+  api.use("/execute", executeRouter);
+  api.use("/message", messageRouter);
   /** Public gov metrics: `GET /api/gov-preview` (alias of `/api/pulse/gov-preview` for older clients). */
   
   return api;
