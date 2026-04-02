@@ -51,6 +51,13 @@ vi.mock("../src/services/whatsappSender", () => ({
   sendWhatsApp: vi.fn().mockResolvedValue(true)
 }));
 
+vi.mock("../src/lib/claudeClient", () => ({
+  generateBriefing: vi.fn().mockResolvedValue({
+    en: "Namaskar! (EN)",
+    or: "ନମସ୍କାର! (OR)"
+  })
+}));
+
 vi.mock("../src/lib/prisma", () => ({
   prisma: {
     client: { findUnique: hoisted.findUnique, update: hoisted.clientUpdate },
@@ -72,6 +79,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
 import { runBriefingNow } from "../src/jobs/morningBriefing";
 import { executeWhatsAppSendJob } from "../src/services/whatsappSendExecutor";
 import { logger } from "../src/lib/logger";
+import { runBriefingDispatchNow } from "../src/jobs/briefingDispatch";
 
 describe("briefing dispatch chain", () => {
   beforeEach(() => {
@@ -154,5 +162,24 @@ describe("briefing dispatch chain", () => {
     expect(logSpy).toHaveBeenCalledWith("[briefing] Starting", { clientId: "dispatch-test-client" });
     logSpy.mockRestore();
     vi.unstubAllEnvs();
+  });
+
+  it("bilingual dispatch stores Odia in briefing content JSON", async () => {
+    hoisted.findUnique.mockResolvedValueOnce({
+      whatsappNumber: "+919876543210",
+      language: "or",
+      briefingStreakLastDateIst: null,
+      briefingStreakCurrent: 0,
+      briefingStreakBest: 0
+    });
+
+    await runBriefingDispatchNow("dispatch-test-client");
+
+    const call = hoisted.briefingCreate.mock.calls.at(-1)?.[0] as
+      | { data?: { content?: string } }
+      | undefined;
+    const content = call?.data?.content ?? "";
+    const parsed = JSON.parse(content) as { or?: string };
+    expect(parsed.or ?? "").toMatch(/[\u0B00-\u0B7F]/);
   });
 });
