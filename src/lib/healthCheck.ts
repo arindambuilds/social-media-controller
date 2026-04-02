@@ -2,7 +2,6 @@ import { env } from "../config/env";
 import { prisma } from "./prisma";
 import { redisConnection } from "./redis";
 import { logger } from "./logger";
-import { getWaDlqCountLast5Min } from "../whatsapp/wa.metrics";
 
 const HEALTH_PROBE_MAX_MS = 5000;
 
@@ -129,9 +128,6 @@ export async function getPublicHealthSnapshot(): Promise<{
   status: "ok" | "degraded";
   timestamp: string;
   components: Record<string, { status: "ok" | "error" | "skipped"; detail?: string }>;
-  whatsapp_ingress: { status: "ok" | "degraded"; dlq_last_5min: number };
-  whatsapp_outbound: { status: "ok" | "degraded"; dlq_last_5min: number };
-  redis: { status: "ok" | "error" };
 }> {
   const timestamp = new Date().toISOString();
   const components: Record<string, { status: "ok" | "error" | "skipped"; detail?: string }> = {};
@@ -199,45 +195,8 @@ export async function getPublicHealthSnapshot(): Promise<{
     logger.warn(`[health] last briefing query failed at ${timestamp}`);
   }
 
-  const waIngressConfigured =
-    Boolean(env.WA_PHONE_NUMBER_ID?.trim()) &&
-    Boolean(env.WA_GRAPH_ACCESS_TOKEN) &&
-    Boolean(env.WA_APP_SECRET?.trim()) &&
-    Boolean(env.WEBHOOK_VERIFY_TOKEN?.trim());
-  components.whatsapp_ingress = {
-    status: waIngressConfigured ? "ok" : "skipped",
-    detail: waIngressConfigured ? "env_vars_present" : "missing_WA_or_WEBHOOK_VERIFY_TOKEN"
-  };
-
-// Replace lines 212-213 with:
-let dlqIngress = 0;
-let dlqOutbound = 0;
-try {
-  dlqIngress = await getWaDlqCountLast5Min("ingress");
-  dlqOutbound = await getWaDlqCountLast5Min("outbound");
-} catch {
-  // Redis unavailable — default to 0
-}
-  const whatsapp_ingress = {
-    status:
-      !waIngressConfigured || dlqIngress > 5
-        ? ("degraded" as const)
-        : ("ok" as const),
-    dlq_last_5min: dlqIngress
-  };
-  const whatsapp_outbound = {
-    status:
-      !waIngressConfigured || dlqOutbound > 5
-        ? ("degraded" as const)
-        : ("ok" as const),
-    dlq_last_5min: dlqOutbound
-  };
-
-  const redisOk = components.redis?.status === "ok";
-  const redis = { status: redisOk ? ("ok" as const) : ("error" as const) };
-
   const anyError = Object.values(components).some((c) => c.status === "error");
   const status = dbOk && !anyError ? "ok" : "degraded";
 
-  return { status, timestamp, components, whatsapp_ingress, whatsapp_outbound, redis };
+  return { status, timestamp, components };
 }
