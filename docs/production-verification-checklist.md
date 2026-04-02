@@ -2,6 +2,10 @@
 
 Use this after deploying the API/dashboard and before calling the release ready.
 
+**Schema + gov route parity:** [production-parity-runbook.md](./production-parity-runbook.md) (Render deploy, `GET /api/pulse/gov-preview`, `prisma migrate deploy`, canonical log line).
+
+**Vercel `/gov-preview` + ISR:** [vercel-gov-preview-wiring.md](./vercel-gov-preview-wiring.md) (`NEXT_PUBLIC_API_URL`, redeploy, production checks).
+
 ## 1. Confirm Render environment
 
 - `DIRECT_URL` points to the direct Supabase Postgres connection on `:5432` with `sslmode=require`.
@@ -72,7 +76,7 @@ Or explicitly:
 $env:SMOKE_BASE_URL="https://<render-api>"; npm run smoke:demo
 ```
 
-Confirm the smoke flow passes health, auth, analytics, insights, and leads checks.
+Confirm **Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).** Use `npm run smoke:render` or `npm run smoke:render -- --base https://<render-api>`. **Gov preview** (`GET /api/pulse/gov-preview`) is a demo hard blocker if it fails. See [`cycle3-antigravity-tech-status.md`](./cycle3-antigravity-tech-status.md).
 
 Also verify:
 

@@ -26,6 +26,8 @@
 - **09:00 IST only:** set `BRIEFING_DISPATCH_MODE=nine_am_ist` → registers `whatsapp-briefing` queue repeatable at `0 9 * * *` and **skips** hourly dispatch. The API process must run **`startWhatsAppBriefingWorker()`** (included in `server.ts` when Redis + production + this mode).
 - Configure `ANTHROPIC_API_KEY`, Twilio WhatsApp vars, and client `whatsappNumber` / `briefingEnabled` in Prisma.
 
+**Deck line + 24–48h rehearsal:** [docs/briefing-9am-ist-rehearsal.md](./docs/briefing-9am-ist-rehearsal.md) — stakeholder wording (“`0 9 * * *` + `Asia/Kolkata`, no UTC math”), code pointers, Bull Board note (not shipped in repo), checklist before/after 9:00 IST.
+
 ## Load testing
 
 ```bash
@@ -45,6 +47,14 @@ npm run smoke:local
 # or remote
 npm run smoke:render
 ```
+
+Remote delivery gate when green: **Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).** (`scripts/smoke-demo.ts`; override with `npm run smoke:render -- --base <api>` or `SMOKE_BASE_URL`.) Do not use legacy **6/6** language.
+
+Operator playbook: **[docs/smoke-harness-runbook.md](./docs/smoke-harness-runbook.md)**. CI: **`deploy.yml`** runs smoke after main; **`.github/workflows/smoke-render-scheduled.yml`** runs every 6h (+ manual) with optional secret **`SMOKE_BASE_URL`**.
+
+## Production API + DB parity
+
+After schema or route changes, follow **[docs/production-parity-runbook.md](./docs/production-parity-runbook.md)** — deploy Render, curl `GET /api/pulse/gov-preview`, confirm **`20260331180000_pioneer_fields`** on the production DB, then paste the canonical parity log line into your operator notes.
 
 ## Compliance / PII
 

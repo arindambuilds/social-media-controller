@@ -1,0 +1,17 @@
+# Signed POST /whatsapp/webhook ~75 req/s × 60s. Requires WA_APP_SECRET in env (must match API).
+#   WA_APP_SECRET=... npx artillery@2.0.21 run scripts/load/whatsapp-webhook.yml
+config:
+  target: "http://localhost:4000"
+  processor: "./hmacProcessor.js"
+  phases:
+    - duration: 60
+      arrivalRate: 75
+      name: "Sustained signed POSTs"
+  http:
+    timeout: 15
+scenarios:
+  - name: "POST signed webhook (valid WABA envelope)"
+    flow:
+      - post:
+          url: "/whatsapp/webhook"
+          beforeRequest: "beforeRequest"

@@ -13,10 +13,18 @@ export type BriefingData = {
   commentsYesterday: number;
   topPost: { caption: string; reach: number; likes: number } | null;
   scheduledToday: number;
+  /** Standard / Elite: leads in rolling 7 IST days ending yesterday. */
+  leadsLast7d?: number;
+  /** Standard / Elite: leads in the 7 IST days before that window. */
+  leadsPrev7d?: number;
+  /** Standard / Elite: approx net follower growth across accounts, 7d window ending yesterday. */
+  followersNet7d?: number;
+  /** Used for engagement-drop nudges; avg daily likes over 7 IST days before yesterday. */
+  avgLikesPrior7d?: number;
 };
 
 /** YYYY-MM-DD in Asia/Kolkata for the given instant. */
-function istYmd(d: Date): string {
+export function istYmd(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
     year: "numeric",
@@ -26,7 +34,7 @@ function istYmd(d: Date): string {
 }
 
 /** Start/end UTC instants for an IST calendar day YYYY-MM-DD. */
-function istDayRangeUtc(ymd: string): { start: Date; end: Date } {
+export function istDayRangeUtc(ymd: string): { start: Date; end: Date } {
   const [y, mo, da] = ymd.split("-").map((x) => Number(x));
   const pad = (n: number) => String(n).padStart(2, "0");
   const start = new Date(`${y}-${pad(mo)}-${pad(da)}T00:00:00+05:30`);
@@ -52,10 +60,15 @@ async function followerCountForDay(socialAccountId: string, start: Date, end: Da
   return row?.followerCount ?? null;
 }
 
+export type GetBriefingDataOptions = {
+  /** Extra aggregates for Standard / Elite tier briefings (one more DB round-trip). */
+  expandedMetrics?: boolean;
+};
+
 /**
  * Aggregates yesterday (IST) stats for a client. Never throws — returns zeros / nulls on missing data.
  */
-export async function getBriefingData(clientId: string): Promise<BriefingData> {
+export async function getBriefingData(clientId: string, opts?: GetBriefingDataOptions): Promise<BriefingData> {
   const empty: BriefingData = {
     businessName: "your business",
     ownerName: "there",
@@ -173,6 +186,44 @@ export async function getBriefingData(clientId: string): Promise<BriefingData> {
       }
     });
 
+    let leadsLast7d: number | undefined;
+    let leadsPrev7d: number | undefined;
+    let followersNet7d: number | undefined;
+    let avgLikesPrior7d: number | undefined;
+
+    if (opts?.expandedMetrics) {
+      const sevenStart = new Date(yRange.start.getTime() - 6 * 86400000);
+      leadsLast7d = await prisma.lead.count({
+        where: { clientId, createdAt: { gte: sevenStart, lte: yRange.end } }
+      });
+      const prevEnd = new Date(sevenStart.getTime() - 1);
+      const fourteenStart = new Date(sevenStart.getTime() - 7 * 86400000);
+      leadsPrev7d = await prisma.lead.count({
+        where: { clientId, createdAt: { gte: fourteenStart, lte: prevEnd } }
+      });
+
+      const startYmd = istYmd(sevenStart);
+      const startRange = istDayRangeUtc(startYmd);
+      let net = 0;
+      for (const acc of client.socialAccounts) {
+        const endC = await followerCountForDay(acc.id, yRange.start, yRange.end);
+        const startC = await followerCountForDay(acc.id, startRange.start, startRange.end);
+        if (endC != null && startC != null) net += endC - startC;
+      }
+      followersNet7d = net;
+
+      const priorWindowEnd = new Date(yRange.start.getTime() - 1);
+      const priorWindowStart = new Date(yRange.start.getTime() - 7 * 86400000);
+      const priorAgg = await prisma.postMetricDaily.aggregate({
+        where: {
+          date: { gte: priorWindowStart, lte: priorWindowEnd },
+          post: { socialAccount: { clientId } }
+        },
+        _sum: { likes: true }
+      });
+      avgLikesPrior7d = Math.round(((priorAgg._sum.likes ?? 0) / 7) * 10) / 10;
+    }
+
     return {
       businessName,
       ownerName,
@@ -182,7 +233,11 @@ export async function getBriefingData(clientId: string): Promise<BriefingData> {
       likesYesterday,
       commentsYesterday,
       topPost,
-      scheduledToday
+      scheduledToday,
+      leadsLast7d,
+      leadsPrev7d,
+      followersNet7d,
+      avgLikesPrior7d
     };
   } catch (err) {
     console.warn("[briefingData] getBriefingData failed", {

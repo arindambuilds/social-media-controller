@@ -1,0 +1,83 @@
+# Render Blueprint — API + WhatsApp BullMQ workers (set env vars in dashboard; do not commit secrets).
+services:
+  - type: web
+    name: pulse-api
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: WA_APP_SECRET
+        sync: false
+      - key: WA_ACCESS_TOKEN
+        sync: false
+      - key: WEBHOOK_VERIFY_TOKEN
+        sync: false
+      - key: WA_PHONE_NUMBER_ID
+        sync: false
+
+  - type: worker
+    name: pulse-whatsapp-ingress-worker
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/workers/whatsappIngressWorkerEntry.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: WA_APP_SECRET
+        sync: false
+      - key: WA_ACCESS_TOKEN
+        sync: false
+      - key: WEBHOOK_VERIFY_TOKEN
+        sync: false
+      - key: WA_PHONE_NUMBER_ID
+        sync: false
+
+  - type: worker
+    name: pulse-whatsapp-outbound-worker
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/workers/whatsappOutboundWorkerEntry.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: WA_APP_SECRET
+        sync: false
+      - key: WA_ACCESS_TOKEN
+        sync: false
+      - key: WEBHOOK_VERIFY_TOKEN
+        sync: false
+      - key: WA_PHONE_NUMBER_ID
+        sync: false

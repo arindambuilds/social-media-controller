@@ -179,3 +179,7 @@ export async function sendBriefingEmailHtml(params: {
     return false;
   }
 }
+
+/** Meta WhatsApp Cloud API (Graph v19). Twilio briefing path: {@link sendWhatsAppStrict}. */
+export { sendWhatsAppMessage, WhatsAppMetaRateLimitError } from "./whatsappCloudApiSender";
+export type { SendWhatsAppMessageResult } from "./whatsappCloudApiSender";

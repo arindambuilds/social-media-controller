@@ -21,3 +21,17 @@ export async function registerWeeklyDatabaseCleanupJob(): Promise<void> {
     }
   );
 }
+
+/** Every 6 hours — refreshes `briefing:gov:metrics` for public gov preview. */
+export async function registerGovMetricsRefreshJob(): Promise<void> {
+  if (!maintenanceQueue) return;
+  await maintenanceQueue.add(
+    "gov-metrics-refresh",
+    {},
+    {
+      repeat: { pattern: "0 */6 * * *", tz: "Asia/Kolkata" },
+      jobId: "repeat:gov-metrics-refresh",
+      priority: 10
+    }
+  );
+}

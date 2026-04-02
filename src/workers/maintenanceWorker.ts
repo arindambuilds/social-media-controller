@@ -5,7 +5,8 @@ import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
 import type { MaintenanceJob } from "../queues/maintenanceQueue";
 import { runWeeklyDatabaseCleanup } from "../jobs/databaseCleanup";
-import { registerWeeklyDatabaseCleanupJob } from "../queues/maintenanceQueue";
+import { registerGovMetricsRefreshJob, registerWeeklyDatabaseCleanupJob } from "../queues/maintenanceQueue";
+import { runRefreshGovMetrics } from "../jobs/refreshGovMetrics";
 import { isBriefingNineAmDispatchMode, registerMorningBriefingDispatchRepeatable } from "../queues/briefingQueue";
 import { registerWhatsAppBriefingNineAmRepeatable } from "../queues/whatsappBriefingQueue";
 
@@ -17,6 +18,10 @@ export function startMaintenanceWorker(): Worker<MaintenanceJob> | null {
     async (job: Job<MaintenanceJob>) => {
       if (job.name === "db-cleanup") {
         await runWeeklyDatabaseCleanup();
+        return;
+      }
+      if (job.name === "gov-metrics-refresh") {
+        await runRefreshGovMetrics();
         return;
       }
       logger.warn("[maintenanceWorker] unknown job", { name: job.name });
@@ -64,5 +69,13 @@ export async function initMaintenanceJobs(): Promise<void> {
         message: err instanceof Error ? err.message : String(err)
       });
     }
+  }
+  try {
+    await registerGovMetricsRefreshJob();
+    logger.info("Gov metrics refresh repeatable job registered (every 6h)");
+  } catch (err) {
+    logger.warn("registerGovMetricsRefreshJob failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
   }
 }

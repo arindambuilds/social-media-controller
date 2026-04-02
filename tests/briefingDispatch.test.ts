@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => {
   const queueAdd = vi.fn().mockResolvedValue(undefined);
   const findUnique = vi.fn();
+  const clientUpdate = vi.fn().mockResolvedValue({});
   const briefingCreate = vi.fn().mockResolvedValue({ id: "brief-1" });
   const messagesCreate = vi.fn();
-  return { queueAdd, findUnique, briefingCreate, messagesCreate };
+  return { queueAdd, findUnique, clientUpdate, briefingCreate, messagesCreate };
 });
 
 vi.stubEnv("NODE_ENV", "development");
@@ -23,19 +24,23 @@ vi.mock("../src/services/briefingAgent", () => ({
   })
 }));
 
-vi.mock("../src/services/briefingData", () => ({
-  getBriefingData: vi.fn().mockResolvedValue({
-    businessName: "Test Co",
-    ownerName: "Ravi",
-    newFollowers: 2,
-    totalFollowers: 50,
-    newLeads: 1,
-    likesYesterday: 3,
-    commentsYesterday: 1,
-    topPost: null,
-    scheduledToday: 1
-  })
-}));
+vi.mock("../src/services/briefingData", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/services/briefingData")>();
+  return {
+    ...actual,
+    getBriefingData: vi.fn().mockResolvedValue({
+      businessName: "Test Co",
+      ownerName: "Ravi",
+      newFollowers: 2,
+      totalFollowers: 50,
+      newLeads: 1,
+      likesYesterday: 3,
+      commentsYesterday: 1,
+      topPost: null,
+      scheduledToday: 1
+    })
+  };
+});
 
 vi.mock("../src/lib/pulseEvents", () => ({
   publishPulseEvent: vi.fn().mockResolvedValue(undefined)
@@ -48,8 +53,12 @@ vi.mock("../src/services/whatsappSender", () => ({
 
 vi.mock("../src/lib/prisma", () => ({
   prisma: {
-    client: { findUnique: hoisted.findUnique },
-    briefing: { create: hoisted.briefingCreate }
+    client: { findUnique: hoisted.findUnique, update: hoisted.clientUpdate },
+    briefing: { create: hoisted.briefingCreate },
+    pulseNudgeLog: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: "n1" })
+    }
   }
 }));
 
@@ -68,6 +77,7 @@ describe("briefing dispatch chain", () => {
     hoisted.queueAdd.mockClear();
     hoisted.findUnique.mockReset();
     hoisted.briefingCreate.mockClear();
+    hoisted.clientUpdate.mockClear();
     hoisted.messagesCreate.mockClear();
   });
 
@@ -75,7 +85,10 @@ describe("briefing dispatch chain", () => {
     hoisted.findUnique.mockResolvedValue({
       id: "dispatch-test-client",
       whatsappNumber: "+919876543210",
-      owner: { email: null }
+      briefingStreakLastDateIst: null,
+      briefingStreakCurrent: 0,
+      briefingStreakBest: 0,
+      owner: { email: null, plan: "free" }
     });
 
     await runBriefingNow("dispatch-test-client");
@@ -88,13 +101,17 @@ describe("briefing dispatch chain", () => {
     });
     expect(typeof data.briefingText).toBe("string");
     expect((data as { briefingText: string }).briefingText.length).toBeGreaterThan(0);
+    expect(hoisted.clientUpdate).toHaveBeenCalled();
   });
 
   it("enqueued job carries correct retry options", async () => {
     hoisted.findUnique.mockResolvedValue({
       id: "dispatch-test-client",
       whatsappNumber: "+919876543210",
-      owner: { email: null }
+      briefingStreakLastDateIst: null,
+      briefingStreakCurrent: 0,
+      briefingStreakBest: 0,
+      owner: { email: null, plan: "free" }
     });
 
     await runBriefingNow("dispatch-test-client");
@@ -103,7 +120,7 @@ describe("briefing dispatch chain", () => {
       attempts?: number;
       backoff?: { type?: string; delay?: number };
     };
-    expect(opts.attempts).toBe(5);
+    expect(opts.attempts).toBe(3);
     expect(opts.backoff?.type).toBe("exponential");
     expect(opts.backoff?.delay).toBe(1000);
   });
@@ -127,7 +144,10 @@ describe("briefing dispatch chain", () => {
     hoisted.findUnique.mockResolvedValue({
       id: "dispatch-test-client",
       whatsappNumber: "+919876543210",
-      owner: { email: null }
+      briefingStreakLastDateIst: null,
+      briefingStreakCurrent: 0,
+      briefingStreakBest: 0,
+      owner: { email: null, plan: "free" }
     });
     await runBriefingNow("dispatch-test-client");
     expect(logSpy).toHaveBeenCalledWith("[briefing] Starting for clientId:", "dispatch-test-client");

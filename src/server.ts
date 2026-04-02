@@ -1,6 +1,6 @@
-import "dotenv/config";
 import type { Worker } from "bullmq";
 import { createApp } from "./app";
+import { env } from "./config/env";
 import { installProcessShutdownHandlers, registerShutdownHook, runShutdownHooks } from "./lib/shutdownRegistry";
 import { redisConnection } from "./lib/redis";
 import { printStartupSummary } from "./lib/startupSummary";
@@ -10,13 +10,19 @@ import { startRedisStreamMaintenance } from "./jobs/redisStreamMaintenance";
 import { briefingQueue, isBriefingNineAmDispatchMode } from "./queues/briefingQueue";
 import { pdfQueue } from "./queues/pdfQueue";
 import { whatsappBriefingQueue } from "./queues/whatsappBriefingQueue";
+import { whatsappOutboundQueue } from "./queues/whatsappOutboundQueue";
 import { whatsappSendQueue } from "./queues/whatsappSendQueue";
 import { PdfService } from "./services/pdfService";
 import { startBriefingWorker } from "./workers/briefingWorker";
 import { initMaintenanceJobs, startMaintenanceWorker } from "./workers/maintenanceWorker";
 import { startPdfWorker } from "./workers/pdfWorker";
 import { startWhatsAppBriefingWorker } from "./workers/whatsappBriefingWorker";
+import {
+  closeWhatsAppOutboundWorker,
+  startWhatsAppOutboundWorker
+} from "./workers/whatsappOutboundWorker";
 import { gracefulShutdownWhatsAppWorker, startWhatsAppSendWorker } from "./workers/whatsappWorker";
+import { scheduleMorningBriefing } from "./jobs/briefingDispatch";
 
 /**
  * Default: embed PDF worker when Redis is on (single-dyno friendly).
@@ -25,6 +31,13 @@ import { gracefulShutdownWhatsAppWorker, startWhatsAppSendWorker } from "./worke
 function shouldEmbedPdfWorkerInApiProcess(): boolean {
   if (!redisConnection) return false;
   return process.env.START_PDF_WORKER_IN_API !== "false";
+}
+
+/** Meta Cloud outbound sends; set `START_WA_OUTBOUND_WORKER_IN_API=false` when a dedicated worker dyno runs `npm run worker:wa:outbound`. */
+function shouldEmbedWhatsAppOutboundWorkerInApi(): boolean {
+  if (!redisConnection) return false;
+  const v = env.START_WA_OUTBOUND_WORKER_IN_API.trim().toLowerCase();
+  return v !== "false" && v !== "0";
 }
 
 if (process.env.NODE_ENV === "production") {
@@ -50,11 +63,17 @@ let workerPdf: Worker | null = null;
 let workerMaintenance: Worker | null = null;
 let workerWhatsAppBriefing: Worker | null = null;
 let workerWhatsAppSend: Worker | null = null;
+let workerWhatsAppOutbound: Worker | null = null;
 
 if (process.env.NODE_ENV === "production" && redisConnection) {
   if (pdfQueue && process.env.START_PDF_WORKER_IN_API === "false") {
     console.warn(
       "[pulse] In-process PDF worker disabled — ensure a separate service runs `npm run worker:pdf` or PDF exports will stall."
+    );
+  }
+  if (!shouldEmbedWhatsAppOutboundWorkerInApi()) {
+    console.warn(
+      "[pulse] In-process Meta WhatsApp outbound worker disabled — ensure `npm run worker:wa:outbound` runs on a worker service or outbound sends will queue only."
     );
   }
   workerBriefing = startBriefingWorker();
@@ -66,6 +85,9 @@ if (process.env.NODE_ENV === "production" && redisConnection) {
     workerWhatsAppBriefing = startWhatsAppBriefingWorker();
   }
   workerWhatsAppSend = startWhatsAppSendWorker();
+  if (shouldEmbedWhatsAppOutboundWorkerInApi()) {
+    workerWhatsAppOutbound = startWhatsAppOutboundWorker();
+  }
   void initMaintenanceJobs();
   startPdfQueueMaintenance();
   startRedisStreamMaintenance();
@@ -81,6 +103,9 @@ function registerQueueShutdownHooks(): void {
       await gracefulShutdownWhatsAppWorker(workerWhatsAppSend!);
     });
   }
+  if (workerWhatsAppOutbound) {
+    registerShutdownHook(async () => closeWhatsAppOutboundWorker(workerWhatsAppOutbound!));
+  }
   if (workerMaintenance) registerShutdownHook(() => workerMaintenance!.close());
   const pq = pdfQueue;
   if (pq) registerShutdownHook(() => pq.close());
@@ -90,10 +115,14 @@ function registerQueueShutdownHooks(): void {
   if (wbq) registerShutdownHook(() => wbq.close());
   const wsq = whatsappSendQueue;
   if (wsq) registerShutdownHook(() => wsq.close());
+  const woq = whatsappOutboundQueue;
+  if (woq) registerShutdownHook(() => woq.close());
   registerShutdownHook(() => PdfService.closeSharedBrowser());
 }
 
 registerQueueShutdownHooks();
+
+scheduleMorningBriefing();
 
 void printStartupSummary(PORT);
 

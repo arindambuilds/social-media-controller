@@ -157,17 +157,20 @@ Use the **primary** row for smoke checks and the default dashboard login. Seeded
 
 ### 7b) Smoke test (API must be running)
 
+**Smoke test (single source of truth):** Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).
+
 ```powershell
 npm run smoke:local
 ```
 
-Against production API:
+Against production API (default Render URL in `package.json`), or another API host:
 
 ```powershell
 npm run smoke:render
+npm run smoke:render -- --base https://your-api.example.com
 ```
 
-(`npm run smoke:demo` also runs the same script with default base URL `http://localhost:4000`.)
+(`npm run smoke:demo` uses default base `http://localhost:4000` unless `SMOKE_BASE_URL` / `--url` / `--base` is set.)
 
 ---
 

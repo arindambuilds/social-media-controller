@@ -77,3 +77,19 @@ jobs:
             exit 0
           fi
           curl -fsS -X POST "${RENDER_DEPLOY_HOOK}"
+
+  smoke-render:
+    needs: [test-lint-deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install API dependencies
+        run: npm ci
+      # Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts) — scripts/smoke-demo.ts
+      - name: Remote smoke (Render)
+        run: npm run smoke:render

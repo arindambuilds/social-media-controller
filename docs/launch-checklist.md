@@ -67,7 +67,7 @@ Against production API (after cold start may need a retry):
 npm run smoke:render
 ```
 
-Script checks in order: **`GET /api/health`**, **primary** login (`demo@demo.com` / `Demo1234!`), Instagram **summary**, **AI insight** POST, **leads** list, **posts** list (uses `clientId` from the login response). Override base URL: `npx tsx scripts/smoke-demo.ts --url https://your-api.example.com`.
+**Smoke test (single source of truth):** Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts). API host: `npm run smoke:render` (default Render), `npm run smoke:render -- --base https://<api-host>`, or `SMOKE_BASE_URL`. Stakeholder copy: [`cycle3-antigravity-tech-status.md`](./cycle3-antigravity-tech-status.md).
 
 ## Logins (after seed)
 
@@ -102,7 +102,7 @@ Script checks in order: **`GET /api/health`**, **primary** login (`demo@demo.com
 
 **Phase A — Lock MVP (1–3 days, no new features)**  
 1. Check every box in this file (Environment → Data → Processes).  
-2. Confirm Vercel `NEXT_PUBLIC_API_URL` is the **API origin only** (no `/api`); see `docs/DEMO.md`.  
+2. Confirm Vercel `NEXT_PUBLIC_API_URL` is the **API origin only** (no `/api`); see `docs/DEMO.md`. Redeploy dashboard, then verify **`/gov-preview`** per [`vercel-gov-preview-wiring.md`](./vercel-gov-preview-wiring.md).  
 3. Run `npm run smoke:render` once; if Render was cold, wait ~60s and retry. Note only **blockers** (login, 404 API, empty charts).  
 4. Do the **Manual 2-minute pass** on **production** (same as local, but on live URLs).
 

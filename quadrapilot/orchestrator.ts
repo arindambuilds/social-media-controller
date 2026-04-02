@@ -120,7 +120,7 @@ export async function runFullPipeline(goal: string): Promise<PipelineResult> {
   }
   if (smokeGate === "SKIPPED") {
     nextActions.push(
-      "Smoke was skipped (SMOKE_ENV=skip). Run `npm run smoke:render` (6/6) before any formal delivery report."
+      "Smoke was skipped (SMOKE_ENV=skip). Run `npm run smoke:render` — target: Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts)."
     );
   }
   if (!perplexity.success) {

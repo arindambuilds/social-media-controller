@@ -59,8 +59,37 @@ model Client {
   dmBusinessContext        String?
   dmOwnerTone              String?
   dmConversations          DmConversation[]
+  /// PulseOS GTM: niche label (e.g. coaching, real_estate, agency).
+  businessType             String?
+  /// JSON string[] — metrics the business cares about (onboarding).
+  metricsTrackedJson       Json             @default("[]")
+  onboardingCompletedAt    DateTime?
+  /// Consecutive IST calendar days with a briefing delivery recorded.
+  briefingStreakCurrent    Int              @default(0)
+  briefingStreakBest       Int              @default(0)
+  briefingStreakLastDateIst String?
+  lastWeeklySummaryAt      DateTime?
+  pulseNudgeLogs           PulseNudgeLog[]
+  pioneerCohort            Boolean          @default(false)
+  pioneerPriceInrUntil     DateTime?
+  demoEndsAt               DateTime?
+  /// UI + briefing locale: en | or (Odia)
+  language                 String           @default("en")
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
+}
+
+/// Dedupes upgrade / retention WhatsApp or in-app nudges (cooldown in app logic).
+model PulseNudgeLog {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  nudgeKey  String
+  channel   String   @default("whatsapp")
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([clientId, nudgeKey, createdAt])
 }
 
 model DmConversation {
@@ -105,6 +134,8 @@ model Briefing {
   tipText           String?
   metricsJson       Json?
   status            BriefingStatus   @default(COMPLETE)
+  /// Pulse tier at send time: free|normal|standard|elite
+  pulseTierSnapshot String?
   createdAt         DateTime         @default(now())
   feedback          BriefingFeedback[]
 

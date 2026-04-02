@@ -6,7 +6,10 @@ import * as transcribe from "../src/services/transcribe";
 import * as captionGen from "../src/services/captionGenerator";
 import * as intentParser from "../src/services/intentParser";
 
-const hasDb = Boolean(process.env.DATABASE_URL);
+const VITEST_PLACEHOLDER_DATABASE_URL = "postgresql://test:test@localhost:5432/test";
+const hasDb =
+  Boolean(process.env.DATABASE_URL?.trim()) &&
+  process.env.DATABASE_URL !== VITEST_PLACEHOLDER_DATABASE_URL;
 const run = hasDb ? describe : describe.skip;
 
 vi.mock("../src/services/transcribe", async (importOriginal) => {

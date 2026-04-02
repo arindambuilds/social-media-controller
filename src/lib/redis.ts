@@ -21,7 +21,8 @@ if (url) {
     /** BullMQ blocking commands require null — avoids stalled workers / odd timeouts. */
     redisClient = new Redis(url, {
       maxRetriesPerRequest: null,
-      enableOfflineQueue: false,
+      /** When Redis drops briefly, queue commands buffer instead of throwing "Stream isn't writable". */
+      enableOfflineQueue: true,
       lazyConnect: true,
       connectTimeout: 5000,
       keepAlive: 10_000
@@ -50,7 +51,7 @@ export function createBullMqConnection(): Redis | null {
   if (!redisClient) return null;
   return redisClient.duplicate({
     maxRetriesPerRequest: null,
-    enableOfflineQueue: false,
+    enableOfflineQueue: true,
     lazyConnect: true,
     connectTimeout: 5000,
     keepAlive: 10_000

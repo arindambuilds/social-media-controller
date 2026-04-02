@@ -13,7 +13,7 @@ export const whatsappSendQueue: Queue<WhatsAppSendBriefJob> | null =
     ? new Queue<WhatsAppSendBriefJob>(queueNames.whatsappSend, {
         connection: redisConnection,
         defaultJobOptions: {
-          attempts: 5,
+          attempts: 3,
           backoff: { type: "exponential", delay: 1000 }
         }
       })

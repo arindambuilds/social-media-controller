@@ -146,6 +146,8 @@ npm run smoke:demo
 npm run smoke:render
 ```
 
+Remote Render gate when green: **Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).** See [`cycle3-antigravity-tech-status.md`](./cycle3-antigravity-tech-status.md).
+
 ---
 
 ## Files touched in this pass (reference)
@@ -157,7 +159,7 @@ npm run smoke:render
 - `src/routes/auth.ts` — structured errors (503 / 401 / 400 fieldErrors)
 - `src/services/analyticsService.ts` — `likesByHour` on platform summary
 - `src/config/env.ts` — `CORS_ORIGINS` alias
-- `scripts/smoke-demo.ts` — 6-step table + `--url`
+- `scripts/smoke-demo.ts` — **7** checks + `--url` (see `docs/cycle3-antigravity-tech-status.md`)
 - `DEPLOYMENT.md` — Render section + psql password note
 - `dashboard/lib/api.ts` — `parseApiErrorMessage`, `apiRequestJson`, types
 - `dashboard/app/login/page.tsx` — error parsing, redirect `/analytics`

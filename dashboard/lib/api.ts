@@ -418,7 +418,8 @@ export const api = {
   generateInsight(clientId: string, token: string) {
     return requestWithToken(`/ai/insights/content-performance/${clientId}`, token, {
       method: "POST",
-      body: JSON.stringify({ platform: "INSTAGRAM" })
+      body: JSON.stringify({ platform: "INSTAGRAM" }),
+      timeoutMs: 90_000
     });
   },
   generateWeeklyRecommendation(clientId: string, token: string) {

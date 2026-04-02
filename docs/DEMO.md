@@ -59,8 +59,11 @@ and align **`INSTAGRAM_REDIRECT_URI`** / **`INSTAGRAM_FRONTEND_REDIRECT_URI`** w
 
 - `NEXT_PUBLIC_API_URL=https://social-media-controller.onrender.com` — **origin only, no `/api` suffix** (the dashboard appends `/api` in code).  
 - `NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI=https://social-media-controller.vercel.app/onboarding/callback`  
+- **Pioneer billing:** `NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID` = Stripe Price id for INR **600**/mo (same as API `STRIPE_PRICE_PIONEER600_INR`). See **[stripe-pioneer-plan.md](./stripe-pioneer-plan.md)**.
 
 Redeploy the dashboard after changing variables.
+
+**`/gov-preview` (Task 15) + ISR:** After `NEXT_PUBLIC_API_URL` points at Render, redeploy and verify **`/gov-preview`** per **[vercel-gov-preview-wiring.md](./vercel-gov-preview-wiring.md)** (three metric cards, 5T section, `revalidate = 3600`).
 
 ## Environment checklist (Render API)
 

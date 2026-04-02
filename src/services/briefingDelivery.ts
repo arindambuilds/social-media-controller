@@ -1,3 +1,4 @@
+import type { PulseTier } from "../config/pulseTiers";
 import { CLAUDE_TIP_FALLBACK } from "./briefingAgent";
 import type { BriefingData } from "./briefingData";
 
@@ -8,34 +9,78 @@ export function briefingTipSentence(fullBriefing: string, claudeSucceeded: boole
   return s.length > 280 ? `${s.slice(0, 277)}…` : s;
 }
 
+export type WhatsAppBriefingExtras = {
+  upgradeLines?: string[];
+  streakLine?: string | null;
+  weeklyLine?: string | null;
+  eliteAlertLine?: string | null;
+};
+
+function fmtInt(n: number): string {
+  return Number.isFinite(n) ? n.toLocaleString("en-IN") : String(n ?? "");
+}
+
+/**
+ * Tiered WhatsApp body: Normal stays short; Standard adds week context; Elite adds alerts + streak.
+ */
 export function buildWhatsAppBriefingBody(
   data: BriefingData,
-  aiTip: string
+  aiTip: string,
+  tier: PulseTier = "free",
+  extras?: WhatsAppBriefingExtras
 ): string {
   const name = data.businessName.trim() || "there";
-  const newFollowers = Number.isFinite(data.newFollowers)
-    ? data.newFollowers.toLocaleString("en-IN")
-    : String(data.newFollowers ?? "");
-  const likesYesterday = Number.isFinite(data.likesYesterday)
-    ? data.likesYesterday.toLocaleString("en-IN")
-    : String(data.likesYesterday ?? "");
-  const commentsYesterday = Number.isFinite(data.commentsYesterday)
-    ? data.commentsYesterday.toLocaleString("en-IN")
-    : String(data.commentsYesterday ?? "");
-  return [
-    `🌅 Good Morning ${name}!`,
-    "",
-    "YOUR INSTAGRAM TODAY:",
-    `📊 ${newFollowers} new followers`,
-    `❤️ ${likesYesterday} likes yesterday`,
-    `💬 ${commentsYesterday} comments`,
-    "",
-    "TODAY'S AI TIP:",
-    aiTip,
-    "",
-    "Reply STOP to unsubscribe.",
-    "— Instagram Growth Copilot"
-  ].join("\n");
+  const newFollowers = fmtInt(data.newFollowers);
+  const newLeads = fmtInt(data.newLeads);
+  const likesYesterday = fmtInt(data.likesYesterday);
+  const commentsYesterday = fmtInt(data.commentsYesterday);
+
+  const lines: string[] = [`🌅 Good morning, ${name}!`, "", "YESTERDAY (IST):"];
+
+  if (tier === "free" || tier === "normal") {
+    lines.push(
+      `📊 +${newFollowers} followers · 📥 ${newLeads} leads`,
+      `❤️ ${likesYesterday} likes · 💬 ${commentsYesterday} comments`
+    );
+  } else {
+    lines.push(
+      `📊 +${newFollowers} followers (≈${fmtInt(data.totalFollowers)} total)`,
+      `📥 ${newLeads} leads · ❤️ ${likesYesterday} likes · 💬 ${commentsYesterday} comments`
+    );
+    if (data.leadsLast7d != null && data.leadsPrev7d != null) {
+      lines.push(
+        "",
+        "WEEK TREND:",
+        `📈 Leads last 7d: ${fmtInt(data.leadsLast7d)} (prior 7d: ${fmtInt(data.leadsPrev7d)})`
+      );
+    }
+    if (tier === "elite" && data.followersNet7d != null) {
+      const sign = data.followersNet7d >= 0 ? "+" : "";
+      lines.push(`👥 Followers (7d net): ${sign}${fmtInt(data.followersNet7d)}`);
+    }
+  }
+
+  lines.push("", "INSIGHT:", aiTip);
+
+  if (tier === "elite" && extras?.eliteAlertLine) {
+    lines.push("", extras.eliteAlertLine);
+  }
+
+  if (extras?.weeklyLine) {
+    lines.push("", extras.weeklyLine);
+  }
+
+  if (extras?.streakLine) {
+    lines.push("", extras.streakLine);
+  }
+
+  if (extras?.upgradeLines?.length) {
+    lines.push("", "—", ...extras.upgradeLines);
+  }
+
+  lines.push("", "Reply STOP to unsubscribe.", "— Pulse / Instagram Growth Copilot");
+
+  return lines.join("\n");
 }
 
 export function buildBriefingEmailSubject(businessName: string): string {
@@ -149,6 +194,7 @@ export function briefingPlainTextFallback(
     `${data.businessName} — Morning briefing`,
     "",
     `New followers (yesterday): ${data.newFollowers}`,
+    `New leads (yesterday): ${data.newLeads}`,
     `Likes yesterday: ${data.likesYesterday}`,
     `Comments yesterday: ${data.commentsYesterday}`,
     "",

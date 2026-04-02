@@ -162,6 +162,21 @@ export function UpgradeModal({
         className="w-full max-w-lg rounded-t-2xl border border-white/10 bg-[#0f111b] p-5 shadow-2xl shadow-black/50 sm:rounded-2xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md bg-emerald-500/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200">
+              Pioneer · 48/50 slots
+            </span>
+            <span className="text-lg font-bold text-white">₹600</span>
+            <span className="text-sm text-white/40 line-through">₹1,200</span>
+            <span className="text-xs text-white/50">/month</span>
+          </div>
+          <p className="mt-2 text-sm font-semibold" style={{ color: "#00D4AA" }}>
+            You saved ₹600 today
+          </p>
+          <p className="mt-1 text-[11px] text-white/45">Pioneer pricing for Odisha MSMEs — lock for 3 months, then ₹1,200.</p>
+        </div>
+
         <div className="mb-5 flex items-start justify-between">
           <div className="rounded-lg border border-accent-purple/30 bg-accent-purple/10 px-2.5 py-1 text-[11px] font-semibold text-accent-purple">
             Most Popular Upgrade

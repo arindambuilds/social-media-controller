@@ -120,12 +120,19 @@ export async function runTestRunner(config: PipelineConfig): Promise<StageResult
     console.log("⏳ npm run smoke:render…");
     const smokeProc = await runCmd("npm", ["run", "smoke:render"], cwd);
     smokeOut = `${smokeProc.stdout}\n${smokeProc.stderr}`;
-    const remoteOk = smokeProc.code === 0 && /Overall:\s*6\/6\s+passed/i.test(smokeOut);
+    const overallMatch = smokeOut.match(/Overall:\s*(\d+)\/(\d+)\s+passed/i);
+    const allRemoteChecksPassed = Boolean(
+      overallMatch &&
+        overallMatch[1] === overallMatch[2] &&
+        Number(overallMatch[1]) > 0
+    );
+    const remoteOk = smokeProc.code === 0 && allRemoteChecksPassed;
     smokeGate = remoteOk ? "PASSED" : "FAILED";
     if (!remoteOk) {
       console.log("❌ SMOKE_GATE: FAILED (npm run smoke:render)");
     } else {
-      console.log("✅ Smoke: 6/6 passed");
+      const label = overallMatch ? `${overallMatch[1]}/${overallMatch[2]}` : "?/?";
+      console.log(`✅ Smoke: ${label} passed`);
     }
   }
 

@@ -11,6 +11,8 @@ import { UpgradeModal } from "../../components/UpgradeModal";
 
 type InsightPayload = {
   id: string;
+  /** Full narrative from the model / deterministic baseline. */
+  summary?: string;
   keyInsights: string[];
   actionsThisWeek: string[];
   warning: string | null;
@@ -135,7 +137,9 @@ export default function InsightsPage() {
         `/insights/${encodeURIComponent(clientId)}/content-performance/generate`,
         {
           method: "POST",
-          body: JSON.stringify({})
+          body: JSON.stringify({}),
+          /** OpenAI + DB can exceed default 10s on cold Render / slow networks. */
+          timeoutMs: 90_000
         }
       );
       const raw = await res.text();
@@ -341,6 +345,12 @@ export default function InsightsPage() {
 
           {insight ? (
             <>
+              {insight.summary?.trim() ? (
+                <div className="border-accent-teal/20 bg-surface/60 mt-6 rounded-xl border p-5">
+                  <h3 className="text-accent-teal mb-3 text-xs font-bold uppercase tracking-wide">Summary</h3>
+                  <p className="text-ink m-0 text-sm leading-relaxed whitespace-pre-wrap">{insight.summary.trim()}</p>
+                </div>
+              ) : null}
               <div className="mt-8 grid gap-4 lg:grid-cols-3">
                 <div className="rounded-xl border border-subtle bg-surface/80 p-5 transition-all duration-200 hover:border-accent-purple/30 hover:shadow-glow">
                   <h3 className="text-accent-purple mb-4 text-xs font-bold uppercase tracking-wide">Key insights</h3>

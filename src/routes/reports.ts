@@ -109,10 +109,9 @@ async function exportClientPdf(
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="report.pdf"');
-    if (process.env.NODE_ENV === "test") {
-      res.setHeader("X-Report-Has-Charts", hasQuickChart ? "1" : "0");
-      res.setHeader("X-Report-Watermark", applyWatermark ? "1" : "0");
-    }
+    /** Contract for tests and clients: free plan → "1", paid → "0". Not gated on NODE_ENV (CI often runs Vitest with NODE_ENV=development). */
+    res.setHeader("X-Report-Watermark", applyWatermark ? "1" : "0");
+    res.setHeader("X-Report-Has-Charts", hasQuickChart ? "1" : "0");
     res.status(200).send(pdf);
   } catch (err) {
     if (err instanceof CircuitOpenError) {

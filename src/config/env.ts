@@ -1,7 +1,29 @@
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 import { z } from "zod";
 
-dotenv.config();
+/** Repo root `.env` — independent of shell cwd (works when `npm run dev` is invoked from a parent directory). */
+const envPath = path.resolve(__dirname, "../../.env");
+
+dotenv.config({ path: envPath, override: false });
+
+const envFileExists = fs.existsSync(envPath);
+const hasCoreEnvFromProcess =
+  Boolean(process.env.DATABASE_URL?.trim()) &&
+  Boolean(process.env.JWT_SECRET?.trim()) &&
+  Boolean(process.env.JWT_REFRESH_SECRET?.trim());
+
+if (!envFileExists && !hasCoreEnvFromProcess && process.env.NODE_ENV !== "production") {
+  console.error(
+    `[env] FATAL: .env file not found at ${envPath}\n` +
+      `and DATABASE_URL / JWT_SECRET / JWT_REFRESH_SECRET are not set in the environment.\n` +
+      `Run from the directory that contains package.json and .env (e.g. social-media-controller), then:\n` +
+      `  npm run dev\n` +
+      `Or use: npm run dev:safe`
+  );
+  process.exit(1);
+}
 
 /** Public API URL when `APP_BASE_URL` is unset (e.g. Render without the variable). */
 const DEFAULT_APP_BASE_URL = "https://social-media-controller.onrender.com";
@@ -74,6 +96,24 @@ const envSchema = z
     WEBHOOK_SIGNING_SECRET: z.string().optional().default(""),
     /** Meta Instagram / Messenger webhook verification (GET hub.verify_token). */
     WEBHOOK_VERIFY_TOKEN: z.string().optional().default(""),
+    /** WhatsApp Cloud API (ingress + Graph) — optional; used when Twilio outbound is not the primary path. */
+    WA_PHONE_NUMBER_ID: z.string().optional().default(""),
+    /** Meta system user / permanent token for Graph sends. */
+    WA_ACCESS_TOKEN: z.string().optional().default(""),
+    /** Legacy alias for {@link WA_ACCESS_TOKEN} (Render/docs). */
+    WA_TOKEN: z.string().optional().default(""),
+    /** Graph version segment, e.g. `v19.0` (no leading slash). */
+    WA_API_VERSION: z.string().optional().default("v19.0"),
+    /** Optional template name when freeform hits 131047 (future template resend). */
+    WA_FALLBACK_TEMPLATE_NAME: z.string().optional().default(""),
+    WA_APP_SECRET: z.string().optional().default(""),
+    /** When `false`, API process skips embedding Meta outbound worker (use `npm run worker:wa:outbound`). */
+    START_WA_OUTBOUND_WORKER_IN_API: z.string().optional().default("true"),
+    /**
+     * Optional dedupe window (seconds) for WhatsApp webhook `message.id` via Redis SET NX.
+     * `0` = off (default). Set e.g. `86400` to ignore exact duplicate Meta retries within 24h.
+     */
+    WA_WEBHOOK_MSG_DEDUPE_TTL_SEC: z.coerce.number().int().min(0).optional().default(0),
     /** When true, DM sends are logged only (no Graph API). */
     INSTAGRAM_MOCK_MODE: z.preprocess((val) => {
       if (val === undefined || val === null || val === "") return undefined;
@@ -108,6 +148,11 @@ const envSchema = z
     /** Stripe billing */
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    /**
+     * Stripe Price ID for **PulseOS Pioneer Plan** — INR 600/month recurring (create in Dashboard).
+     * Used when `POST /api/billing/checkout` has `planId: "pioneer"` (server ignores client `priceId` for that tier).
+     */
+    STRIPE_PRICE_PIONEER600_INR: z.string().optional(),
     DASHBOARD_URL: z.string().url().optional().default("http://localhost:3000"),
     /**
      * When set, `GET /api/metrics` is enabled and requires header `x-pulse-metrics-key: <value>`.
@@ -214,5 +259,7 @@ export const env = {
   ...parsed,
   DIRECT_URL: process.env.DIRECT_URL!,
   APP_BASE_URL: resolveAppBaseUrl(),
-  METRICS_SECRET: parsed.METRICS_SECRET?.trim() || undefined
+  METRICS_SECRET: parsed.METRICS_SECRET?.trim() || undefined,
+  /** Resolved Meta Graph token: `WA_ACCESS_TOKEN` wins, then `WA_TOKEN`. */
+  WA_GRAPH_ACCESS_TOKEN: (parsed.WA_ACCESS_TOKEN?.trim() || parsed.WA_TOKEN?.trim() || "").trim()
 };

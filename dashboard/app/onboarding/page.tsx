@@ -1,11 +1,18 @@
 "use client";
 
+import { Noto_Sans_Oriya } from "next/font/google";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ListPageSkeleton } from "../../components/page-skeleton";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
 import { trackEvent } from "../../lib/trackEvent";
+
+const notoOriya = Noto_Sans_Oriya({
+  weight: ["400", "700"],
+  subsets: ["oriya"],
+  display: "swap"
+});
 
 type OverviewResponse = {
   totalReach?: number | null;
@@ -37,6 +44,8 @@ export default function OnboardingPage() {
   const [instagramHandle, setInstagramHandle] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
+  const [language, setLanguage] = useState<"en" | "or">("en");
+  const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
 
   const [showSnapshot, setShowSnapshot] = useState(false);
@@ -172,7 +181,7 @@ export default function OnboardingPage() {
 
   function handleFixToday() {
     trackEvent("onboarding_completed", { businessType, missedRevenueLow });
-    router.replace("/dashboard?first=1");
+    router.replace("/dashboard?firstSession=true&first=1");
   }
 
   if (loading) {
@@ -197,12 +206,26 @@ export default function OnboardingPage() {
           <>
             <h1 className="text-ink font-display text-2xl font-bold tracking-tight">Tell us about your business</h1>
             <p className="text-muted mt-2 text-sm leading-relaxed">
-              In under a minute, we&apos;ll show you how much Instagram growth and revenue you might be missing.
+              Four quick steps — then your morning WhatsApp briefing at 9:00 AM (IST).
             </p>
+
+            <div className="mt-4 flex gap-2" aria-label="Onboarding progress">
+              {[1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  className={`h-1.5 flex-1 rounded-full ${step >= n ? "bg-accent-purple" : "bg-white/10"}`}
+                />
+              ))}
+            </div>
 
             {error ? <p className="mt-4 text-sm text-error">{error}</p> : null}
 
             <div className="mt-6 space-y-6">
+              <div>
+                <p className="text-muted mb-2 text-xs font-semibold uppercase tracking-wide">Step {step} of 4</p>
+              </div>
+
+              {step === 1 ? (
               <div>
                 <p className="text-muted mb-2 text-xs font-semibold uppercase tracking-wide">Business type</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -222,7 +245,9 @@ export default function OnboardingPage() {
                   ))}
                 </div>
               </div>
+              ) : null}
 
+              {step === 2 ? (
               <div>
                 <label className="text-muted mb-1 block text-xs font-semibold uppercase tracking-wide">
                   Instagram handle
@@ -235,7 +260,9 @@ export default function OnboardingPage() {
                   autoComplete="off"
                 />
               </div>
+              ) : null}
 
+              {step === 3 ? (
               <div className="space-y-3">
                 <label className="text-muted mb-1 block text-xs font-semibold uppercase tracking-wide">
                   WhatsApp number
@@ -266,15 +293,86 @@ export default function OnboardingPage() {
                   </button>
                 </div>
               </div>
+              ) : null}
 
-              <button
-                type="button"
-                onClick={() => void handleShowSnapshot()}
-                disabled={saving}
-                className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-accent-purple px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#7a72ff] disabled:opacity-60"
-              >
-                {saving ? "Calculating…" : "Show me what I’m missing →"}
-              </button>
+              {step === 4 ? (
+              <div>
+                <p className="text-muted mb-2 text-xs font-semibold uppercase tracking-wide">Briefing language</p>
+                <p className="text-muted mb-3 text-xs">Odia renders in Noto Sans Oriya for accurate script.</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("en")}
+                    className={`rounded-xl border px-3 py-3 text-left text-sm font-medium transition-colors ${
+                      language === "en"
+                        ? "border-accent-purple bg-accent-purple/20 text-white"
+                        : "border-subtle bg-surface text-muted hover:border-accent-purple/40"
+                    }`}
+                  >
+                    English
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("or")}
+                    className={`rounded-xl border px-3 py-3 text-left text-sm font-medium transition-colors ${
+                      language === "or"
+                        ? "border-accent-teal bg-accent-teal/15 text-white"
+                        : "border-subtle bg-surface text-muted hover:border-accent-teal/40"
+                    }`}
+                  >
+                    <span className={notoOriya.className}>ଓଡ଼ିଆ (Odia)</span>
+                  </button>
+                </div>
+                {language === "or" ? (
+                  <p className={`mt-3 rounded-xl border border-subtle bg-canvas px-3 py-2 text-sm text-ink ${notoOriya.className}`}>
+                    ଆପଣଙ୍କ ଦୋକାନ ଆଜି ୩ ଟି ନୂଆ ଲିଡ୍ ପାଇଛି।
+                  </p>
+                ) : null}
+              </div>
+              ) : null}
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+                {step > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setStep((s) => Math.max(1, s - 1))}
+                    className="rounded-xl border border-subtle bg-surface px-4 py-2 text-sm font-medium text-white/70"
+                  >
+                    Back
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {step < 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (step === 1 && !businessType) {
+                        setError("Please pick your business type.");
+                        return;
+                      }
+                      if (step === 2 && !instagramHandle.trim()) {
+                        setError("Please enter your Instagram handle.");
+                        return;
+                      }
+                      setError("");
+                      setStep((s) => s + 1);
+                    }}
+                    className="rounded-xl bg-accent-purple px-4 py-2 text-sm font-bold text-white hover:bg-[#7a72ff]"
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleShowSnapshot()}
+                    disabled={saving}
+                    className="rounded-xl bg-accent-purple px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[#7a72ff] disabled:opacity-60"
+                  >
+                    {saving ? "Calculating…" : "Finish & show snapshot →"}
+                  </button>
+                )}
+              </div>
             </div>
           </>
         ) : hasSnapshot ? (

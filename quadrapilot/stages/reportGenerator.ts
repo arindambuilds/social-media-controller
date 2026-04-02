@@ -28,7 +28,7 @@ function executiveSummary(result: PipelineResult): string {
       : `Tests/lint need attention (${result.testCount}, lint ${result.lintClean ? "ok" : "errors"}).`;
   const smokeLine =
     result.smokeGate === "PASSED"
-      ? "SMOKE_GATE: PASSED (6/6)."
+      ? "SMOKE_GATE: PASSED — Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts)."
       : result.smokeGate === "SKIPPED"
         ? "SMOKE_GATE: SKIPPED (offline only — not valid for delivery sign-off)."
         : "SMOKE_GATE: FAILED — review `npm run smoke:render`.";

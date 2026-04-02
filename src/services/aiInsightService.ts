@@ -90,7 +90,14 @@ export async function generateInsight(clientId: string, platform: string) {
     }
   });
 
-  await recordAiGeneration(clientId);
+  try {
+    await recordAiGeneration(clientId);
+  } catch (e) {
+    console.warn("[aiInsight] recordAiGeneration failed (insight row saved)", {
+      clientId,
+      message: e instanceof Error ? e.message : String(e)
+    });
+  }
 
   return saved;
 }
@@ -179,6 +186,7 @@ async function tryChatCompletion(input: {
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(28_000),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${env.OPENAI_API_KEY}`
@@ -260,6 +268,7 @@ export async function getLatestContentInsightPayload(clientId: string) {
   return {
     insight: {
       id: row.id,
+      summary: row.summary,
       keyInsights: keys,
       actionsThisWeek: actions,
       warning: row.warning,

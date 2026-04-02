@@ -58,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const session = event.data.object as Stripe.Checkout.Session;
         await persistConversion({
           userId: session.metadata?.userId ?? null,
-          plan: session.metadata?.priceId ?? "unknown",
+          plan: session.metadata?.planId?.trim() || session.metadata?.priceId || "unknown",
           source: session.metadata?.source ?? null,
           feature: session.metadata?.feature ?? null,
           revenue: centsToAmount(session.amount_total),

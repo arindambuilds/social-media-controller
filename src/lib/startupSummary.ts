@@ -1,6 +1,16 @@
 import { env } from "../config/env";
 import { prisma } from "./prisma";
+import { logger } from "./logger";
 import { isSmtpConfigured, isTwilioWhatsAppConfigured } from "../services/whatsappSender";
+
+function isWhatsAppCloudIngressConfigured(): boolean {
+  return Boolean(
+    env.WA_PHONE_NUMBER_ID?.trim() &&
+      env.WA_GRAPH_ACCESS_TOKEN &&
+      env.WA_APP_SECRET?.trim() &&
+      env.WEBHOOK_VERIFY_TOKEN?.trim()
+  );
+}
 
 export async function printStartupSummary(port: number): Promise<void> {
   const lines: string[] = [];
@@ -21,9 +31,11 @@ export async function printStartupSummary(port: number): Promise<void> {
   );
 
   lines.push(
-    isTwilioWhatsAppConfigured()
-      ? "✅ WhatsApp: Twilio configured"
-      : "⚠️ WhatsApp: not configured (optional)"
+    isWhatsAppCloudIngressConfigured()
+      ? "✅ WhatsApp: configured"
+      : isTwilioWhatsAppConfigured()
+        ? "✅ WhatsApp: Twilio configured"
+        : "⚠️ WhatsApp: not configured (optional)"
   );
 
   lines.push(
@@ -45,5 +57,5 @@ export async function printStartupSummary(port: number): Promise<void> {
 
   lines.push(`✅ Server ready on port ${port}`);
 
-  console.log(lines.join("\n"));
+  logger.info(lines.join("\n"));
 }

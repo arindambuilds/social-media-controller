@@ -33,7 +33,7 @@ export interface PipelineResult {
   testCount: string;
   lintClean: boolean;
   /**
-   * Remote Render smoke: PASSED (6/6), FAILED, or SKIPPED when `SMOKE_ENV=skip`.
+   * Remote smoke: PASSED (7/7 — Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts), FAILED, or SKIPPED when `SMOKE_ENV=skip`.
    * Delivery reports must use PASSED only after a real remote run.
    */
   smokeGate: SmokeGateStatus;

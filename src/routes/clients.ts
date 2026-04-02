@@ -204,7 +204,22 @@ clientsRouter.get("/:clientId/sync-status", resolveTenant, async (req, res) => {
 const onboardingProfileSchema = z.object({
   name: z.string().min(2).optional(),
   preferredInstagramHandle: z.string().max(100).nullable().optional(),
-  briefingHourIst: z.number().int().min(0).max(23).optional()
+  briefingHourIst: z.number().int().min(0).max(23).optional(),
+  businessType: z.string().max(80).optional(),
+  language: z.enum(["en", "or"]).optional(),
+  whatsappNumber: z
+    .string()
+    .max(40)
+    .nullable()
+    .optional()
+    .refine(
+      (val) =>
+        val === undefined ||
+        val === null ||
+        val === "" ||
+        (/^\+[\d\s]+$/.test(val) && /\d/.test(val.replace(/\s/g, ""))),
+      { message: "WhatsApp number must start with + and use only digits and spaces." }
+    )
 });
 
 clientsRouter.get(
@@ -220,7 +235,9 @@ clientsRouter.get(
         name: true,
         preferredInstagramHandle: true,
         briefingHourIst: true,
-        whatsappNumber: true
+        whatsappNumber: true,
+        language: true,
+        businessType: true
       }
     });
     if (!client) {
@@ -248,6 +265,9 @@ clientsRouter.patch(
       name?: string;
       preferredInstagramHandle?: string | null;
       briefingHourIst?: number;
+      businessType?: string;
+      language?: string;
+      whatsappNumber?: string | null;
     } = {};
     if (body.name !== undefined) data.name = body.name;
     if (body.preferredInstagramHandle !== undefined) {
@@ -255,6 +275,12 @@ clientsRouter.patch(
       data.preferredInstagramHandle = h === "" || h === null ? null : h;
     }
     if (body.briefingHourIst !== undefined) data.briefingHourIst = body.briefingHourIst;
+    if (body.businessType !== undefined) data.businessType = body.businessType;
+    if (body.language !== undefined) data.language = body.language;
+    if (body.whatsappNumber !== undefined) {
+      const w = body.whatsappNumber;
+      data.whatsappNumber = w === "" || w === null ? null : w;
+    }
 
     const client = await prisma.client.update({
       where: { id: clientId },
@@ -263,7 +289,10 @@ clientsRouter.patch(
         id: true,
         name: true,
         preferredInstagramHandle: true,
-        briefingHourIst: true
+        briefingHourIst: true,
+        whatsappNumber: true,
+        language: true,
+        businessType: true
       }
     });
 

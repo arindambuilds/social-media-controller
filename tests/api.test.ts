@@ -1,6 +1,6 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createApp } from "../src/app.ts";
+import { createApp } from "../src/app";
 import { prisma } from "../src/lib/prisma";
 import { redisConnection } from "../src/lib/redis";
 import { matchesWebhookSignature, signWebhookPayload } from "../src/routes/webhooks";
@@ -9,7 +9,11 @@ import { writeAuditLog } from "../src/services/auditLogService";
 import { PdfService } from "../src/services/pdfService";
 import { hashPassword } from "../src/services/authService";
 
-const hasDb = Boolean(process.env.DATABASE_URL);
+/** Skip DB-backed tests when Vitest supplies the default placeholder URL (no real Postgres). */
+const VITEST_PLACEHOLDER_DATABASE_URL = "postgresql://test:test@localhost:5432/test";
+const hasDb =
+  Boolean(process.env.DATABASE_URL?.trim()) &&
+  process.env.DATABASE_URL !== VITEST_PLACEHOLDER_DATABASE_URL;
 
 const run = hasDb ? describe : describe.skip;
 

@@ -7,7 +7,9 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { useAuth } from "../../context/auth-context";
 import { CLIENT_ID_KEY, getStoredClientId } from "../../lib/auth-storage";
+import { MicroRewardToast } from "../../components/MicroRewardToast";
 import { MorningBriefingCard } from "../../components/MorningBriefingCard";
+import { WowCard } from "../../components/WowCard";
 import { DashboardPageSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
 import { usePulseSse } from "../../hooks/usePulseSse";
@@ -67,12 +69,14 @@ export default function DashboardHomePage() {
   const [followerChart, setFollowerChart] = useState<Array<{ label: string; followers: number }>>([]);
   const [engagementChart, setEngagementChart] = useState<Array<{ label: string; ratePct: number }>>([]);
 
-  const isFirstSession = searchParams?.get("first") === "1";
+  const isFirstSession =
+    searchParams?.get("first") === "1" || searchParams?.get("firstSession") === "true";
   const [showWow, setShowWow] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     const seen = window.localStorage.getItem("pulse_first_session_seen");
     return isFirstSession && !seen;
   });
+  const [rewardToast, setRewardToast] = useState(false);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -160,6 +164,10 @@ export default function DashboardHomePage() {
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("pulse_first_session_seen", "1");
+        if (!window.localStorage.getItem("pulse_reward_toast_seen")) {
+          window.localStorage.setItem("pulse_reward_toast_seen", "1");
+          setRewardToast(true);
+        }
       }
       trackEvent("first_session_action", { source: "wow_card_impression" });
     } catch {
@@ -193,6 +201,7 @@ export default function DashboardHomePage() {
               apiFetch<{
                 success?: boolean;
                 leads?: unknown[];
+                total?: number;
                 pagination?: { total?: number };
               }>(`/leads?clientId=${encodeURIComponent(cid)}&page=1&limit=100`),
               apiFetch<LatestInsightResponse>(
@@ -224,7 +233,8 @@ export default function DashboardHomePage() {
               }))
             );
 
-            const pTotal = leadsRes.pagination?.total;
+            const pTotal =
+              typeof leadsRes.total === "number" ? leadsRes.total : leadsRes.pagination?.total;
             setLeadsTotal(
               typeof pTotal === "number"
                 ? pTotal
@@ -272,6 +282,7 @@ export default function DashboardHomePage() {
 
   return (
     <div className="page-shell">
+      <MicroRewardToast show={rewardToast} onDismiss={() => setRewardToast(false)} />
       <PageHeader
         eyebrow={t("assistant.todayTitle")}
         title={greeting}
@@ -494,6 +505,11 @@ export default function DashboardHomePage() {
             </div>
           </div>
 
+          {isFirstSession ? (
+            <div className="mt-4">
+              <WowCard animateClock />
+            </div>
+          ) : null}
           <MorningBriefingCard clientId={clientLabel} />
         </section>
       ) : null}

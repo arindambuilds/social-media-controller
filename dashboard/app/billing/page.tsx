@@ -13,7 +13,7 @@ import {
 import { getStoredToken } from "../../lib/auth-storage";
 
 interface Plan {
-  id: "free" | "starter" | "growth" | "agency";
+  id: "free" | "pioneer" | "starter" | "growth" | "agency";
   name: string;
   price: number;
   stripePriceId: string;
@@ -33,6 +33,19 @@ const PLANS: Plan[] = [
     stripePriceId: "",
     features: ["1 client", "5 briefings/month", "3 PDF exports", "Basic analytics"],
     limits: { briefings: 5, clients: 1, reports: 3 }
+  },
+  {
+    id: "pioneer",
+    name: "Pioneer (Odisha MSME)",
+    price: 600,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID ?? "",
+    features: [
+      "₹600/mo pioneer cohort (show ₹1,200 strikethrough in-app elsewhere)",
+      "Daily WhatsApp briefing + Instagram leads",
+      "Odia-friendly onboarding and briefings",
+      "Aligned to Startup Odisha / pilot narrative"
+    ],
+    limits: { briefings: null, clients: 2, reports: 20 }
   },
   {
     id: "starter",
@@ -157,14 +170,15 @@ export default function BillingPage() {
   }, [attribution.feature, attribution.source]);
 
   const handleUpgrade = async (plan: Plan) => {
-    if (!plan.stripePriceId || plan.id === currentPlan) return;
+    if (plan.id === currentPlan) return;
+    if (plan.id !== "pioneer" && !plan.stripePriceId) return;
     setUpgrading(plan.id);
     try {
       trackEvent("checkout_started", {
         source: attribution.source ?? "billing",
         feature: attribution.feature ?? "plans",
         planId: plan.id,
-        priceId: plan.stripePriceId
+        priceId: plan.stripePriceId || "pioneer-env"
       });
       setCheckoutIntent({
         source: attribution.source ?? "billing",
@@ -172,17 +186,26 @@ export default function BillingPage() {
         planId: plan.id
       });
       const token = getStoredToken();
+      const body =
+        plan.id === "pioneer"
+          ? {
+              planId: "pioneer" as const,
+              ...(plan.stripePriceId ? { priceId: plan.stripePriceId } : {}),
+              source: attribution.source ?? "billing",
+              feature: attribution.feature ?? "plans"
+            }
+          : {
+              priceId: plan.stripePriceId,
+              source: attribution.source ?? "billing",
+              feature: attribution.feature ?? "plans"
+            };
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({
-          priceId: plan.stripePriceId,
-          source: attribution.source ?? "billing",
-          feature: attribution.feature ?? "plans"
-        })
+        body: JSON.stringify(body)
       });
       if (!res.ok) {
         throw new Error("Could not start checkout. Please try again.");
@@ -211,8 +234,8 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 md:p-8 xl:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 md:p-8 xl:grid-cols-5">
+        {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="h-80 animate-pulse rounded-2xl bg-white/5" />
         ))}
       </div>
@@ -248,7 +271,7 @@ export default function BillingPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {PLANS.map((plan) => {
           const isCurrent = plan.id === currentPlan;
           const isDowngrade = PLANS.findIndex((p) => p.id === plan.id) < PLANS.findIndex((p) => p.id === currentPlan);
@@ -264,6 +287,13 @@ export default function BillingPage() {
                 isCurrent ? `${PLAN_ACCENTS[plan.id]} bg-white/[0.06]` : "border-white/10 bg-white/5 hover:border-white/20"
               }`}
             >
+              {plan.id === "pioneer" && !isCurrent ? (
+                <div
+                  className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${PLAN_BADGE.pioneer}`}
+                >
+                  Pioneer
+                </div>
+              ) : null}
               {isCurrent && (
                 <div
                   className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${PLAN_BADGE[plan.id]}`}
@@ -306,7 +336,9 @@ export default function BillingPage() {
                     ? "cursor-default bg-white/8 text-white/40"
                     : isDowngrade
                       ? "border border-white/15 text-white/50 hover:border-white/30 hover:text-white/70"
-                      : "bg-cyan-500 text-black hover:bg-cyan-400"
+                      : plan.id === "pioneer"
+                        ? "bg-[#00D4AA] text-black hover:bg-[#00c29a]"
+                        : "bg-cyan-500 text-black hover:bg-cyan-400"
                 }`}
               >
                 {upgrading === plan.id
@@ -317,7 +349,9 @@ export default function BillingPage() {
                       ? "Downgrade via portal"
                       : isDowngrade
                         ? "Downgrade"
-                        : "Upgrade →"}
+                        : plan.id === "pioneer"
+                          ? "Join Pioneer →"
+                          : "Upgrade →"}
               </button>
             </div>
           );

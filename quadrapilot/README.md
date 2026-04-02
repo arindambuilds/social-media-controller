@@ -1,6 +1,10 @@
 # QuadraPilot
 
+**Smoke test (single source of truth):** Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).
+
 Orchestrated research → prompt → **Stage 4 quality gates** (Prisma generate, `tsc`, lint, Vitest, optional Render smoke).
+
+**Canonical Cycle 3 / Antigravity tech copy** (cron wording, **7/7** smoke, Task 15, migrate phrasing): [`docs/cycle3-antigravity-tech-status.md`](../docs/cycle3-antigravity-tech-status.md) — mirror into Notion / Slack.
 
 ## Notifications (Cycle 4)
 
@@ -10,7 +14,7 @@ Cycle completion notification is **console-only** by design. Real VS Code toast 
 
 ## Smoke modes
 
-- **Default (`SMOKE_ENV` unset or `remote`):** Stage 4 runs `npm run smoke:render` against production Render. A formal **cycle delivery report** must show **6/6** from this mode.
+- **Default (`SMOKE_ENV` unset or `remote`):** Stage 4 runs `npm run smoke:render` against production Render (override: `npm run smoke:render -- --base https://<api-host>`, or `SMOKE_BASE_URL`). A formal **cycle delivery report** must show **7/7** — same wording as the line above (`scripts/smoke-demo.ts` prints it when green).
 - **Offline (`SMOKE_ENV=skip`):** Skips remote smoke so local runs succeed without network. Use **`npm run quadra:offline`** for that. **Never** present a skipped smoke as the delivery gate — always re-run with remote smoke before sign-off.
 
 ## Commands
@@ -23,7 +27,9 @@ Cycle completion notification is **console-only** by design. Real VS Code toast 
 | `npm run quadra:report` | Regenerate report from last `cycle-*-tests.json`. |
 | `npm run quadra:status` | Print persisted cycle state. |
 
-See `TRUTH_TABLE.md` for the authoritative test and smoke baseline.
+See `TRUTH_TABLE.md` for the authoritative test and smoke baseline. Operator playbook: [`docs/smoke-harness-runbook.md`](../docs/smoke-harness-runbook.md).
+
+**Morning briefing (canonical):** **9:00 Asia/Kolkata** — pattern **`0 9 * * *`**, `tz` / `timezone`: **`Asia/Kolkata`** (not a UTC-only description in stakeholder comms).
 
 ## First live briefing — **Cycle 6 blocker C1** (operator only)
 
