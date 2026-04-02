@@ -422,7 +422,8 @@ export function createApp() {
   app.use("/api/ai/insights", aiInsightsRouter);
   app.use("/api/insights", insightsRouter);
   app.use("/api/briefing", briefingRouter);
-  app.use("/api/pulse/gov-preview", pulseGovPreviewRouter);
+  app.use("/api", pulseGovPreviewRouter);
+  app.use("/api/pulse", pulseGovPreviewRouter);
   app.use("/api/pulse", pulseRouter);
   app.use("/api/voice", voicePostRouter);
   app.use("/api/admin", adminSystemRouter);
