@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.env.test
 .env.*
 !.env.example
 # Local curl helper (may contain demo password)
