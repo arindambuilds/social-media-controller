@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { executeWhatsAppSendJob } from "../src/services/whatsappSendExecutor";
+import { logger } from "../src/lib/logger";
 
 const { mockCreate, factory } = vi.hoisted(() => {
   const mockCreate = vi.fn();
@@ -15,7 +16,6 @@ vi.mock("twilio", () => ({
 }));
 
 import { sendWhatsAppStrict } from "../src/services/whatsappSender";
-import { logger } from "../src/lib/logger";
 
 describe("WhatsApp briefing send (executor)", () => {
   it("happy-path: Twilio called once when Redis lock acquired", async () => {

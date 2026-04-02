@@ -329,7 +329,6 @@ authRouter.post("/refresh", refreshAuthLimiter, async (req, res) => {
       return;
     }
 
-    // Refresh token rotation: prevent replay of an already-used refresh token.
     if (redisConnection) {
       try {
         const revoked = await redisConnection.get(`revoked_refresh:${refreshToken}`);
@@ -341,7 +340,6 @@ authRouter.post("/refresh", refreshAuthLimiter, async (req, res) => {
           return;
         }
       } catch {
-        // Fail open: Redis issues shouldn't lock users out of refresh (observability via logs).
         logger.warn("[auth refresh] revocation check failed; allowing refresh", {
           event: "refresh_revocation_check_failed"
         });
@@ -349,23 +347,15 @@ authRouter.post("/refresh", refreshAuthLimiter, async (req, res) => {
     }
 
     const result = await refresh(refreshToken);
-
-    // Mark the incoming refresh token as revoked (best-effort) so it cannot be reused.
     if (redisConnection) {
       try {
-        await redisConnection.set(
-          `revoked_refresh:${refreshToken}`,
-          "1",
-          "EX",
-          60 * 60 * 24 * 7
-        );
+        await redisConnection.set(`revoked_refresh:${refreshToken}`, "1", "EX", 60 * 60 * 24 * 7);
       } catch {
         logger.warn("[auth refresh] revocation write failed", {
           event: "refresh_revocation_write_failed"
         });
       }
     }
-
     attachAuthCookiesIfEnabled(res, result.accessToken, result.refreshToken);
     res.json({
       success: true,
