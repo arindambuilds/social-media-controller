@@ -172,7 +172,9 @@ export function createApp() {
     }
     res.status(403).type("text/plain").send("Forbidden");
   });
-  app.post(
+  // Mount with app.use (not app.post) so waWebhookRouter.post("/") matches POST /whatsapp/webhook.
+  // app.post(path, router) can leave the path unstripped for the sub-router → 404 in production.
+  app.use(
     "/whatsapp/webhook",
     express.raw({ type: "*/*", limit: "5mb" }),
     webhookLimiter,
