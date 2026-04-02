@@ -65,7 +65,7 @@ export function startWhatsAppIngressWorker(): Worker<WhatsAppIngressQueuePayload
     async (job: Job<WhatsAppIngressQueuePayload>) => processWhatsAppIngressJob(job.data),
     {
       connection: conn,
-      concurrency: 20,
+      concurrency: 10,
       stalledInterval: 30_000,
       maxStalledCount: 1,
       lockDuration: 60_000,
