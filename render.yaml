@@ -1,9 +1,11 @@
 # Render Blueprint — API + WhatsApp BullMQ workers (set env vars in dashboard; do not commit secrets).
-# Web: Prisma generate at build; migrate on start. Rename `pulse-api` here only if it matches your Render service name
-# (e.g. social-media-controller.onrender.com often uses service name `social-media-controller` — align to avoid duplicate resources).
+# Service name must match the Render dashboard exactly to avoid Blueprint sync creating a duplicate service.
+# Web: Prisma generate at build; migrate on start.
+# If you use an external DB (e.g. Supabase) instead of the Render Postgres below, remove `fromDatabase` for
+# DATABASE_URL / DIRECT_URL and set both in the Render dashboard (sync: false).
 services:
   - type: web
-    name: pulse-api
+    name: social-media-controller
     runtime: node
     region: oregon
     plan: free
@@ -16,9 +18,13 @@ services:
       - key: PORT
         value: "4000"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: social-media-controller-db
+          property: connectionString
       - key: DIRECT_URL
-        sync: false
+        fromDatabase:
+          name: social-media-controller-db
+          property: connectionString
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -87,3 +93,8 @@ services:
         sync: false
       - key: WA_PHONE_NUMBER_ID
         sync: false
+
+databases:
+  - name: social-media-controller-db
+    plan: free
+    region: oregon
