@@ -6,6 +6,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main]
+  workflow_dispatch: # Actions → CI/CD Pipeline → Run workflow
 
 jobs:
   test-lint-deploy:
@@ -91,7 +92,7 @@ jobs:
     timeout-minutes: 5
     continue-on-error: true
     env:
-      RENDER_URL: https://social-media-controller.onrender.com
+      RENDER_URL: ${{ secrets.RENDER_URL }}
       SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
       SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
     steps:

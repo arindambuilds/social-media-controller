@@ -1,8 +1,9 @@
-# Render Blueprint — API + WhatsApp BullMQ workers (set env vars in dashboard; do not commit secrets).
+# Render Blueprint — API + WhatsApp BullMQ workers.
+# DATABASE_URL / DIRECT_URL: set in the Render dashboard (sync: false). Do not use fromDatabase here
+# unless this service uses Render Postgres — external DBs (e.g. Supabase, Neon, other hosts) must be
+# dashboard-managed only, or Blueprint sync will fail when resolving fromDatabase.
 # Service name must match the Render dashboard exactly to avoid Blueprint sync creating a duplicate service.
 # Web: Prisma generate at build; migrate on start.
-# If you use an external DB (e.g. Supabase) instead of the Render Postgres below, remove `fromDatabase` for
-# DATABASE_URL / DIRECT_URL and set both in the Render dashboard (sync: false).
 services:
   - type: web
     name: social-media-controller
@@ -18,13 +19,9 @@ services:
       - key: PORT
         value: "4000"
       - key: DATABASE_URL
-        fromDatabase:
-          name: social-media-controller-db
-          property: connectionString
+        sync: false
       - key: DIRECT_URL
-        fromDatabase:
-          name: social-media-controller-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -93,8 +90,3 @@ services:
         sync: false
       - key: WA_PHONE_NUMBER_ID
         sync: false
-
-databases:
-  - name: social-media-controller-db
-    plan: free
-    region: oregon
