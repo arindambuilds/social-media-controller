@@ -1,4 +1,5 @@
-# Push to main: API tests + lints + dashboard lint, then Render deploy hook (if secret set).
+# Push to main: migrate, seed, tests, API + dashboard lint, Render deploy hook, smoke.
+# Set GitHub secret RENDER_DEPLOY_HOOK_URL (preferred) or RENDER_DEPLOY_HOOK (legacy) to your Render Deploy Hook URL.
 # Postgres + Prisma here are required: `env.ts` and Vitest load at import time with DATABASE_URL.
 name: CI/CD Pipeline
 
@@ -67,16 +68,22 @@ jobs:
       - name: Run dashboard lint
         run: npm --prefix dashboard run lint
 
+      - name: Pre-deploy check
+        run: node scripts/pre-deploy-check.mjs
+
       - name: Deploy to Render
         if: success()
         env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
-          if [ -z "${RENDER_DEPLOY_HOOK}" ]; then
-            echo "RENDER_DEPLOY_HOOK secret not set — skipping deploy (GitHub → Settings → Secrets)."
+          HOOK="${RENDER_DEPLOY_HOOK_URL:-}"
+          if [ -z "$HOOK" ]; then HOOK="${RENDER_DEPLOY_HOOK:-}"; fi
+          if [ -z "$HOOK" ]; then
+            echo "Neither RENDER_DEPLOY_HOOK_URL nor RENDER_DEPLOY_HOOK set — skipping deploy."
             exit 0
           fi
-          curl -fsS -X POST "${RENDER_DEPLOY_HOOK}"
+          curl -fsS -X POST "$HOOK"
 
   smoke-render:
     needs: [test-lint-deploy]

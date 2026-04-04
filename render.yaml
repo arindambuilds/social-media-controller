@@ -1,5 +1,6 @@
 # Render Blueprint — API + WhatsApp BullMQ workers (set env vars in dashboard; do not commit secrets).
-# Web service: Prisma generate at build; migrate on start. Optional DB resource below for Render Postgres.
+# Web: Prisma generate at build; migrate on start. Rename `pulse-api` here only if it matches your Render service name
+# (e.g. social-media-controller.onrender.com often uses service name `social-media-controller` — align to avoid duplicate resources).
 services:
   - type: web
     name: pulse-api
