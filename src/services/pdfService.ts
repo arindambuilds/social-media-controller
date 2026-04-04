@@ -113,6 +113,10 @@ async function getBrowser(): Promise<Browser> {
   return sharedBrowserPromise;
 }
 
+/**
+ * Renders arbitrary HTML via Puppeteer or Gotenberg. User-controlled strings must be
+ * sanitized before being embedded in HTML (see `sanitizeHtml` in `src/utils/sanitize.ts` and report templates).
+ */
 export class PdfService {
   /**
    * Close the shared Chromium instance (worker should call `notePdfJobComplete` instead for gradual recycle).

@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { sanitizeHtml } from "../utils/sanitize";
 import {
   getClientOverview,
   getClientPosts,
@@ -98,7 +99,7 @@ export async function buildClientReportHtml(input: {
       contentTypeBreakdown: mediaTypes.types.map((t) => ({ label: t.mediaType, value: t.postCount })),
       topPosts: topPostsLite.slice(0, 3).map((p, i) => ({
         title: `Top post ${i + 1}`,
-        caption: p.captionPreview ?? "",
+        caption: sanitizeHtml(p.captionPreview ?? ""),
         thumbnailUrl: p.mediaUrl ?? null,
         likes: Math.round((p.engagementRate ?? 0) * 100),
         comments: Math.round((p.engagementRate ?? 0) * 20),

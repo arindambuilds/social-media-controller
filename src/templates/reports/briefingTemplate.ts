@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "../../utils/sanitize";
 import { renderBaseTemplate, type ReportBranding } from "./baseTemplate";
 
 type Overview = {
@@ -15,15 +16,6 @@ export type BriefingTemplateInput = {
   branding: ReportBranding;
   applyWatermark?: boolean;
 };
-
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 function bestHourLabel(hour: number | null): string {
   if (hour == null) return "N/A";
@@ -63,7 +55,7 @@ export function renderBriefingTemplate(input: BriefingTemplateInput): string {
       <h3 class="section-title"><span class="section-accent"></span>Latest AI Briefing</h3>
       <article class="card" style="padding:16px;">
       <p style="white-space:pre-wrap;line-height:1.7;font-size:13px;margin:0;color:#0f172a;">
-        ${escapeHtml(input.latestBriefingText ?? "No briefing generated yet for this client.")}
+        ${sanitizeHtml(input.latestBriefingText ?? "No briefing generated yet for this client.")}
       </p>
       </article>
     </section>`;

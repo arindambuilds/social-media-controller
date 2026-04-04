@@ -1,3 +1,4 @@
+import "./config/corsGuard";
 import * as Sentry from "@sentry/node";
 import { setupExpressErrorHandler } from "@sentry/node";
 import cookieParser from "cookie-parser";
@@ -6,6 +7,7 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
+import { corsOptions } from "./config/cors";
 import { env } from "./config/env";
 import cron from "node-cron";
 import { runWeeklyDatabaseCleanup } from "./jobs/databaseCleanup";
@@ -58,24 +60,6 @@ import { waWebhookRouter } from "./whatsapp/webhook.router";
 import { adminSystemRouter } from "./routes/adminSystem";
 import { briefingPublicRouter } from "./routes/briefingPublic";
 import { attachSseRoute } from "./routes/sse";
-
-/** Always allowed in addition to CORS_ORIGIN (when not *). */
-const DEFAULT_CORS_ORIGINS = [
-  "https://social-media-controller.vercel.app",
-  "https://social-media-controller.onrender.com",
-  "http://localhost:3000",
-  "http://localhost:3002"
-] as const;
-
-function corsOrigin(): boolean | string[] {
-  // Production forbids * in env schema — keep runtime guard for defense in depth.
-  if (env.CORS_ORIGIN === "*") return true;
-  const list = env.CORS_ORIGIN.split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const merged = [...new Set([...list, ...DEFAULT_CORS_ORIGINS])];
-  return merged.length ? merged : [...DEFAULT_CORS_ORIGINS];
-}
 
 /** Tight Helmet defaults for JSON API — explicit CSP / Referrer-Policy / HSTS in prod. */
 function securityHelmet() {
@@ -145,15 +129,7 @@ export function createApp() {
   }
 
   app.use(securityHelmet());
-  app.use(
-    cors({
-      origin: corsOrigin(),
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-      exposedHeaders: ["Location"]
-    })
-  );
+  app.use(cors(corsOptions));
   app.use(cookieParser());
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
   app.use(

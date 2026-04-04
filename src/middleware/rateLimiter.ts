@@ -1,4 +1,6 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import RedisStore from "rate-limit-redis";
+import { redisConnection } from "../lib/redis";
 
 /** Standard JSON body for rate limit responses — never echo internal errors. */
 function sendLimit(
@@ -6,9 +8,17 @@ function sendLimit(
   windowMs: number,
   body: Record<string, unknown>
 ): void {
-  // Retry-After helps clients back off without hammering auth endpoints.
   res.setHeader("Retry-After", String(Math.ceil(windowMs / 1000)));
   res.status(429).json(body);
+}
+
+function optionalRedisStore(prefix: string) {
+  const client = redisConnection;
+  if (!client) return undefined;
+  return new RedisStore({
+    sendCommand: (...args: string[]) => client.call(args[0], ...args.slice(1)) as Promise<number>,
+    prefix
+  });
 }
 
 /** Global API budget — slows volumetric probes while allowing normal use. */
@@ -17,6 +27,7 @@ export const globalApiLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  store: optionalRedisStore("rl:global:"),
   skip: (req) => {
     const p = req.path || "";
     if (p === "/health" || p.startsWith("/api/health")) return true;
@@ -42,6 +53,7 @@ export const loginAuthLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  store: optionalRedisStore("rl:auth:"),
   handler: (_req, res, _next, options) => {
     sendLimit(res, options.windowMs, {
       success: false,
@@ -56,6 +68,7 @@ export const refreshAuthLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
+  store: optionalRedisStore("rl:refresh:"),
   handler: (_req, res, _next, options) => {
     sendLimit(res, options.windowMs, {
       success: false,
@@ -70,6 +83,7 @@ export const dmPreviewLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: optionalRedisStore("rl:dm_preview:"),
   keyGenerator: (req) => {
     const auth = req.auth;
     const body = (req.body ?? {}) as { clientId?: string };
@@ -95,6 +109,7 @@ export const reportPdfExportLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: optionalRedisStore("rl:report_pdf:"),
   keyGenerator: (req) => {
     const auth = (req as { auth?: { userId?: string } }).auth;
     const uid = auth?.userId;
@@ -117,6 +132,7 @@ export const registerAuthLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
+  store: optionalRedisStore("rl:register:"),
   handler: (_req, res, _next, options) => {
     sendLimit(res, options.windowMs, {
       success: false,
@@ -131,6 +147,7 @@ export const webhookLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  store: optionalRedisStore("rl:webhook:"),
   handler: (_req, res, _next, options) => {
     sendLimit(res, options.windowMs, { error: "Too many webhook requests" });
   }

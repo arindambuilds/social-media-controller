@@ -1,3 +1,4 @@
+import { sanitizeHtml } from "../../utils/sanitize";
 import { renderBaseTemplate, type ReportBranding } from "./baseTemplate";
 import {
   contentTypeBreakdownChart,
@@ -79,7 +80,7 @@ function buildInsights(data: AnalyticsTemplateData): string[] {
   const topReach = [...data.postPerformance].sort((a, b) => b.value - a.value)[0];
   if (topReach) {
     insights.push(
-      `Reach peaks around <strong>${escapeHtml(topReach.label)}</strong>; schedule priority posts in this window.`
+      `Reach peaks around <strong>${sanitizeHtml(topReach.label)}</strong>; schedule priority posts in this window.`
     );
   }
   if (data.kpis.engagementRatePct >= 4) {
@@ -218,7 +219,7 @@ export function renderAnalyticsTemplate(input: Input): string {
                 : `<div class="thumb-placeholder">No Image</div>`
             }
             <div class="post-content">
-              <p class="post-caption">${escapeHtml(p.caption || p.title)}</p>
+              <p class="post-caption">${sanitizeHtml(p.caption || p.title)}</p>
               <div class="post-metrics">Likes ${p.likes.toLocaleString("en-IN")} • Comments ${p.comments.toLocaleString(
                 "en-IN"
               )} • Reach ${Math.round(p.reach).toLocaleString("en-IN")}</div>
