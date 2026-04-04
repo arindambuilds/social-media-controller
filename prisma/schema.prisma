@@ -26,8 +26,26 @@ model User {
   agencyClients    Client[]           @relation("Agency")
   ownedClients     Client[]           @relation("ClientOwner")
   briefingFeedback BriefingFeedback[]
+  notifications    Notification[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, read, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model Client {
@@ -369,6 +387,42 @@ model AuditLog {
   createdAt  DateTime @default(now())
 }
 
+model EmailLog {
+  id               String      @id @default(cuid())
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  toAddress        String
+  fromAddress      String
+  subject          String
+  emailType        String
+  status           EmailStatus @default(QUEUED)
+  providerMessageId String?
+  providerUsed     String?
+  providerResponse Json?
+  errorCode        String?
+  errorMessage     String?
+  attemptCount     Int         @default(0)
+  lastAttemptAt    DateTime?
+  userId           String?
+  deduplicationKey String?     @unique
+  isBounced        Boolean     @default(false)
+  suppressionReason String?
+
+  @@index([toAddress])
+  @@index([emailType])
+  @@index([status])
+  @@index([userId])
+  @@index([deduplicationKey])
+}
+
+model EmailSuppression {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  reason    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+}
+
 model SyncRun {
   id              String        @id @default(cuid())
   clientId        String
@@ -477,6 +531,16 @@ enum BriefingStatus {
   GENERATING
   COMPLETE
   FAILED
+}
+
+enum EmailStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+  SPAM_COMPLAINT
 }
 
 /// Optional audit rows for BullMQ processors (best-effort; never throws to callers).

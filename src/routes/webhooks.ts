@@ -8,8 +8,11 @@ import { addIngestionJob } from "../queues/ingestionQueue";
 import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
 import { env } from "../config/env";
+import { emailWebhooksRouter } from "./webhooks/emailWebhooks";
 
 export const webhookRouter = Router();
+
+webhookRouter.use("/email", emailWebhooksRouter);
 
 function getWebhookSignature(req: Request): string | null {
   const candidate =

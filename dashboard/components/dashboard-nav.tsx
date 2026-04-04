@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/auth-context";
 import { ThemeToggle } from "./theme-toggle";
+import { NotificationBell } from "./NotificationBell";
 
 /** Primary MVP nav (5 pages). */
 const primaryLinks = [
@@ -215,7 +216,9 @@ export function DashboardNav() {
 
         <div className="app-nav-trailing">
           {hasToken && user ? (
-            <div className="app-nav-user-desktop" ref={userMenuRef}>
+            <>
+              <NotificationBell />
+              <div className="app-nav-user-desktop" ref={userMenuRef}>
               <button
                 type="button"
                 className="app-nav-user-trigger"
@@ -246,6 +249,7 @@ export function DashboardNav() {
                 </div>
               ) : null}
             </div>
+            </>
           ) : null}
           {hasToken && userLoading && !user ? (
             <div className="app-nav-user app-nav-user-loading app-nav-user-desktop" aria-hidden>

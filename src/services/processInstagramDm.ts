@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { createNotification } from "./notificationService";
 import { decrypt } from "../lib/encryption";
 import { logger } from "../lib/logger";
 import { sendWhatsApp } from "./whatsappSender";
@@ -146,6 +147,16 @@ async function handleMessagingEvent(evt: unknown): Promise<void> {
         where: { id: conversation.id },
         data: { leadCaptured: true, leadId: lead.id }
       });
+      void createNotification(client.ownerId, {
+        type: "lead_captured",
+        title: "New lead captured",
+        message: `${contactName} reached out via Instagram DM.`,
+        metadata: { leadId: lead.id, clientId: client.id, source: "instagram_dm" }
+      }).catch((e) =>
+        logger.warn("[processInstagramDm] notification create failed", {
+          message: e instanceof Error ? e.message : String(e)
+        })
+      );
     } catch (err) {
       logger.warn("[processInstagramDm] lead upsert failed", {
         message: err instanceof Error ? err.message : String(err)

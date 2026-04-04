@@ -1,0 +1,37 @@
+{
+  "id": "pulseos-env-production",
+  "name": "production",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "https://social-media-controller.onrender.com",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "socialAccountId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "postId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

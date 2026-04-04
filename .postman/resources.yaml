@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: dbd66a3d-83f3-48fd-8c05-3432f7f03cf5
+
+localResources:
+  collections:
+    - ..\social-media-controller\docs\email\email_launch_verification.postman_collection.json

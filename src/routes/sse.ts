@@ -90,6 +90,7 @@ export function attachSseRoute(app: Express): void {
     }
 
     const channel = `pulse:${clientId}`;
+    const notifChannel = `notifications:${auth.userId}`;
     let sub: Redis | null = null;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
 
@@ -101,7 +102,7 @@ export function attachSseRoute(app: Express): void {
 
     try {
       sub = redisConnection.duplicate();
-      await sub.subscribe(channel);
+      await sub.subscribe(channel, notifChannel);
 
       send(
         "connected",
@@ -109,7 +110,12 @@ export function attachSseRoute(app: Express): void {
         `conn-${Date.now()}`
       );
 
-      sub.on("message", (_ch, message) => {
+      sub.on("message", (ch, message) => {
+        if (ch === notifChannel) {
+          send("notification", message);
+          return;
+        }
+        if (ch !== channel) return;
         try {
           const parsed = JSON.parse(message) as { eventId?: string };
           const id = typeof parsed.eventId === "string" ? parsed.eventId : undefined;

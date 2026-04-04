@@ -1,4 +1,5 @@
 export const queueNames = {
+  email: "email",
   ingestion: "ingestion",
   tokenRefresh: "token-refresh",
   postPublish: "post-publish",

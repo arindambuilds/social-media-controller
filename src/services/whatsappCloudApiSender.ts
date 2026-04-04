@@ -1,4 +1,5 @@
 import { env } from "../config/env";
+import { logger } from "../lib/logger";
 import { redisConnection } from "../lib/redis";
 import type { WhatsAppOutboundJobPayload } from "../queues/whatsappOutboundQueue";
 import { getLastInboundTs } from "../whatsapp/session.store";
@@ -97,6 +98,11 @@ export async function sendWhatsAppMessage(
 
   const apiVersion = env.WA_API_VERSION.replace(/^\/+/, "").trim() || "v19.0";
   const url = `https://graph.facebook.com/${apiVersion}/${encodeURIComponent(phoneId)}/messages`;
+  logger.info("[whatsappCloudApiSender] Graph send attempt", {
+    waId,
+    messageType,
+    hasContext: Boolean(contextId)
+  });
   const res = await fetchImpl(url, {
     method: "POST",
     headers: {
@@ -136,5 +142,6 @@ export async function sendWhatsAppMessage(
 
   const mid = data.messages?.[0]?.id;
   recordWhatsAppOutboundSent(waId);
+  logger.info("[whatsappCloudApiSender] Graph send ok", { waId, messageId: mid });
   return { status: "sent", messageId: mid };
 }

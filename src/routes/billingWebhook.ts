@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
+import { createNotification } from "../services/notificationService";
 
 export const billingWebhookRouter = Router();
 
@@ -48,6 +49,19 @@ billingWebhookRouter.post("/webhook", raw({ type: "application/json" }), async (
               planActivatedAt: new Date()
             }
           });
+          void createNotification(agencyUserId, {
+            type: "billing_checkout",
+            title: "Subscription activated",
+            message: `Your ${planId} plan is now active.`,
+            metadata: {
+              planId,
+              stripeSubscriptionId: typeof session.subscription === "string" ? session.subscription : null
+            }
+          }).catch((e) =>
+            logger.warn("[billing webhook] notification create failed", {
+              message: e instanceof Error ? e.message : String(e)
+            })
+          );
         }
         break;
       }
@@ -61,6 +75,16 @@ billingWebhookRouter.post("/webhook", raw({ type: "application/json" }), async (
             where: { id: agencyUserId },
             data: { plan: planId, stripeSubscriptionId: sub.id }
           });
+          void createNotification(agencyUserId, {
+            type: "billing_subscription_updated",
+            title: "Subscription updated",
+            message: `Your plan is now ${planId} (status: ${sub.status}).`,
+            metadata: { planId, stripeSubscriptionId: sub.id, status: sub.status }
+          }).catch((e) =>
+            logger.warn("[billing webhook] notification create failed", {
+              message: e instanceof Error ? e.message : String(e)
+            })
+          );
         }
         break;
       }
@@ -73,6 +97,16 @@ billingWebhookRouter.post("/webhook", raw({ type: "application/json" }), async (
             where: { id: agencyUserId },
             data: { plan: "free", stripeSubscriptionId: null }
           });
+          void createNotification(agencyUserId, {
+            type: "billing_subscription_ended",
+            title: "Subscription ended",
+            message: "Your subscription was cancelled. You are now on the free plan.",
+            metadata: { stripeSubscriptionId: sub.id }
+          }).catch((e) =>
+            logger.warn("[billing webhook] notification create failed", {
+              message: e instanceof Error ? e.message : String(e)
+            })
+          );
         }
         break;
       }

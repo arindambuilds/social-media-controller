@@ -261,3 +261,23 @@ export const env = {
   /** Resolved Meta Graph token: `WA_ACCESS_TOKEN` wins, then `WA_TOKEN`. */
   WA_GRAPH_ACCESS_TOKEN: (parsed.WA_ACCESS_TOKEN?.trim() || parsed.WA_TOKEN?.trim() || "").trim()
 };
+
+export const emailConfig = {
+  provider: (process.env.EMAIL_PROVIDER?.trim() || "postmark") as "postmark" | "ses",
+  postmarkToken: process.env.POSTMARK_API_TOKEN?.trim() || undefined,
+  /** Set in production; default keeps local/test boot without failing env parse. */
+  fromAddress: process.env.EMAIL_FROM_ADDRESS?.trim() || "noreply@pulseos.local",
+  fromName: process.env.EMAIL_FROM_NAME?.trim() || "PulseOS",
+  replyTo: process.env.EMAIL_REPLY_TO?.trim() || undefined,
+  concurrency: Number.parseInt(process.env.EMAIL_QUEUE_CONCURRENCY ?? "5", 10),
+  logsEnabled: process.env.EMAIL_LOGS_ENABLED !== "false",
+  devIntercept:
+    env.NODE_ENV !== "production" ? process.env.EMAIL_DEV_INTERCEPT?.trim() || undefined : undefined,
+  rateLimitPerHour: Number.parseInt(process.env.EMAIL_RATE_LIMIT_PER_HOUR ?? "5", 10),
+  rateLimitPerDay: Number.parseInt(process.env.EMAIL_RATE_LIMIT_PER_DAY ?? "20", 10),
+  dedupeTtlSeconds: Number.parseInt(process.env.EMAIL_DEDUPE_TTL_SECONDS ?? "3600", 10),
+  retentionDays: Number.parseInt(process.env.EMAIL_LOG_RETENTION_DAYS ?? "90", 10),
+  dlqAlertThreshold: Number.parseInt(process.env.EMAIL_DLQ_ALERT_THRESHOLD ?? "5", 10),
+  defaultAlertEmail: process.env.DEFAULT_ALERT_EMAIL?.trim() || "admin@pulseos.in",
+  postmarkWebhookSecret: process.env.POSTMARK_WEBHOOK_SECRET?.trim() || undefined
+} as const;

@@ -14,6 +14,34 @@
 4. **PDF worker:** set `START_PDF_WORKER_IN_API=false` and run a second Render service (or PM2 process) with `node dist/workers/pdfWorkerEntry.js` so Puppeteer/Chromium or Gotenberg does not share the API dyno RSS.
 5. **PM2 (optional on VPS):** `npm run build && pm2 start ecosystem.config.cjs` — API cluster + separate PDF workers; see `ecosystem.config.cjs` for `max_memory_restart` / `kill_timeout`.
 
+## Email delivery (BullMQ + Postmark / SES)
+
+- **Queue-first only:** API routes enqueue email jobs; delivery happens in the BullMQ worker. There is no synchronous send path.
+- **Redis required:** email queue and worker stay disabled without a non-localhost `REDIS_URL`.
+- **Provider config:** set `EMAIL_FROM_ADDRESS` plus either:
+  - `POSTMARK_API_TOKEN` for Postmark primary
+  - or `EMAIL_PROVIDER=ses` with `AWS_SES_ACCESS_KEY`, `AWS_SES_SECRET_KEY`, `AWS_SES_REGION`
+- **Embedded worker mode (default):** in production, the API starts the email worker unless `START_EMAIL_WORKER_IN_API=false`.
+- **Standalone worker mode:** set `START_EMAIL_WORKER_IN_API=false` and run `npm run worker:email` on a separate Render worker service.
+- **Do not run both unintentionally:** if `START_EMAIL_WORKER_IN_API=true` and a separate `worker:email` service is also running, both processes will consume from the same BullMQ queue. That is valid when intentional, but it doubles worker capacity.
+- **Provider failure behavior:** the first real delivery job fails loudly if mail providers are not configured. API boot still succeeds.
+
+### Email webhook
+
+- Postmark webhook route: `POST /api/webhooks/email/postmark`
+- When `POSTMARK_WEBHOOK_SECRET` is set, requests must include matching header:
+  - `x-postmark-webhook-token: <POSTMARK_WEBHOOK_SECRET>`
+- Bounce / spam complaint webhooks update `EmailLog` and add rows to `EmailSuppression`.
+- Delivery webhooks update `EmailLog.status` to `DELIVERED`.
+
+### Email maintenance jobs
+
+- Retention: `npm run worker:email:retention`
+- DLQ monitor: `npm run worker:email:dlq`
+- Default retention: 90 days (`EMAIL_LOG_RETENTION_DAYS`)
+- DLQ alert threshold: `EMAIL_DLQ_ALERT_THRESHOLD`
+- Default alert recipient: `DEFAULT_ALERT_EMAIL`
+
 ## Gotenberg (optional HTML→PDF)
 
 1. Run [Gotenberg](https://gotenberg.dev/) v8+ (e.g. Docker `gotenberg/gotenberg:8`) on a private URL.

@@ -1,14 +1,19 @@
 # Render Blueprint — API + WhatsApp BullMQ workers (set env vars in dashboard; do not commit secrets).
+# Web service: Prisma generate at build; migrate on start. Optional DB resource below for Render Postgres.
 services:
   - type: web
     name: pulse-api
     runtime: node
-    buildCommand: npm ci && npm run build
-    startCommand: node dist/server.js
+    region: oregon
+    plan: free
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && node dist/server.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: "4000"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL

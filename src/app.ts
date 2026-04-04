@@ -43,6 +43,7 @@ import { insightsRouter } from "./routes/insights";
 import { instagramRouter } from "./routes/instagram";
 import { leadsRouter } from "./routes/leads";
 import { messageRouter } from "./routes/message";
+import { notificationsRouter } from "./routes/notifications";
 import { oauthCallbacksRouter } from "./routes/oauthCallbacks";
 import { postsRouter } from "./routes/posts";
 import { pulseGovPreviewRouter } from "./routes/govPreview";
@@ -447,6 +448,7 @@ export function createApp() {
   app.use("/api/pulse", pulseGovPreviewRouter);
   app.use("/api/pulse", pulseRouter);
   app.use("/api/voice", voicePostRouter);
+  app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminSystemRouter);
 
   if (env.NODE_ENV === "production") {

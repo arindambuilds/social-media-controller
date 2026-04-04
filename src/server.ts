@@ -12,7 +12,9 @@ import { pdfQueue } from "./queues/pdfQueue";
 import { whatsappBriefingQueue } from "./queues/whatsappBriefingQueue";
 import { whatsappOutboundQueue } from "./queues/whatsappOutboundQueue";
 import { whatsappSendQueue } from "./queues/whatsappSendQueue";
+import { emailQueue } from "./services/email/emailQueue";
 import { PdfService } from "./services/pdfService";
+import { closeEmailWorker, startEmailWorker } from "./services/email/emailWorker";
 import { startBriefingWorker } from "./workers/briefingWorker";
 import { initMaintenanceJobs, startMaintenanceWorker } from "./workers/maintenanceWorker";
 import { startPdfWorker } from "./workers/pdfWorker";
@@ -41,6 +43,13 @@ function shouldEmbedWhatsAppOutboundWorkerInApi(): boolean {
   return v !== "false" && v !== "0";
 }
 
+/** Queue-first email sends; set `START_EMAIL_WORKER_IN_API=false` and run `npm run worker:email` separately. */
+function shouldEmbedEmailWorkerInApi(): boolean {
+  if (!redisConnection) return false;
+  const v = process.env.START_EMAIL_WORKER_IN_API?.trim().toLowerCase();
+  return v !== "false" && v !== "0";
+}
+
 if (process.env.NODE_ENV === "production") {
   const dbUrl = process.env.DATABASE_URL ?? "";
   if (
@@ -64,6 +73,7 @@ let workerMaintenance: Worker | null = null;
 let workerWhatsAppBriefing: Worker | null = null;
 let workerWhatsAppSend: Worker | null = null;
 let workerWhatsAppOutbound: Worker | null = null;
+let workerEmail: Worker | null = null;
 
 if (process.env.NODE_ENV === "production" && redisConnection) {
   if (pdfQueue && process.env.START_PDF_WORKER_IN_API === "false") {
@@ -71,7 +81,8 @@ if (process.env.NODE_ENV === "production" && redisConnection) {
   }
   if (!shouldEmbedWhatsAppOutboundWorkerInApi()) {
     logger.warn("[pulse] In-process Meta WhatsApp outbound worker disabled", {
-      hint: "run npm run worker:wa:outbound"
+      hint:
+        "Run a separate worker with the same branch/REDIS_URL: npm run worker:wa:outbound (or node dist/workers/whatsappOutboundWorkerEntry.js), e.g. Render service pulse-whatsapp-outbound-worker — or set START_WA_OUTBOUND_WORKER_IN_API=true on the API"
     });
   }
   workerBriefing = startBriefingWorker();
@@ -85,6 +96,25 @@ if (process.env.NODE_ENV === "production" && redisConnection) {
   workerWhatsAppSend = startWhatsAppSendWorker();
   if (shouldEmbedWhatsAppOutboundWorkerInApi()) {
     workerWhatsAppOutbound = startWhatsAppOutboundWorker();
+    if (!workerWhatsAppOutbound) {
+      logger.warn("[pulse] Meta WhatsApp outbound worker did not start — whatsapp-outbound jobs will not be processed", {
+        hint: "Check REDIS_URL / BullMQ connection, or run a dedicated worker: npm run worker:wa:outbound"
+      });
+    }
+  }
+  if (shouldEmbedEmailWorkerInApi()) {
+    try {
+      workerEmail = startEmailWorker();
+    } catch (err) {
+      logger.warn("[pulse] Email worker did not start — queued emails will not send", {
+        message: err instanceof Error ? err.message : String(err),
+        hint: "Set POSTMARK_API_TOKEN (or SES) and REDIS_URL, or run npm run worker:email"
+      });
+    }
+  } else {
+    logger.warn("[pulse] In-process email worker disabled", {
+      hint: "Run npm run worker:email with same REDIS_URL, or set START_EMAIL_WORKER_IN_API=true"
+    });
   }
   void initMaintenanceJobs();
   startPdfQueueMaintenance();
@@ -104,6 +134,9 @@ function registerQueueShutdownHooks(): void {
   if (workerWhatsAppOutbound) {
     registerShutdownHook(async () => closeWhatsAppOutboundWorker(workerWhatsAppOutbound!));
   }
+  if (workerEmail) {
+    registerShutdownHook(async () => closeEmailWorker(workerEmail!));
+  }
   if (workerMaintenance) registerShutdownHook(() => workerMaintenance!.close());
   const pq = pdfQueue;
   if (pq) registerShutdownHook(() => pq.close());
@@ -115,6 +148,8 @@ function registerQueueShutdownHooks(): void {
   if (wsq) registerShutdownHook(() => wsq.close());
   const woq = whatsappOutboundQueue;
   if (woq) registerShutdownHook(() => woq.close());
+  const eq = emailQueue;
+  if (eq) registerShutdownHook(() => eq.close());
   registerShutdownHook(() => PdfService.closeSharedBrowser());
 }
 

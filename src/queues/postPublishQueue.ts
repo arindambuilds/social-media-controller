@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "./queueNames";
+import { createNotification } from "../services/notificationService";
 import {
   markScheduledPostFailed,
   markScheduledPostPublished,
@@ -19,7 +20,7 @@ export type PostPublishJob = {
 export async function executePostPublishJobSync(scheduledPostId: string): Promise<void> {
   const row = await prisma.scheduledPost.findUnique({
     where: { id: scheduledPostId },
-    include: { socialAccount: true }
+    include: { socialAccount: true, client: { select: { ownerId: true } } }
   });
 
   if (!row) {
@@ -51,6 +52,21 @@ export async function executePostPublishJobSync(scheduledPostId: string): Promis
       return;
     }
     await markScheduledPostPublished(row.id, result.platformPostId);
+    void createNotification(row.client.ownerId, {
+      type: "post_published",
+      title: "Post published",
+      message: `Your scheduled post is live on ${acc.platform}.`,
+      metadata: {
+        scheduledPostId: row.id,
+        platformPostId: result.platformPostId,
+        platform: acc.platform,
+        clientId: row.clientId
+      }
+    }).catch((e) =>
+      logger.warn("[post-publish] notification create failed", {
+        message: e instanceof Error ? e.message : String(e)
+      })
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await markScheduledPostFailed(row.id, message);
