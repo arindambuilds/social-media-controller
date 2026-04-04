@@ -1,6 +1,7 @@
 import type { Worker } from "bullmq";
-import { createApp } from "./app";
+/** Load `.env` before any module that reads `process.env.DATABASE_URL` (e.g. Prisma). */
 import { env } from "./config/env";
+import { createApp } from "./app";
 import { installProcessShutdownHandlers, registerShutdownHook, runShutdownHooks } from "./lib/shutdownRegistry";
 import { redisConnection } from "./lib/redis";
 import { printStartupSummary } from "./lib/startupSummary";
@@ -65,7 +66,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const app = createApp();
-const PORT = Number(process.env.PORT) || 8080;
+/** Render injects `PORT`; local dev defaults to 4000. */
+const PORT = parseInt(process.env.PORT || "4000", 10);
 
 let workerBriefing: Worker | null = null;
 let workerPdf: Worker | null = null;
@@ -157,16 +159,14 @@ registerQueueShutdownHooks();
 
 scheduleMorningBriefing();
 
-void printStartupSummary(PORT);
-
 const server = app.listen(PORT, "0.0.0.0", () => {
-  const inst =
-    process.env.NODE_APP_INSTANCE ?? process.env.pm_id ?? process.env.INSTANCE_ID ?? "0";
-  logger.info("Server started", {
+  logger.info({
+    message: "Server ready",
+    port: PORT,
     environment: process.env.NODE_ENV,
-    instance: inst,
-    health: `http://localhost:${PORT}/api/health`
+    service: "social-media-controller"
   });
+  void printStartupSummary(PORT);
 });
 
 installProcessShutdownHandlers(async () => {
