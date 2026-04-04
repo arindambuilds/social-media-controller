@@ -93,6 +93,9 @@ async function getBrowser(): Promise<Browser> {
         "PDF engine not configured. Set PUPPETEER_EXECUTABLE_PATH to a Chrome/Chromium executable path."
       );
     }
+    // No `--disable-web-security` — keeps normal renderer security boundaries.
+    // HTML uses trusted templates + `sanitizeHtml` on user text; charts use `https://quickchart.io/...`.
+    // Logo `<img src>` may request arbitrary HTTPS URLs — validate `logoUrl` when saving if internal SSRF is a concern.
     sharedBrowserPromise = puppeteer.launch({
       executablePath,
       args: [
