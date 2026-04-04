@@ -1,12 +1,15 @@
 "use client";
 
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetchResponse, fetchMe, parseApiErrorMessage } from "../../lib/api";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { getAccessToken } from "../../lib/auth-storage";
 import { ListPageSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
+import { usePageEnter } from "@/hooks/usePageEnter";
 
 type AuditRow = {
   id: string;
@@ -19,6 +22,8 @@ type AuditRow = {
 };
 
 export default function AuditPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
@@ -56,7 +61,7 @@ export default function AuditPage() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -69,8 +74,7 @@ export default function AuditPage() {
           setLoading(false);
           return;
         }
-        const cid = getStoredClientId() ?? me.user.clientId ?? "demo-client";
-        localStorage.setItem(CLIENT_ID_KEY, cid);
+        const cid = me.user.clientId ?? "demo-client";
         setClientId(cid);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load");
@@ -97,12 +101,16 @@ export default function AuditPage() {
   }, [clientId, page, actionFilter, load, role]);
 
   if (loading) {
-    return <ListPageSkeleton label="Loading audit log…" />;
+    return (
+      <div key={pathname} className={pageClassName}>
+        <ListPageSkeleton label="Loading audit log…" />
+      </div>
+    );
   }
 
   if (role === "CLIENT_USER") {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <PageHeader
           eyebrow="Security"
           title="Audit log"
@@ -122,7 +130,7 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <PageHeader
         eyebrow="Security"
         title="Audit log"

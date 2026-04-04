@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { API_URL, apiFetch } from "../../lib/api";
-import { getStoredToken } from "../../lib/auth-storage";
+import { getAccessToken } from "../../lib/auth-storage";
 
 interface BrandingConfig {
   logoUrl: string | null;
@@ -99,7 +99,7 @@ export function BrandingSettings() {
     setUploading(true);
     setError("");
     try {
-      const token = getStoredToken();
+      const token = getAccessToken();
       const form = new FormData();
       form.append("file", file);
       const res = await fetch(`${API_URL}/agency/branding/logo`, {

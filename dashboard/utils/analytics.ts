@@ -5,6 +5,8 @@ const ATTR_SOURCE_KEY = "pulse.analytics.source";
 const ATTR_FEATURE_KEY = "pulse.analytics.feature";
 const CHECKOUT_INTENT_KEY = "pulse.analytics.checkoutIntent";
 
+const memoryStore = new Map<string, string>();
+
 export type AnalyticsEventPayload = {
   event: string;
   userId?: string;
@@ -36,20 +38,15 @@ function randomId(prefix: string): string {
 }
 
 function safeGet(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
+  return memoryStore.get(key) ?? null;
 }
 
 function safeSet(key: string, value: string): void {
-  try {
-    window.sessionStorage.setItem(key, value);
-    window.localStorage.setItem(key, value);
-  } catch {
-    // no-op
-  }
+  memoryStore.set(key, value);
+}
+
+function safeRemove(key: string): void {
+  memoryStore.delete(key);
 }
 
 export function getSessionId(): string {
@@ -105,18 +102,12 @@ export function getCheckoutIntent(): CheckoutIntent | null {
 
 export function clearCheckoutIntent(): void {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(CHECKOUT_INTENT_KEY);
-    window.sessionStorage.removeItem(CHECKOUT_INTENT_KEY);
-  } catch {
-    // no-op
-  }
+  safeRemove(CHECKOUT_INTENT_KEY);
 }
 
 export async function trackEvent(event: string, data?: TrackEventData): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    // URL params are a source of truth for attribution.
     persistAttributionFromUrl();
     const attr = getAttributionContext();
     const payload: AnalyticsEventPayload = {
@@ -138,4 +129,3 @@ export async function trackEvent(event: string, data?: TrackEventData): Promise<
     // analytics must never break UI
   }
 }
-

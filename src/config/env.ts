@@ -68,6 +68,7 @@ const envSchema = z
     SENTRY_DSN: z.string().optional(),
     APP_BASE_URL: z.string().url().optional(),
     ENCRYPTION_KEY: z.string().optional(),
+    ENCRYPTION_KEY_PREV: z.string().optional(),
     INGESTION_MODE: z.enum(["instagram", "mock"]).default("mock"),
     /** Access JWT lifetime — default 15m limits blast radius if stolen. */
     JWT_EXPIRES_IN: z.string().default("15m"),
@@ -159,6 +160,8 @@ const envSchema = z
     METRICS_SECRET: z.string().min(24).optional(),
     /** e.g. `http://gotenberg:3000` — when set, PDF worker uses Gotenberg instead of Puppeteer. */
     GOTENBERG_URL: z.string().url().optional(),
+    /** Set to `disabled` to skip HTML→PDF locally (reports return 503 until re-enabled). */
+    PDF_GENERATION: z.enum(["disabled"]).optional(),
     /**
      * `hourly` (default): BullMQ `dispatch-hour` every :00 IST.
      * `nine_am_ist`: only `whatsapp-briefing` queue at 09:00 IST (requires `startWhatsAppBriefingWorker` in API).

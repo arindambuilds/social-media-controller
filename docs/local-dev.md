@@ -1,3 +1,7 @@
+> INTERNAL USE ONLY
+>
+> This development runbook includes local setup, seed data, and internal login references. Do not treat it as a customer-facing document.
+
 ## Local dev (Windows, no Docker)
 
 Backend: **local PostgreSQL** + **hosted Upstash Redis** (or any `rediss://` Redis). The dashboard is a separate Next.js app in `dashboard/`.

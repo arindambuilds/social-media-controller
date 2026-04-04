@@ -1,11 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, fetchMe } from "../../../lib/api";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../../lib/auth-storage";
+import { getAccessToken } from "../../../lib/auth-storage";
 import { PageHeader } from "../../../components/ui/page-header";
 import { trackEvent } from "../../../lib/trackEvent";
+import { usePageEnter } from "@/hooks/usePageEnter";
 
 type ConversationRow = {
   id: string;
@@ -60,6 +63,8 @@ function DmInboxListSkeleton() {
 }
 
 export default function DmInboxPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const router = useRouter();
   const threadEndRef = useRef<HTMLDivElement>(null);
   const [clientId, setClientId] = useState<string | null>(null);
@@ -95,7 +100,7 @@ export default function DmInboxPage() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -103,7 +108,7 @@ export default function DmInboxPage() {
     (async () => {
       try {
         const me = await fetchMe();
-        let cid = getStoredClientId() ?? me.user.clientId;
+        let cid = me.user.clientId;
         if (me.user.role === "CLIENT_USER" && !cid) {
           setLoadError("No client assigned.");
           setListLoading(false);
@@ -111,7 +116,6 @@ export default function DmInboxPage() {
         }
         if (me.user.role === "AGENCY_ADMIN" && !cid) {
           cid = "demo-client";
-          localStorage.setItem(CLIENT_ID_KEY, cid);
         }
         if (!cid) {
           setLoadError("No client context.");
@@ -119,7 +123,6 @@ export default function DmInboxPage() {
           return;
         }
         setClientId(cid);
-        localStorage.setItem(CLIENT_ID_KEY, cid);
         await loadList(cid);
       } catch (e) {
         setLoadError(e instanceof Error ? e.message : "Failed to load conversations");
@@ -168,7 +171,7 @@ export default function DmInboxPage() {
   }
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <PageHeader
         eyebrow="Instagram"
         title="DM inbox"
@@ -207,7 +210,7 @@ export default function DmInboxPage() {
                         onClick={() => setSelectedId(c.id)}
                         className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
                           active
-                            ? "border-accent-purple/50 bg-accent-purple/12"
+                            ? "border-blue-500/50 bg-blue-500/12"
                             : "border-transparent hover:border-subtle hover:bg-surface/60"
                         }`}
                       >
@@ -271,7 +274,7 @@ export default function DmInboxPage() {
                             className={`max-w-[min(100%,420px)] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                               inbound
                                 ? "rounded-tl-sm bg-[#1e1e2e] text-ink"
-                                : "rounded-tr-sm bg-accent-purple/25 text-ink"
+                                : "rounded-tr-sm bg-blue-500/25 text-ink"
                             }`}
                           >
                             {m.content}
@@ -281,7 +284,7 @@ export default function DmInboxPage() {
                           >
                             <span>{new Date(m.sentAt).toLocaleString()}</span>
                             {!inbound && m.isAutoReply ? (
-                              <span className="text-accent-purple font-semibold">Claude</span>
+                              <span className="text-[#C8A951] font-semibold">Claude</span>
                             ) : null}
                             {pct != null ? (
                               <span

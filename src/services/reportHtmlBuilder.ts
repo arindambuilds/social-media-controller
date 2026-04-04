@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { sanitizeLogoUrl } from "../lib/urlUtils";
 import { sanitizeHtml } from "../utils/sanitize";
 import {
   getClientOverview,
@@ -62,7 +63,7 @@ export async function buildClientReportHtml(input: {
   const periodLabel = "Last 30 days";
   const branding = {
     agencyName: user?.agencyName ?? user?.name ?? "Pulse",
-    logoUrl: user?.logoUrl ?? null,
+    logoUrl: sanitizeLogoUrl(user?.logoUrl),
     brandColor: user?.brandColor ?? "#06b6d4"
   };
 

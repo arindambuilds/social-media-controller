@@ -1,5 +1,9 @@
 # Gov demo — PulseOS (production status, March 2026)
 
+> INTERNAL USE ONLY
+>
+> This document mixes stakeholder demo framing with internal operator access details. Share only a trimmed customer-safe version, not this working runbook.
+
 **Purpose:** Single place for **Startup Odisha**, **MSME Department**, and investor-facing demos: what is live, where to click, and how it is verified.
 
 ## Live URLs

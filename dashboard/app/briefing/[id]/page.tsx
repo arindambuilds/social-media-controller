@@ -1,11 +1,13 @@
 "use client";
 
+/** page-enter: outer wrapper lives in `app/briefing/layout.tsx` (BriefingEnter). */
+
 import { ChevronLeft, ChevronRight, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../../lib/api";
-import { getStoredToken } from "../../../lib/auth-storage";
+import { getAccessToken } from "../../../lib/auth-storage";
 import { usePulseSse } from "../../../hooks/usePulseSse";
 import { useUserPlan } from "../../../hooks/useUserPlan";
 import { UpgradeModal } from "../../../components/UpgradeModal";
@@ -114,7 +116,7 @@ export default function BriefingReaderPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!getStoredToken()) {
+    if (!getAccessToken()) {
       router.replace("/login");
       return;
     }
@@ -324,7 +326,7 @@ export default function BriefingReaderPage() {
         </div>
       ) : null}
 
-      <blockquote className="border-accent-purple/50 bg-accent-purple/10 mb-8 rounded-r-2xl border-l-4 py-5 pl-5 pr-4">
+      <blockquote className="border-blue-500/50 bg-blue-500/10 mb-8 rounded-r-2xl border-l-4 py-5 pl-5 pr-4">
         <p className="text-muted mb-1 text-xs font-bold uppercase tracking-wide">Today&apos;s tip</p>
         <p className="text-ink font-display text-lg font-semibold leading-relaxed md:text-xl">{tip}</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -364,7 +366,7 @@ export default function BriefingReaderPage() {
         ))}
       </article>
       <div className="mb-6">
-        <div className="rounded-2xl border border-accent-purple/30 bg-accent-purple/5 p-5 text-center space-y-3">
+        <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5 text-center space-y-3">
           <p className="text-sm text-ink">
             {userPlan === "free"
               ? "Share this report with your CA or business partner — upgrade to unlock share links."

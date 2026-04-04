@@ -1,6 +1,10 @@
 "use client";
 
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { usePageEnter } from "@/hooks/usePageEnter";
 import { apiFetch } from "../../../lib/api";
 
 type StepCounts = {
@@ -73,6 +77,8 @@ function FunnelStep({ label, value, pct }: { label: string; value: number; pct?:
 }
 
 export default function GrowthAnalyticsDashboardPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const [data, setData] = useState<FunnelResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -106,7 +112,7 @@ export default function GrowthAnalyticsDashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 p-6 md:p-8">
+      <div key={pathname} className={`space-y-4 p-6 md:p-8 ${pageClassName}`}>
         <div className="h-8 w-64 animate-pulse rounded-lg bg-white/5" />
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -119,14 +125,14 @@ export default function GrowthAnalyticsDashboardPage() {
 
   if (error || !data) {
     return (
-      <div className="p-6 md:p-8">
+      <div key={pathname} className={`p-6 md:p-8 ${pageClassName}`}>
         <p className="text-sm text-red-300">{error || "No funnel data available."}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div key={pathname} className={`space-y-6 p-6 md:p-8 ${pageClassName}`}>
       <header>
         <h1 className="font-display text-2xl font-bold text-white">Growth Funnel Analytics</h1>
         <p className="mt-1 text-sm text-white/55">Conversion rates, drop-offs, and revenue performance by feature and source.</p>

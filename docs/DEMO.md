@@ -1,5 +1,9 @@
 # Instagram Growth Copilot — Demo Guide
 
+> INTERNAL USE ONLY
+>
+> This runbook contains seeded demo credentials, operator steps, and environment details. Keep it inside the team; do not share it as a customer-facing document.
+
 ## Live URLs
 
 - **App:** https://social-media-controller.vercel.app  

@@ -1,13 +1,14 @@
 "use client";
 
 import { Brain, Copy, Loader2, Sparkles, Target, ThumbsDown, ThumbsUp, Wand2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, apiFetchResponse, fetchMe, type CaptionCard } from "../../lib/api";
 import { trackEvent } from "../../lib/trackEvent";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { getAccessToken } from "../../lib/auth-storage";
 import { PageHeader } from "../../components/ui/page-header";
 import { UpgradeModal } from "../../components/UpgradeModal";
+import { usePageEnter } from "../../hooks/usePageEnter";
 
 type InsightPayload = {
   id: string;
@@ -44,7 +45,9 @@ function InsightList({ items }: { items: string[] }) {
 }
 
 export default function InsightsPage() {
+  const pathname = usePathname();
   const router = useRouter();
+  const pageClassName = usePageEnter();
   const [clientId, setClientId] = useState<string | null>(null);
   const [insight, setInsight] = useState<InsightPayload | null>(null);
   const [cooldownRemainingSeconds, setCooldownRemainingSeconds] = useState(0);
@@ -73,7 +76,7 @@ export default function InsightsPage() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -81,13 +84,11 @@ export default function InsightsPage() {
 
     (async () => {
       try {
-        let cid = getStoredClientId();
         const me = await fetchMe();
-        cid = cid ?? me.user.clientId ?? null;
+        let cid = me.user.clientId ?? null;
         if (!cid && me.user.role === "AGENCY_ADMIN") {
           cid = "demo-client";
         }
-        if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
         if (!cid) {
           setError("No client ID for this account.");
           setLoadingLatest(false);
@@ -164,7 +165,7 @@ export default function InsightsPage() {
       }
       const data = body as unknown as LatestResponse;
       if (!data.insight) {
-        setError("Insight did not return data — try again.");
+        setError("Insight did not return data â€” try again.");
         return;
       }
       setInsight(data.insight);
@@ -225,7 +226,7 @@ export default function InsightsPage() {
         }
       );
       setCaptions(Array.isArray(data.captions) ? data.captions : []);
-      setRewardMessage("Caption ready! Your audience will love this. 🎯");
+      setRewardMessage("Caption ready! Your audience will love this. ðŸŽ¯");
       trackEvent("caption_generated", { clientId, tone, goal });
       window.setTimeout(() => setRewardMessage(null), 3000);
       try {
@@ -249,11 +250,11 @@ export default function InsightsPage() {
 
   if (loadingLatest) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <div className="gradient-border p-6">
           <div className="flex items-center gap-3">
             <div className="spinner" aria-label="Loading insights" />
-            <span className="text-muted text-sm">Loading AI insights…</span>
+            <span className="text-muted text-sm">Loading AI insightsâ€¦</span>
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {[1, 2, 3].map((i) => (
@@ -267,7 +268,7 @@ export default function InsightsPage() {
 
   if (error && !clientId) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <PageHeader eyebrow="AI" title="Insights" description="Content performance and caption ideas for this client." />
         <p className="text-error mt-6">{error}</p>
       </div>
@@ -277,7 +278,7 @@ export default function InsightsPage() {
   const missedMonthlyRevenue = 0;
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <PageHeader
         eyebrow="AI"
         title="Insights"
@@ -291,7 +292,7 @@ export default function InsightsPage() {
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <span
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent-purple/35 bg-gradient-to-br from-accent-purple/20 to-accent-teal/15 text-accent-purple"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-500/35 bg-gradient-to-br from-blue-500/20 to-accent-teal/15 text-[#3B82F6]"
                 aria-hidden
               >
                 <Brain size={22} strokeWidth={2} />
@@ -315,11 +316,11 @@ export default function InsightsPage() {
               <div
                 className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-subtle"
                 style={{
-                  background: "linear-gradient(145deg, rgba(108,99,255,0.18), rgba(0,212,170,0.12))"
+                  background: "linear-gradient(145deg, rgba(59,130,246,0.18), rgba(0,212,170,0.12))"
                 }}
                 aria-hidden
               >
-                <Brain className="text-accent-purple" size={36} strokeWidth={1.5} />
+                <Brain className="text-[#3B82F6]" size={36} strokeWidth={1.5} />
               </div>
               <p className="text-ink m-0 text-sm font-medium">No AI insight yet</p>
               <p className="text-muted mx-auto mt-2 max-w-md text-sm leading-relaxed">
@@ -328,7 +329,7 @@ export default function InsightsPage() {
               <button
                 type="button"
                 onClick={generateInsightFlow}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
               >
                 <Sparkles size={18} strokeWidth={2.5} aria-hidden />
                 Generate your first insight
@@ -339,7 +340,7 @@ export default function InsightsPage() {
           {generating ? (
             <div className="text-muted mt-4 flex items-center gap-3">
               <Loader2 className="text-accent-teal h-7 w-7 shrink-0 animate-spin" aria-hidden />
-              <span className="text-sm">Analysing your posts…</span>
+              <span className="text-sm">Analysing your postsâ€¦</span>
             </div>
           ) : null}
 
@@ -352,8 +353,8 @@ export default function InsightsPage() {
                 </div>
               ) : null}
               <div className="mt-8 grid gap-4 lg:grid-cols-3">
-                <div className="rounded-xl border border-subtle bg-surface/80 p-5 transition-all duration-200 hover:border-accent-purple/30 hover:shadow-glow">
-                  <h3 className="text-accent-purple mb-4 text-xs font-bold uppercase tracking-wide">Key insights</h3>
+                <div className="rounded-xl border border-subtle bg-surface/80 p-5 transition-all duration-200 hover:border-blue-500/30 hover:shadow-glow">
+                  <h3 className="text-muted mb-4 text-xs font-bold uppercase tracking-wide">Key insights</h3>
                   <InsightList items={insight.keyInsights} />
                 </div>
                 <div className="rounded-xl border border-subtle bg-surface/80 p-5 transition-all duration-200 hover:border-accent-teal/30 hover:shadow-glow">
@@ -417,7 +418,7 @@ export default function InsightsPage() {
         <div className="gradient-border p-6 sm:p-8">
           <div className="mb-6 flex items-start gap-3">
             <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent-teal/35 bg-gradient-to-br from-accent-teal/20 to-accent-purple/10 text-accent-teal"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent-teal/35 bg-gradient-to-br from-accent-teal/20 to-blue-500/10 text-accent-teal"
               aria-hidden
             >
               <Target size={22} strokeWidth={2} />
@@ -425,7 +426,7 @@ export default function InsightsPage() {
             <div>
               <h2 className="text-ink font-display text-lg font-bold tracking-tight">This week&apos;s focus</h2>
               <p className="text-muted mt-1 max-w-2xl text-sm leading-relaxed">
-                One plain-language priority you can act on. Demo mode may use a grounded fallback when no AI key is set.
+                One plain-language priority you can act on. If AI services are temporarily unavailable, we fall back to a simpler recommendation.
               </p>
             </div>
           </div>
@@ -438,7 +439,7 @@ export default function InsightsPage() {
             {weeklyLoading ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Generating…
+                Generatingâ€¦
               </span>
             ) : (
               "Get weekly focus"
@@ -449,14 +450,14 @@ export default function InsightsPage() {
               {weeklyFocus}
             </p>
           ) : (
-            <p className="text-muted mt-4 text-sm">Not generated yet — run after you have content performance context.</p>
+            <p className="text-muted mt-4 text-sm">Not generated yet â€” run after you have content performance context.</p>
           )}
         </div>
 
         <div className="gradient-border p-6 sm:p-8">
           <div className="mb-6 flex items-start gap-3">
             <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent-purple/35 bg-gradient-to-br from-accent-purple/20 to-accent-teal/15 text-accent-purple"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-500/35 bg-gradient-to-br from-blue-500/20 to-accent-teal/15 text-[#3B82F6]"
               aria-hidden
             >
               <Wand2 size={22} strokeWidth={2} />
@@ -510,12 +511,12 @@ export default function InsightsPage() {
               type="button"
               onClick={generateCaptions}
               disabled={captionLoading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.01] hover:shadow-teal active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.01] hover:shadow-teal active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
             >
               {captionLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  Generating…
+                  Generatingâ€¦
                 </>
               ) : (
                 <>
@@ -543,11 +544,11 @@ export default function InsightsPage() {
               : captions.map((c, idx) => (
                   <article
                     key={`${idx}-${c.hook.slice(0, 8)}`}
-                    className="flex flex-col rounded-xl border border-subtle bg-surface/80 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent-purple/25 hover:shadow-glow"
+                    className="flex flex-col rounded-xl border border-subtle bg-surface/80 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-500/25 hover:shadow-glow"
                   >
                     <div className="space-y-3 text-sm">
                       <div>
-                        <div className="text-accent-purple mb-1 text-[0.65rem] font-bold uppercase tracking-wide">
+                        <div className="text-muted mb-1 text-[0.65rem] font-bold uppercase tracking-wide">
                           Hook
                         </div>
                         <p className="text-ink leading-relaxed">{c.hook}</p>
@@ -603,9 +604,9 @@ export default function InsightsPage() {
                 <button
                   type="button"
                   onClick={() => setShowUpgrade(true)}
-                  className="text-xs font-medium text-accent-purple transition-colors hover:text-accent-purple/80"
+                  className="text-xs font-medium text-[#3B82F6] transition-colors hover:text-blue-400"
                 >
-                  Upgrade for more →
+                  Upgrade for more â†’
                 </button>
               )}
             </div>
@@ -628,3 +629,5 @@ export default function InsightsPage() {
     </div>
   );
 }
+
+

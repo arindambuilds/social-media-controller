@@ -4,6 +4,7 @@ import multer from "multer";
 import path from "path";
 import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
+import { sanitizeLogoUrl, validateLogoUrlInput } from "../lib/urlUtils";
 import { authenticate } from "../middleware/authenticate";
 import { requireAgency } from "../middleware/requireAgency";
 
@@ -187,14 +188,23 @@ agencyRouter.post("/branding", async (req, res) => {
       ? body.brandColor
       : "#06b6d4";
     const agencyName = typeof body.agencyName === "string" ? body.agencyName.trim().slice(0, 120) : "";
+    const logoUrlResult = validateLogoUrlInput(body.logoUrl);
+    if (!logoUrlResult.valid) {
+      res.status(400).json({ error: logoUrlResult.error });
+      return;
+    }
+
+    const updateData: { brandColor: string; agencyName: string; logoUrl?: string | null } = {
+      brandColor: color,
+      agencyName
+    };
+    if (body.logoUrl !== undefined) {
+      updateData.logoUrl = logoUrlResult.normalized;
+    }
 
     await prisma.user.update({
       where: { id: userId },
-      data: {
-        brandColor: color,
-        agencyName,
-        ...(body.logoUrl === null ? { logoUrl: null } : {})
-      }
+      data: updateData
     });
     res.json({ ok: true });
   } catch (err) {
@@ -222,11 +232,16 @@ agencyRouter.post("/branding/logo", upload.single("file"), async (req, res) => {
     fs.renameSync(req.file.path, destPath);
 
     const logoUrl = `/uploads/logos/${filename}`;
+    const safeLogoUrl = sanitizeLogoUrl(logoUrl);
+    if (!safeLogoUrl) {
+      res.status(500).json({ error: "Generated logo path is invalid." });
+      return;
+    }
     await prisma.user.update({
       where: { id: userId },
-      data: { logoUrl }
+      data: { logoUrl: safeLogoUrl }
     });
-    res.json({ url: logoUrl });
+    res.json({ url: safeLogoUrl });
   } catch (err) {
     logger.error("[POST /api/agency/branding/logo] failed", {
       message: err instanceof Error ? err.message : String(err)

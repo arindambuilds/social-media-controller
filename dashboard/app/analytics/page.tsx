@@ -1,53 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { BarChart3 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
+import { CssColumnBars, CssHorizontalBars, CssSparklineBars } from "../../components/charts/css-chart-primitives";
 import { apiFetch, fetchMe, type AnalyticsSummary } from "../../lib/api";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { getAccessToken } from "../../lib/auth-storage";
 import { AnalyticsPageSkeleton } from "../../components/page-skeleton";
-import { FollowerGrowthChart } from "../../components/analytics/FollowerGrowthChart";
-import { EngagementHeatStrip } from "../../components/analytics/EngagementHeatStrip";
-import { PostGrid } from "../../components/analytics/PostGrid";
 import { FormToast, type FormToastVariant } from "../../components/form-toast";
 import { useExportPdf } from "../../hooks/useExportPdf";
+import { usePageEnter } from "../../hooks/usePageEnter";
 import { useUserPlan } from "../../hooks/useUserPlan";
 import { UpgradeModal } from "../../components/UpgradeModal";
 import { getExperimentVariant, getStoredExperimentVariant } from "../../lib/experiment";
 import { trackEvent } from "../../lib/trackEvent";
 
-const GRID_STROKE = "#1e1e2e";
-const TICK_FILL = "#8b8ba0";
-const PURPLE = "#6c63ff";
+const INFO = "#3b82f6";
 const TEAL = "#00d4aa";
-
-const tickProps = { fill: TICK_FILL, fontSize: 11 };
-const tickPropsSm = { fill: TICK_FILL, fontSize: 10 };
-const axisLine = { stroke: GRID_STROKE };
-
-function chartTooltipStyle(): CSSProperties {
-  return {
-    background: "#1e1e2e",
-    border: "1px solid #2a2a38",
-    borderRadius: 12,
-    color: "#f0f0ff",
-    fontSize: 13,
-    boxShadow: "0 0 20px rgba(108, 99, 255, 0.3)"
-  };
-}
 
 type Overview = {
   success: boolean;
@@ -109,7 +79,7 @@ function inferPostStatus(row: PostRow): PostStatus {
 function StatusBadge({ status }: { status: PostStatus }) {
   const styles: Record<PostStatus, string> = {
     scheduled:
-      "border-accent-purple/45 bg-accent-purple/15 text-accent-purple",
+      "border-blue-500/45 bg-blue-500/15 text-blue-600",
     published: "border-accent-teal/45 bg-accent-teal/15 text-accent-teal",
     draft: "border-subtle bg-surface text-muted",
     failed: "border-danger/45 bg-danger/15 text-danger"
@@ -125,6 +95,8 @@ function StatusBadge({ status }: { status: PostStatus }) {
 
 export default function AnalyticsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const userPlan = useUserPlan();
   const [clientId, setClientId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,7 +165,7 @@ export default function AnalyticsPage() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -201,13 +173,11 @@ export default function AnalyticsPage() {
 
     (async () => {
       try {
-        let cid = getStoredClientId();
         const me = await fetchMe();
-        cid = cid ?? me.user.clientId ?? null;
+        let cid = me.user.clientId ?? null;
         if (!cid && me.user.role === "AGENCY_ADMIN") {
           cid = "demo-client";
         }
-        if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
         if (!cid) {
           setError("No client ID for this account. Log in with a user that has a client assigned.");
           setLoading(false);
@@ -228,12 +198,16 @@ export default function AnalyticsPage() {
   }, [router, load]);
 
   if (loading) {
-    return <AnalyticsPageSkeleton />;
+    return (
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
+        <AnalyticsPageSkeleton />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <section className="gradient-border p-6">
           <h2 className="text-ink font-display text-xl font-bold">Analytics</h2>
           <p className="text-error mt-3">{error}</p>
@@ -249,7 +223,7 @@ export default function AnalyticsPage() {
 
   if (empty) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <section className="gradient-border p-6 text-center">
           <div
             className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border border-subtle"
@@ -258,7 +232,7 @@ export default function AnalyticsPage() {
             }}
             aria-hidden
           >
-            <BarChart3 className="text-accent-purple" size={44} strokeWidth={1.5} />
+            <BarChart3 className="text-[#3B82F6]" size={44} strokeWidth={1.5} />
           </div>
           <h2 className="text-ink font-display text-xl font-bold">Analytics</h2>
           <p className="text-muted mx-auto mt-3 max-w-md text-sm leading-relaxed">
@@ -285,8 +259,14 @@ export default function AnalyticsPage() {
       followers: pt.followerCount
     })) ?? [];
 
+  const likesByHourData =
+    summary?.likesByHour?.map((row) => ({
+      hour: row.hour,
+      avgLikes: row.avgLikes
+    })) ?? [];
+
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <section className="gradient-border mb-6 p-5 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h2 className="text-ink font-display m-0 text-2xl font-bold tracking-tight">Analytics</h2>
@@ -301,7 +281,7 @@ export default function AnalyticsPage() {
         </div>
         {clientId ? <p className="text-muted mt-2 text-sm">Client {clientId}</p> : null}
         {userPlan === "free" ? (
-          <p className="text-muted mt-1 text-xs">Free plan: 5 exports/month • Watermarked</p>
+          <p className="text-muted mt-1 text-xs">Free plan: 5 exports/month · Watermarked</p>
         ) : null}
         {exportLimitReached ? (
           <p className="text-warning mt-1 text-xs font-semibold">Upgrade to export more reports</p>
@@ -322,7 +302,7 @@ export default function AnalyticsPage() {
         onClose={() => setShowUpgradeModal(false)}
         usagePct={100}
         featureName="PDF export"
-        usageText={exportLimitReached ? "You're using 5/5 free exports this month" : "Free plan: 5 exports/month • Watermarked"}
+        usageText={exportLimitReached ? "You're using 5/5 free exports this month" : "Free plan: 5 exports/month · Watermarked"}
       />
 
       {summary ? (
@@ -330,8 +310,7 @@ export default function AnalyticsPage() {
           <div className="gradient-border p-5 md:p-6">
             <h3 className="text-ink font-display m-0 text-lg font-bold">Instagram summary (30-day sample)</h3>
             <p className="text-muted mt-2 mb-4 text-sm">
-              Platform <strong className="text-ink">INSTAGRAM</strong> — metrics from synced/seeded posts (not live Meta
-              unless connected).
+              Platform <strong className="text-ink">INSTAGRAM</strong> — metrics from synced posts and recent workspace activity once your channels are connected.
             </p>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[
@@ -354,23 +333,11 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {summary.likesByHour && summary.likesByHour.length > 0 ? (
+          {likesByHourData.length > 0 ? (
             <div className="gradient-border p-5 md:p-6">
               <h3 className="text-ink font-display m-0 text-lg font-bold">Avg likes by hour (0–23)</h3>
-              <div className="mt-4 h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={summary.likesByHour}>
-                    <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="hour" tick={tickPropsSm} axisLine={axisLine} />
-                    <YAxis tick={tickPropsSm} axisLine={axisLine} />
-                    <Tooltip contentStyle={chartTooltipStyle()} />
-                    <Bar dataKey="avgLikes" radius={[6, 6, 0, 0]} name="Avg likes">
-                      {summary.likesByHour.map((_, i) => (
-                        <Cell key={i} fill={i % 2 === 0 ? PURPLE : TEAL} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="mt-4 w-full">
+                <CssColumnBars data={likesByHourData} xKey="hour" yKey="avgLikes" height={280} colorA={INFO} colorB={TEAL} />
               </div>
             </div>
           ) : null}
@@ -465,94 +432,31 @@ export default function AnalyticsPage() {
             <p className="text-muted mt-2 mb-4 text-sm">
               Daily follower counts when available from ingestion or seed — not live Meta unless connected.
             </p>
-            <div className="h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={followerLine}>
-                  <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={tickProps} axisLine={axisLine} />
-                  <YAxis tick={tickProps} axisLine={axisLine} />
-                  <Tooltip contentStyle={chartTooltipStyle()} />
-                  <Line
-                    type="monotone"
-                    dataKey="followers"
-                    stroke={PURPLE}
-                    strokeWidth={2}
-                    dot={false}
-                    name="Followers"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="w-full">
+              <CssSparklineBars data={followerLine} valueKey="followers" height={220} color={INFO} />
             </div>
           </div>
         ) : null}
 
         <div className="gradient-border p-5 md:p-6">
           <h3 className="text-ink font-display m-0 text-lg font-bold">Engagement rate over time</h3>
-          <div className="mt-4 h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={lineData}>
-                <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tick={tickProps} axisLine={axisLine} />
-                <YAxis tick={tickProps} axisLine={axisLine} tickFormatter={(v) => `${v}%`} />
-                <Tooltip
-                  contentStyle={chartTooltipStyle()}
-                  formatter={(value: number) => [`${value.toFixed(1)}%`, "Engagement"]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="engagementPct"
-                  stroke={TEAL}
-                  strokeWidth={2}
-                  dot={false}
-                  name="Engagement %"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="mt-4 w-full">
+            <CssSparklineBars data={lineData} valueKey="engagementPct" height={280} color={TEAL} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="gradient-border p-5 md:p-6">
             <h3 className="text-ink font-display m-0 text-lg font-bold">Posts by hour</h3>
-            <div className="mt-4 h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={hourly}>
-                  <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="hour" tick={tickPropsSm} axisLine={axisLine} />
-                  <YAxis tick={tickPropsSm} axisLine={axisLine} />
-                  <Tooltip contentStyle={chartTooltipStyle()} />
-                  <Bar dataKey="postCount" radius={[6, 6, 0, 0]} name="Posts">
-                    {hourly.map((_, i) => (
-                      <Cell key={i} fill={i % 2 === 0 ? PURPLE : TEAL} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="mt-4 w-full">
+              <CssColumnBars data={hourly} xKey="hour" yKey="postCount" height={260} colorA={INFO} colorB={TEAL} />
             </div>
           </div>
 
           <div className="gradient-border p-5 md:p-6">
             <h3 className="text-ink font-display m-0 text-lg font-bold">Media type breakdown</h3>
-            <div className="mt-4 h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mediaTypes} layout="vertical">
-                  <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" tick={tickPropsSm} axisLine={axisLine} />
-                  <YAxis
-                    type="category"
-                    dataKey="mediaType"
-                    width={72}
-                    tick={tickPropsSm}
-                    axisLine={axisLine}
-                  />
-                  <Tooltip contentStyle={chartTooltipStyle()} />
-                  <Bar dataKey="postCount" radius={[0, 6, 6, 0]} name="Posts">
-                    {mediaTypes.map((_, i) => (
-                      <Cell key={i} fill={i % 2 === 0 ? TEAL : PURPLE} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="mt-4 w-full">
+              <CssHorizontalBars data={mediaTypes} labelKey="mediaType" valueKey="postCount" height={260} colorA={TEAL} colorB={INFO} />
             </div>
           </div>
         </div>

@@ -1,13 +1,14 @@
 "use client";
 
 import { Link2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { getAccessToken } from "../../lib/auth-storage";
 import { ListPageSkeleton, TableFallbackSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
+import { usePageEnter } from "../../hooks/usePageEnter";
 
 type AccountRow = {
   id: string;
@@ -27,6 +28,8 @@ function msUntil(iso: string | null): string {
 }
 
 function AccountsPageContent() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [clientId, setClientId] = useState<string | null>(null);
@@ -57,7 +60,7 @@ function AccountsPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -65,10 +68,9 @@ function AccountsPageContent() {
     (async () => {
       try {
         const me = await fetchMe();
-        let cid = getStoredClientId() ?? me.user.clientId;
+        let cid = me.user.clientId;
         if (me.user.role === "AGENCY_ADMIN" && !cid) {
           cid = "demo-client";
-          localStorage.setItem(CLIENT_ID_KEY, cid);
         }
         if (me.user.role === "CLIENT_USER" && !cid) {
           setError("No client assigned.");
@@ -77,7 +79,6 @@ function AccountsPageContent() {
         }
         if (cid) {
           setClientId(cid);
-          localStorage.setItem(CLIENT_ID_KEY, cid);
           await load(cid);
         }
       } catch (e) {
@@ -90,7 +91,7 @@ function AccountsPageContent() {
 
   async function connect(path: string) {
     if (!clientId) return;
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) return;
     setBusy(path);
     setError("");
@@ -118,11 +119,15 @@ function AccountsPageContent() {
   }
 
   if (loading) {
-    return <ListPageSkeleton label="Loading accounts…" />;
+    return (
+      <div key={pathname} className={pageClassName}>
+        <ListPageSkeleton label="Loading accounts…" />
+      </div>
+    );
   }
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <PageHeader
         eyebrow="Channels"
         title="Social accounts"

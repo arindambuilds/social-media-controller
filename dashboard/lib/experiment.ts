@@ -4,20 +4,14 @@ import { getSessionId } from "../utils/analytics";
 
 const EXP_PREFIX = "pulse.experiment.";
 
+const experimentMemory = new Map<string, string>();
+
 function safeGet(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
+  return experimentMemory.get(key) ?? null;
 }
 
 function safeSet(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // no-op
-  }
+  experimentMemory.set(key, value);
 }
 
 function hashToBucket(input: string): number {
@@ -50,4 +44,3 @@ export function getExperimentVariantFromChoices(experimentName: string, choices:
   safeSet(`${EXP_PREFIX}${experimentName}`, variant);
   return variant;
 }
-

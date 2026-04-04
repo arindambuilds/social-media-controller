@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/auth-context";
-import { getStoredClientId } from "../lib/auth-storage";
 import { useNotifications } from "../hooks/useNotifications";
 
 function formatRelativeTime(iso: string): string {
@@ -21,7 +20,7 @@ function formatRelativeTime(iso: string): string {
 
 export function NotificationBell() {
   const { user, isReady, token } = useAuth();
-  const clientId = user?.clientId ?? getStoredClientId();
+  const clientId = user?.clientId ?? null;
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications(
     isReady && token ? clientId : null
   );
@@ -105,7 +104,7 @@ export function NotificationBell() {
               </p>
             ) : null}
             {loading && top.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-zinc-500">Loading…</p>
+              <p className="px-4 py-8 text-center text-sm text-zinc-500">Getting your data ready…</p>
             ) : null}
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {top.map((n) => (

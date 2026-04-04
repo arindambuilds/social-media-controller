@@ -1,5 +1,9 @@
 # Demo script (≈12–15 minutes)
 
+> INTERNAL USE ONLY
+>
+> This script includes seeded login details and operator talking points for rehearsals. Keep it private to the team.
+
 **Persona:** **Arома Silk House** — saree & ethnic wear in **Bhubaneswar, Odisha**; Instagram **`@aromasilkhouse`**; audience women **25–45**, Odisha/Bengal; bilingual Hindi–English captions (seed matches this story).
 
 **Environment:** `INGESTION_MODE=mock`, seeded DB, dashboard at `:3000`, API at `:4000`.

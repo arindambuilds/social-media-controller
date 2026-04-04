@@ -1,6 +1,10 @@
 "use client";
 
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { usePageEnter } from "@/hooks/usePageEnter";
 import { UsageMeter } from "../../components/usage/UsageMeter";
 import { apiFetch } from "../../lib/api";
 
@@ -32,7 +36,7 @@ const PLAN_COLORS: Record<UsageData["plan"], string> = {
   free: "border-white/20 bg-white/5 text-white/40",
   starter: "border-cyan-400/30 bg-cyan-400/10 text-cyan-400",
   growth: "border-emerald-400/30 bg-emerald-400/10 text-emerald-400",
-  agency: "border-purple-400/30 bg-purple-400/10 text-purple-400"
+  agency: "border-amber-400/35 bg-amber-400/12 text-amber-100"
 };
 
 function daysRemaining(end: string) {
@@ -41,6 +45,8 @@ function daysRemaining(end: string) {
 }
 
 export default function UsagePage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +61,7 @@ export default function UsagePage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 p-6 md:p-8">
+      <div key={pathname} className={`space-y-4 p-6 md:p-8 ${pageClassName}`}>
         <div className="h-8 w-48 animate-pulse rounded-xl bg-white/5" />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -68,7 +74,9 @@ export default function UsagePage() {
 
   if (!data) {
     return (
-      <div className="flex h-64 items-center justify-center p-6 text-sm text-white/30 md:p-8">Could not load usage data.</div>
+      <div key={pathname} className={`flex h-64 items-center justify-center p-6 text-sm text-white/30 md:p-8 ${pageClassName}`}>
+        Could not load usage data.
+      </div>
     );
   }
 
@@ -77,7 +85,7 @@ export default function UsagePage() {
   const isNearLimit = Object.values(data.usage).some((u) => u.limit !== null && u.limit > 0 && u.used / u.limit >= 0.9);
 
   return (
-    <div className="max-w-3xl space-y-6 p-6 md:p-8">
+    <div key={pathname} className={`max-w-3xl space-y-6 p-6 md:p-8 ${pageClassName}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-white">Your usage</h1>

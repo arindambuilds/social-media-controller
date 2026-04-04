@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_ORIGIN } from "../lib/api";
-import { TOKEN_KEY } from "../lib/auth-storage";
+import { getAccessToken } from "../lib/auth-storage";
 
 export type PulseSseMessage = {
   type?: string;
@@ -53,7 +53,7 @@ export function usePulseSse(
 
   const connect = useCallback(() => {
     if (typeof window === "undefined" || !clientId || !enabled) return;
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = getAccessToken();
     if (!token) {
       setLastError("Not signed in");
       return;

@@ -1,12 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, fetchMe } from "../../../lib/api";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../../lib/auth-storage";
+import { getAccessToken } from "../../../lib/auth-storage";
 import { FormToast, type FormToastVariant } from "../../../components/form-toast";
 import { PageHeader } from "../../../components/ui/page-header";
 import { usePulseSse } from "../../../hooks/usePulseSse";
+import { usePageEnter } from "@/hooks/usePageEnter";
 
 type Tone = "friendly" | "professional" | "casual" | "concise" | "playful";
 
@@ -122,6 +125,8 @@ function DmSettingsSkeleton() {
 }
 
 export default function DmSettingsPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const router = useRouter();
   const [clientId, setClientId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -186,7 +191,7 @@ export default function DmSettingsPage() {
   usePulseSse(clientId, { enabled: Boolean(clientId) });
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -194,7 +199,7 @@ export default function DmSettingsPage() {
     (async () => {
       try {
         const me = await fetchMe();
-        let cid = getStoredClientId() ?? me.user.clientId;
+        let cid = me.user.clientId;
         if (me.user.role === "CLIENT_USER" && !cid) {
           setLoadError("No client assigned.");
           setFetching(false);
@@ -202,7 +207,6 @@ export default function DmSettingsPage() {
         }
         if (me.user.role === "AGENCY_ADMIN" && !cid) {
           cid = "demo-client";
-          localStorage.setItem(CLIENT_ID_KEY, cid);
         }
         if (!cid) {
           setLoadError("No client context.");
@@ -210,7 +214,6 @@ export default function DmSettingsPage() {
           return;
         }
         setClientId(cid);
-        localStorage.setItem(CLIENT_ID_KEY, cid);
 
         const res = await apiFetch<{ success?: boolean; client: DmSettingsClient }>(
           `/clients/${encodeURIComponent(cid)}/dm-settings`
@@ -354,11 +357,15 @@ export default function DmSettingsPage() {
   const fieldsDisabled = !dmAutoReplyEnabled;
 
   if (fetching) {
-    return <DmSettingsSkeleton />;
+    return (
+      <div key={pathname} className={pageClassName}>
+        <DmSettingsSkeleton />
+      </div>
+    );
   }
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <PageHeader
         eyebrow="Instagram"
         title="DM auto-reply"
@@ -385,7 +392,7 @@ export default function DmSettingsPage() {
               aria-checked={dmAutoReplyEnabled}
               className={`relative h-9 w-[52px] shrink-0 rounded-full border transition-colors ${
                 dmAutoReplyEnabled
-                  ? "border-accent-purple bg-accent-purple/40"
+                  ? "border-blue-500 bg-blue-500/40"
                   : "border-subtle bg-surface"
               }`}
               onClick={() => setDmAutoReplyEnabled((v) => !v)}
@@ -490,7 +497,7 @@ export default function DmSettingsPage() {
                   key={value}
                   className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
                     dmOwnerTone === value
-                      ? "border-accent-purple/50 bg-accent-purple/10"
+                      ? "border-blue-500/50 bg-blue-500/10"
                       : "border-subtle bg-surface/50"
                   } ${fieldsDisabled ? "cursor-not-allowed opacity-50" : ""}`}
                 >

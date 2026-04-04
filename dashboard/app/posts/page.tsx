@@ -2,12 +2,13 @@
 
 import { ImageIcon, Plus, X } from "lucide-react";
 import type React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { VoicePostButton } from "../../components/VoicePostButton";
 import { PageHeader } from "../../components/ui/page-header";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { getAccessToken } from "../../lib/auth-storage";
+import { usePageEnter } from "../../hooks/usePageEnter";
 
 type OutboundStatus = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
 
@@ -30,7 +31,7 @@ const HASHTAG_SUGGESTIONS = ["#Bhubaneswar", "#SareeLove", "#EthnicWear", "#Odis
 function statusBadgeClass(status: OutboundStatus): string {
   const map: Record<OutboundStatus, string> = {
     DRAFT: "border-subtle bg-surface text-muted",
-    SCHEDULED: "border-accent-purple/45 bg-accent-purple/15 text-accent-purple",
+    SCHEDULED: "border-blue-500/45 bg-blue-500/15 text-blue-600",
     PUBLISHED: "border-accent-teal/45 bg-accent-teal/15 text-accent-teal",
     FAILED: "border-danger/45 bg-danger/15 text-danger"
   };
@@ -51,6 +52,8 @@ function formatScheduleLine(p: ScheduledRow): string {
 }
 
 export default function PostsPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const router = useRouter();
   const modalTitleId = useId();
   const [clientId, setClientId] = useState<string | null>(null);
@@ -79,7 +82,7 @@ export default function PostsPage() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -87,7 +90,7 @@ export default function PostsPage() {
     (async () => {
       try {
         const me = await fetchMe();
-        let cid = getStoredClientId() ?? me.user.clientId;
+        let cid = me.user.clientId;
         if (me.user.role === "CLIENT_USER" && !cid) {
           setError("No client assigned.");
           setLoading(false);
@@ -95,11 +98,9 @@ export default function PostsPage() {
         }
         if (me.user.role === "AGENCY_ADMIN" && !cid) {
           cid = "demo-client";
-          localStorage.setItem(CLIENT_ID_KEY, cid);
         }
         if (cid) {
           setClientId(cid);
-          localStorage.setItem(CLIENT_ID_KEY, cid);
           await load(token, cid);
         }
       } catch (e) {
@@ -127,7 +128,7 @@ export default function PostsPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!clientId) return;
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) return;
     setSaving(true);
     setError("");
@@ -165,7 +166,7 @@ export default function PostsPage() {
 
   async function onDelete(id: string) {
     if (!clientId) return;
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) return;
     if (!confirm("Delete this post?")) return;
     try {
@@ -201,13 +202,13 @@ export default function PostsPage() {
   const captionWarn = captionLen > CAPTION_MAX;
 
   const refreshPosts = useCallback(() => {
-    const t = getStoredToken();
+    const t = getAccessToken();
     if (t && clientId) void load(t, clientId);
   }, [clientId, load]);
 
   if (loading) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <div className="gradient-border flex items-center gap-3 p-6">
           <div className="spinner" aria-label="Loading posts" />
           <span className="text-muted text-sm">Loading posts…</span>
@@ -222,7 +223,7 @@ export default function PostsPage() {
   }
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <PageHeader
         eyebrow="Publish"
         title="Posts"
@@ -231,7 +232,7 @@ export default function PostsPage() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-accent-teal px-5 py-3 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.02] hover:shadow-teal active:scale-[0.98]"
           >
             <Plus size={20} strokeWidth={2.5} aria-hidden />
             Create post
@@ -257,7 +258,7 @@ export default function PostsPage() {
             }}
             aria-hidden
           >
-            <ImageIcon className="text-accent-purple h-9 w-9 opacity-90" strokeWidth={1.25} />
+            <ImageIcon className="text-[#C8A951] h-9 w-9 opacity-90" strokeWidth={1.25} />
           </div>
           <p className="text-ink m-0 text-sm font-medium">No posts yet</p>
           <p className="text-muted mx-auto mt-2 max-w-sm text-sm leading-relaxed">

@@ -1,7 +1,10 @@
 "use client";
 
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePageEnter } from "@/hooks/usePageEnter";
 import { trackEvent } from "../../lib/trackEvent";
 import { persistAttributionFromUrl } from "../../utils/analytics";
 
@@ -54,6 +57,8 @@ function formatPrice(value: number): string {
 }
 
 export default function PricingPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
@@ -86,7 +91,7 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 p-6 md:p-8">
+    <div key={pathname} className={`mx-auto max-w-6xl space-y-8 p-6 md:p-8 ${pageClassName}`}>
       <header className="space-y-3 text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-cyan-300">Pricing</p>
         <h1 className="font-display text-3xl font-bold text-white md:text-4xl">Grow faster with conversion-ready reporting</h1>

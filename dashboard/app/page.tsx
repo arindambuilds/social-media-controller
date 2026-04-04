@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/auth-context";
 
-/** Root: send signed-in users to the dashboard; others to login (no manual token UI). */
 export default function HomePage() {
   const router = useRouter();
   const { token, isReady } = useAuth();
@@ -15,10 +14,14 @@ export default function HomePage() {
   }, [isReady, token, router]);
 
   return (
-    <div className="page-shell">
-      <div className="panel" style={{ display: "flex", justifyContent: "center", padding: 48 }}>
-        <div className="spinner" aria-label="Redirecting" />
+    <div className="pulse-loader-screen app-background">
+      <div className="pulse-loader-mark">PulseOS</div>
+      <div className="pulse-loader-dots" aria-hidden>
+        <span />
+        <span />
+        <span />
       </div>
+      <p>Getting your dashboard ready…</p>
     </div>
   );
 }

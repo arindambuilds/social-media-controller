@@ -1,5 +1,9 @@
 # Stripe — PulseOS Pioneer Plan (₹600 / month)
 
+> INTERNAL USE ONLY
+>
+> This pricing runbook is for product and operator use. Keep it private if it contains test accounts, internal Stripe setup notes, or demo-only flows.
+
 **Goal:** Talk about and demo pricing without hand-waving. Wire is in the API and dashboard once you create the Price in Stripe.
 
 ## 1. Create in Stripe Dashboard (test or live)

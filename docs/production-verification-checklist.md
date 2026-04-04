@@ -1,5 +1,9 @@
 # Production Verification Checklist
 
+> INTERNAL USE ONLY
+>
+> This checklist contains seeded login verification and production operator steps. Keep it private to the team.
+
 Use this after deploying the API/dashboard and before calling the release ready.
 
 **Schema + gov route parity:** [production-parity-runbook.md](./production-parity-runbook.md) (Render deploy, `GET /api/pulse/gov-preview`, `prisma migrate deploy`, canonical log line).

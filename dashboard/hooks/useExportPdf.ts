@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { API_URL } from "../lib/api";
-import { getStoredToken } from "../lib/auth-storage";
+import { getAccessToken } from "../lib/auth-storage";
 
 type ExportReportType = "briefing" | "analytics";
 
@@ -17,7 +17,7 @@ export function useExportPdf() {
     setLoading(true);
     setError("");
     try {
-      const token = getStoredToken();
+      const token = getAccessToken();
       if (!token) {
         setError("Please log in again.");
         return false;

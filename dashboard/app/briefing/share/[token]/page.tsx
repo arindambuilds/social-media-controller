@@ -1,5 +1,7 @@
 "use client";
 
+/** page-enter: outer wrapper lives in `app/briefing/layout.tsx` (BriefingEnter). */
+
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -73,7 +75,7 @@ export default function BriefingSharePage() {
         {new Date(briefing.sentAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
       </p>
 
-      <blockquote className="border-accent-purple/50 bg-accent-purple/10 my-8 rounded-r-2xl border-l-4 py-4 pl-4">
+      <blockquote className="border-blue-500/50 bg-blue-500/10 my-8 rounded-r-2xl border-l-4 py-4 pl-4">
         <p className="text-ink text-lg font-semibold leading-relaxed">{tip}</p>
       </blockquote>
 

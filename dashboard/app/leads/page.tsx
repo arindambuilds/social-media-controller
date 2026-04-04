@@ -2,11 +2,12 @@
 
 import { Copy, Mail, MessageCircle, Sparkles, SquareArrowOutUpRight } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
-import { CLIENT_ID_KEY, getStoredClientId, getStoredToken } from "../../lib/auth-storage";
+import { getAccessToken } from "../../lib/auth-storage";
 import { PageHeader } from "../../components/ui/page-header";
+import { usePageEnter } from "../../hooks/usePageEnter";
 
 type LeadStatus = "NEW" | "CONTACTED" | "CONVERTED" | "LOST";
 
@@ -30,7 +31,7 @@ type Lead = {
 
 function statusBadgeClass(status: LeadStatus): string {
   const map: Record<LeadStatus, string> = {
-    NEW: "border-accent-purple/45 bg-accent-purple/15 text-accent-purple",
+    NEW: "border-blue-500/45 bg-blue-500/15 text-blue-600",
     CONTACTED: "border-warning/45 bg-warning/15 text-warning",
     CONVERTED: "border-accent-teal/45 bg-accent-teal/15 text-accent-teal",
     LOST: "border-subtle bg-surface text-muted"
@@ -49,7 +50,7 @@ function SourceCell({ source }: { source: string }) {
     <span className="inline-flex items-center gap-2">
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-subtle ${
-          ig ? "bg-gradient-to-br from-accent-purple/25 to-accent-teal/20 text-accent-teal" : "bg-surface text-muted"
+          ig ? "bg-gradient-to-br from-blue-500/25 to-accent-teal/20 text-accent-teal" : "bg-surface text-muted"
         }`}
       >
         {ig ? <MessageCircle size={18} strokeWidth={2} aria-hidden /> : <Sparkles size={18} strokeWidth={2} aria-hidden />}
@@ -81,7 +82,9 @@ function LeadsEmptyState() {
 }
 
 export default function LeadsPage() {
+  const pathname = usePathname();
   const router = useRouter();
+  const pageClassName = usePageEnter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [role, setRole] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -95,7 +98,7 @@ export default function LeadsPage() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -105,15 +108,14 @@ export default function LeadsPage() {
       try {
         const me = await fetchMe();
         setRole(me.user.role);
-        let cid: string | null = getStoredClientId() ?? me.user.clientId;
+        let cid: string | null = me.user.clientId;
         if (!cid && me.user.role === "AGENCY_ADMIN") {
           cid = "demo-client";
         }
-        if (cid) localStorage.setItem(CLIENT_ID_KEY, cid);
 
         if (me.user.role === "CLIENT_USER") {
           if (!cid) {
-            setError("No client ID — log in with an account linked to a business.");
+            setError("No client ID â€” log in with an account linked to a business.");
             setLoading(false);
             return;
           }
@@ -121,7 +123,7 @@ export default function LeadsPage() {
         } else if (cid) {
           await load(cid);
         } else {
-          setError("No client context — assign a client to your agency user or use the demo operator login.");
+          setError("No client context - assign a client to your agency user to view leads.");
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load leads");
@@ -143,10 +145,10 @@ export default function LeadsPage() {
 
   if (loading) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <div className="gradient-border flex items-center gap-3 p-6">
           <div className="spinner" aria-label="Loading leads" />
-          <span className="text-muted text-sm">Loading leads…</span>
+          <span className="text-muted text-sm">Loading leadsâ€¦</span>
         </div>
         <div className="mt-4 flex flex-col gap-3">
           {[1, 2, 3].map((i) => (
@@ -158,7 +160,7 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <PageHeader
         eyebrow="Pipeline"
         title="Leads from Instagram"
@@ -194,7 +196,7 @@ export default function LeadsPage() {
 
             {leads.map((lead) => {
               const ig = lead.client?.socialAccounts?.[0];
-              const handle = ig?.platformUsername ? `@${ig.platformUsername}` : "—";
+              const handle = ig?.platformUsername ? `@${ig.platformUsername}` : "â€”";
               const sync = ig?.lastSyncedAt ? "Connected" : "Pending";
               const mailHref = `mailto:?subject=${encodeURIComponent(`Lead: ${lead.contactName || lead.sourceId}`)}&body=${encodeURIComponent(`Lead ID: ${lead.id}\nSource: ${lead.source}\n`)}`;
 
@@ -215,9 +217,9 @@ export default function LeadsPage() {
                       <span className="text-muted text-[0.65rem] font-bold uppercase tracking-wide md:hidden">
                         Business / IG
                       </span>
-                      <div className="text-ink">{lead.client?.name ?? "—"}</div>
+                      <div className="text-ink">{lead.client?.name ?? "â€”"}</div>
                       <div className="text-muted mt-0.5 text-xs">
-                        {handle} · {sync}
+                        {handle} Â· {sync}
                       </div>
                     </div>
                   ) : null}
@@ -269,3 +271,5 @@ export default function LeadsPage() {
     </div>
   );
 }
+
+

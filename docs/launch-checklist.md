@@ -1,5 +1,9 @@
 # Launch / demo checklist
 
+> INTERNAL USE ONLY
+>
+> This checklist is for operators before demos, pilot onboarding, or mentor meetings. It includes seeded-account references and internal verification steps.
+
 Use before a **mentor meeting**, **incubator pitch**, or **pilot onboarding**.
 
 **Engineering snapshot (what’s shipped vs what’s left):** see **[docs/completion-report.md](./completion-report.md)** — includes a founder-style **Done / In progress / Next** section aligned with the current repo.

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "api:check": "npx tsx scripts/check-api-target.ts"
   },
   "dependencies": {
     "ioredis": "^5.6.1",
@@ -15,7 +16,6 @@
     "next": "^15.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "recharts": "^2.15.4",
     "stripe": "^21.0.1"
   },
   "devDependencies": {

@@ -1,54 +1,46 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora } from "next/font/google";
+import { DM_Sans, Sora } from "next/font/google";
 import { AppProviders } from "../components/app-providers";
-import { AuthReadyGate } from "../components/auth-ready-gate";
+import { AppFrame } from "../components/layout/app-frame";
 import { AuthProvider } from "../context/auth-context";
 import { DemoModeProvider } from "../context/demo-mode-context";
-import { DashboardNav } from "../components/dashboard-nav";
-import { DemoModeBanner } from "../components/demo-mode-banner";
 import "./globals.css";
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap"
+  variable: "--font-dm-sans",
+  display: "swap",
+  weight: ["400", "500", "600", "700"]
 });
 
 const sora = Sora({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-sora",
   display: "swap",
-  weight: ["500", "600", "700"]
+  weight: ["400", "500", "600", "700", "800"]
 });
 
 export const metadata: Metadata = {
-  title: "Pulse — Instagram growth copilot",
-  description:
-    "Analytics, AI insights, and captions for local businesses and creators — Instagram-first, pilot-ready."
+  title: "PulseOS — WhatsApp automation for small businesses",
+  description: "Warm, capable WhatsApp automation built for Odisha’s small businesses.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/logo.png"
+  }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A0A0F"
+  themeColor: "#0D1B3E"
 };
-
-const THEME_BOOTSTRAP = `!(function(){try{var k='smc_theme',s=localStorage.getItem(k),h=document.documentElement;if(s==='light'){h.classList.remove('dark');h.dataset.theme='light';}else{h.classList.add('dark');h.dataset.theme='dark';}}catch(_){document.documentElement.classList.add('dark');document.documentElement.dataset.theme='dark';}})();`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${sora.variable} bg-canvas`} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
-      </head>
-      <body className="min-h-screen bg-canvas font-sans text-ink antialiased" suppressHydrationWarning>
+    <html lang="en" className={`${sora.variable} ${dmSans.variable}`}>
+      <body className="pulse-root">
         <AppProviders>
           <DemoModeProvider>
             <AuthProvider>
-              <DemoModeBanner />
-              <DashboardNav />
-              <AuthReadyGate>
-                {/* Errors in route segments are caught by app/error.tsx (Next.js error boundary). */}
-                <main className="app-main">{children}</main>
-              </AuthReadyGate>
+              <AppFrame>{children}</AppFrame>
             </AuthProvider>
           </DemoModeProvider>
         </AppProviders>

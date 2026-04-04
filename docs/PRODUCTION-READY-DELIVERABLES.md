@@ -1,5 +1,9 @@
 # Final Deliverables (Production-Ready – 31 March 2026)
 
+> INTERNAL USE ONLY
+>
+> This deliverables pack includes deployment verification and demo-operating details. Keep it inside the team unless you remove internal-only sections first.
+
 **Document generated:** 2026-03-31 (IST business date).  
 **Repository freeze tag (recommended):** `pulseos-march-2026-production` after merge.  
 **Verification timestamp (example):** run `npm run lint`, `npm test`, `npm run smoke-demo -- --url https://social-media-controller.onrender.com` and paste console output into your deployment log.

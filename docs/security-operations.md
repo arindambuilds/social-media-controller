@@ -35,7 +35,7 @@ If both run, `corsGuard` may throw first with the `[SECURITY]` message; if only 
 1. Generate new key: `openssl rand -hex 32`
 2. **Before rotating:** Export any data encrypted with the current key if
    long-term retention is required (re-encrypt after rotation).
-3. **During migration (recommended):** Keep the previous key in a **secondary** variable, e.g. `ENCRYPTION_KEY_PREV`, while application code (or a one-off job) decrypts with the old key and re-encrypts with the new key. Do **not** delete the old key from the dashboard until all persisted ciphertext has been verified re-encrypted.
+3. **During migration (recommended):** Keep the previous key in a **secondary** variable, e.g. `ENCRYPTION_KEY_PREV`, while application code can still decrypt historical records. Use `npm run security:reencrypt:social-accounts -- --write` to rotate persisted `SocialAccount` ciphertext onto the primary key before removing the old key.
 4. Set the new `ENCRYPTION_KEY` in Render environment variables.
 5. Trigger rolling restart.
 6. After confirming no decrypt errors in logs and all critical rows migrated, **remove `ENCRYPTION_KEY_PREV`** and redeploy.
@@ -51,7 +51,7 @@ If both run, `corsGuard` may throw first with the `[SECURITY]` message; if only 
 
 - Auth limiter keys: `rl:auth:*` (TTL: 15 min)
 - API limiter keys: `rl:global:*` (TTL: 15 min for the global limiter window)
-- Other prefixes: `rl:refresh:`, `rl:register:`, `rl:dm_preview:`, `rl:report_pdf:`, `rl:webhook:`
+- Other prefixes: `rl:refresh:`, `rl:register:`, `rl:tenant:`, `rl:dm_preview:`, `rl:report_pdf:`, `rl:webhook:`
 - To manually clear a blocked IP for login: `redis-cli --scan --pattern 'rl:auth:*'` then `redis-cli del <key>`
 - When `REDIS_URL` is unset, limiters fall back to in-memory stores (per process only).
 
@@ -59,5 +59,5 @@ If both run, `corsGuard` may throw first with the `[SECURITY]` message; if only 
 
 - **DOMPurify** (`src/utils/sanitize.ts`) strips dangerous tags/attributes on **user-derived** strings embedded in report HTML. Full-document sanitization is **not** applied (would break chart images and layout).
 - **Puppeteer** (`PdfService`): Chromium is launched **without** `--disable-web-security`. Inline `<style>` / CSS `url()` SSRF is mitigated by forbidding untrusted `<style>` in sanitize and using controlled templates; chart images use **`https://quickchart.io/`** from server-generated config.
-- **Agency logos** render as `<img src="...">` with URLs from stored settings — those requests can still target arbitrary HTTPS hosts. Mitigate with **URL validation on save** (allowlist hostnames or block RFC1918/metadata IPs) if internal SSRF is in scope.
+- **Agency logos** render as `<img src="...">` with URLs from stored settings, but `logoUrl` is now validated on save and re-checked during report HTML build. Only safe `/uploads/logos/...` paths or public `https://...` URLs are accepted; localhost, metadata endpoints, and RFC1918/private ranges are rejected.
 - **Gotenberg** path (`GOTENBERG_URL`): HTML is POSTed to your Gotenberg service; harden that service separately (network policy, trusted input).

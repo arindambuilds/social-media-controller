@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/auth-context";
 import { apiFetch } from "../../lib/api";
-import { getStoredClientId } from "../../lib/auth-storage";
+import { usePageEnter } from "../../hooks/usePageEnter";
 
 type PulseSummary = {
   clientId: string;
@@ -68,14 +68,12 @@ function deliveryLabel(wa: boolean | null, em: boolean | null): string {
 }
 
 export default function PulseBriefingsPage() {
-  const { token, isReady } = useAuth();
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
+  const { token, isReady, user } = useAuth();
   const searchParams = useSearchParams();
   const clientIdParam = searchParams?.get("clientId") ?? null;
-  const [storedClientId, setStoredClientId] = useState("");
-  useEffect(() => {
-    setStoredClientId(getStoredClientId() ?? "");
-  }, []);
-  const clientQuery = clientIdParam?.trim() || storedClientId || "";
+  const clientQuery = clientIdParam?.trim() || user?.clientId?.trim() || "";
 
   const [summary, setSummary] = useState<PulseSummary | null>(null);
   const [briefings, setBriefings] = useState<BriefingRow[]>([]);
@@ -164,7 +162,7 @@ export default function PulseBriefingsPage() {
 
   if (!isReady) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center p-6 text-sm text-white/40">
+      <div key={pathname} className={`flex min-h-[40vh] items-center justify-center p-6 text-sm text-white/40 ${pageClassName}`}>
         Checking session…
       </div>
     );
@@ -172,7 +170,7 @@ export default function PulseBriefingsPage() {
 
   if (!token) {
     return (
-      <div className="max-w-lg space-y-4 p-6 md:p-8">
+      <div key={pathname} className={`max-w-lg space-y-4 p-6 md:p-8 ${pageClassName}`}>
         <h1 className="font-display text-2xl font-bold text-white">Daily briefing</h1>
         <p className="text-sm text-white/50">Sign in to see your last briefings and delivery status.</p>
         <Link href="/login" className="inline-block rounded-xl bg-white/10 px-4 py-2 text-sm text-white">
@@ -183,7 +181,7 @@ export default function PulseBriefingsPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-8 p-6 md:p-8">
+    <div key={pathname} className={`max-w-2xl space-y-8 p-6 md:p-8 ${pageClassName}`}>
       <div>
         <h1 className="font-display text-2xl font-bold text-white">Daily briefing</h1>
         <p className="mt-1 text-sm text-white/45">

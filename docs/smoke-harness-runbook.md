@@ -1,5 +1,9 @@
 # Smoke harness — next 24–72 hours (operator runbook)
 
+> INTERNAL USE ONLY
+>
+> This runbook is for internal smoke checks and includes seeded login flow references. Do not share it externally.
+
 Single script: **`scripts/smoke-demo.ts`**. Canonical contract line (printed when green): **Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts).**
 
 ---

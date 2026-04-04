@@ -2,7 +2,7 @@
 
 import { useAuth } from "../context/auth-context";
 
-/** Blocks page content until localStorage token is read — avoids blank flash before redirects. */
+/** Blocks page content until auth bootstrap finishes — avoids blank flash before redirects. */
 export function AuthReadyGate({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isReady } = useAuth();
   if (!isReady) {

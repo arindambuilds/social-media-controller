@@ -1,12 +1,15 @@
 "use client";
 
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { API_ORIGIN, apiFetch, fetchMe } from "../../../lib/api";
-import { getStoredToken } from "../../../lib/auth-storage";
+import { getAccessToken } from "../../../lib/auth-storage";
 import { ListPageSkeleton } from "../../../components/page-skeleton";
+import { usePageEnter } from "@/hooks/usePageEnter";
 
 type HealthComponent = { status: "ok" | "error" | "skipped"; detail?: string };
 
@@ -102,6 +105,8 @@ function HealthStatusCard({ name, comp }: { name: string; comp: HealthComponent 
 }
 
 export default function AdminSystemPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
@@ -132,7 +137,7 @@ export default function AdminSystemPage() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredToken();
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -163,12 +168,16 @@ export default function AdminSystemPage() {
   }, [forbidden, loading, fetchLiveHealth]);
 
   if (loading) {
-    return <ListPageSkeleton label="Loading system overview…" />;
+    return (
+      <div key={pathname} className={pageClassName}>
+        <ListPageSkeleton label="Loading system overview…" />
+      </div>
+    );
   }
 
   if (forbidden) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <section className="panel span-12">
           <h1 className="text-ink font-display text-xl font-bold">System</h1>
           <p className="text-muted mt-3 text-sm">This page is only for agency admins.</p>
@@ -182,7 +191,7 @@ export default function AdminSystemPage() {
 
   if (error || !data) {
     return (
-      <div className="page-shell">
+      <div key={pathname} className={`page-shell ${pageClassName}`}>
         <section className="panel span-12">
           <h1 className="text-ink font-display text-xl font-bold">System</h1>
           <p className="text-error mt-3">{error || "No data"}</p>
@@ -200,11 +209,11 @@ export default function AdminSystemPage() {
     : null;
 
   return (
-    <div className="page-shell">
+    <div key={pathname} className={`page-shell ${pageClassName}`}>
       <section className="panel span-12 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Activity className="text-accent-purple" size={28} aria-hidden />
+            <Activity className="text-[#C8A951]" size={28} aria-hidden />
             <div>
               <h1 className="text-ink font-display m-0 text-2xl font-bold tracking-tight">Ops center</h1>
               <p className="text-muted m-0 mt-1 text-sm">Live service status, clients, and recent failures.</p>

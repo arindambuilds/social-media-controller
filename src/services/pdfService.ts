@@ -95,7 +95,7 @@ async function getBrowser(): Promise<Browser> {
     }
     // No `--disable-web-security` — keeps normal renderer security boundaries.
     // HTML uses trusted templates + `sanitizeHtml` on user text; charts use `https://quickchart.io/...`.
-    // Logo `<img src>` may request arbitrary HTTPS URLs — validate `logoUrl` when saving if internal SSRF is a concern.
+    // Logo URLs are validated on write and re-checked before report rendering.
     sharedBrowserPromise = puppeteer.launch({
       executablePath,
       args: [
@@ -148,6 +148,9 @@ export class PdfService {
   }
 
   static async generatePdf({ html, options }: PdfGenerateInput): Promise<Buffer> {
+    if (process.env.PDF_GENERATION === "disabled") {
+      throw new Error("PDF generation is disabled (set PDF_GENERATION=disabled in .env).");
+    }
     const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const gotenberg = process.env.GOTENBERG_URL?.trim();
     if (gotenberg) {

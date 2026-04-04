@@ -1,377 +1,203 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { apiFetch } from "../../lib/api";
-import { trackEvent } from "../../lib/trackEvent";
-import {
-  getAttributionContext,
-  getCheckoutIntent,
-  persistAttributionFromUrl,
-  setCheckoutIntent
-} from "../../utils/analytics";
-import { getStoredToken } from "../../lib/auth-storage";
+import { Bolt, CreditCard, Download } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
+import { Skeleton } from "../../components/ui/skeleton";
+import { useToast } from "../../context/toast-context";
+import { usePageEnter } from "../../hooks/usePageEnter";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { useProtectedRoute } from "../../hooks/useProtectedRoute";
+import { formatCurrency, formatPlanLabel } from "../../lib/pulse";
+import { AgencyUsage, BillingStatus, getAgencyUsage, getBillingStatus, openBillingPortal, startCheckout } from "../../lib/workspace";
 
-interface Plan {
-  id: "free" | "pioneer" | "starter" | "growth" | "agency";
+const PLANS: Array<{
+  id: "starter" | "growth" | "agency";
   name: string;
   price: number;
-  stripePriceId: string;
   features: string[];
-  limits: {
-    briefings: number | null;
-    clients: number | null;
-    reports: number | null;
-  };
-}
-
-const PLANS: Plan[] = [
-  {
-    id: "free",
-    name: "Free",
-    price: 0,
-    stripePriceId: "",
-    features: ["1 client", "5 briefings/month", "3 PDF exports", "Basic analytics"],
-    limits: { briefings: 5, clients: 1, reports: 3 }
-  },
-  {
-    id: "pioneer",
-    name: "Pioneer (Odisha MSME)",
-    price: 600,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID ?? "",
-    features: [
-      "₹600/mo pioneer cohort (show ₹1,200 strikethrough in-app elsewhere)",
-      "Daily WhatsApp briefing + Instagram leads",
-      "Odia-friendly onboarding and briefings",
-      "Aligned to Startup Odisha / pilot narrative"
-    ],
-    limits: { briefings: null, clients: 2, reports: 20 }
-  },
-  {
-    id: "starter",
-    name: "Starter",
-    price: 1999,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID ?? "",
-    features: ["5 clients", "50 briefings/month", "20 PDF exports", "Scheduled reports (3)", "Email support"],
-    limits: { briefings: 50, clients: 5, reports: 20 }
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    price: 4999,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_GROWTH_PRICE_ID ?? "",
-    features: ["15 clients", "Unlimited briefings", "100 PDF exports", "Scheduled reports (10)", "Voice briefings", "Priority support"],
-    limits: { briefings: null, clients: 15, reports: 100 }
-  },
-  {
-    id: "agency",
-    name: "Agency",
-    price: 9999,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID ?? "",
-    features: ["Unlimited clients", "Unlimited everything", "White-label reports", "Dedicated support", "Custom integrations"],
-    limits: { briefings: null, clients: null, reports: null }
-  }
+  pro?: boolean;
+}> = [
+  { id: "starter", name: "Starter", price: 1499, features: ["Up to 1 workspace", "Warm support", "PDF reports", "Smart reply automation"] },
+  { id: "growth", name: "Growth", price: 2999, features: ["More automations", "Faster reporting", "Priority support", "Richer insights"] },
+  { id: "agency", name: "Pro", price: 5999, features: ["Multi-brand scale", "Unlimited reporting", "Priority onboarding", "Hands-on support"], pro: true }
 ];
 
-const PLAN_ACCENTS: Record<string, string> = {
-  free: "border-white/15",
-  starter: "border-cyan-400/40",
-  growth: "border-emerald-400/40",
-  agency: "border-purple-400/40"
-};
-
-const PLAN_BADGE: Record<string, string> = {
-  free: "bg-white/8 text-white/50",
-  starter: "bg-cyan-400/15 text-cyan-400",
-  growth: "bg-emerald-400/15 text-emerald-400",
-  agency: "bg-purple-400/15 text-purple-400"
-};
-
 export default function BillingPage() {
-  const searchParams = useSearchParams();
-  const [currentPlan, setCurrentPlan] = useState<string>("free");
+  const pathname = usePathname();
+  const { user, isReady, isAuthenticated } = useProtectedRoute();
+  const toast = useToast();
+  const pageClassName = usePageEnter();
   const [loading, setLoading] = useState(true);
-  const [upgrading, setUpgrading] = useState<string | null>(null);
-  const [portalLoading, setPortal] = useState(false);
-  const [attribution, setAttribution] = useState<{ source?: string; feature?: string }>({});
-  const [showCheckoutReminder, setShowCheckoutReminder] = useState(false);
-  const [topConvertingFeature, setTopConvertingFeature] = useState<string | null>(null);
+  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [usage, setUsage] = useState<AgencyUsage | null>(null);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
 
-  useEffect(() => {
-    const fromUrl = persistAttributionFromUrl();
-    const fromStore = getAttributionContext();
-    const ctx = {
-      source: fromUrl.source ?? fromStore.source,
-      feature: fromUrl.feature ?? fromStore.feature
-    };
-    setAttribution(ctx);
-    trackEvent("billing_page_view", {
-      source: ctx.source,
-      feature: ctx.feature,
-      params: { source: searchParams?.get("source") ?? null, feature: searchParams?.get("feature") ?? null }
-    });
+  usePageTitle("Billing");
 
-    apiFetch<{ plan?: string }>("/agency/usage")
-      .then((d) => {
-        setCurrentPlan(d.plan ?? "free");
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-    void fetch("/api/analytics/funnel")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { revenue?: { topConvertingFeature?: string | null } } | null) => {
-        if (d?.revenue?.topConvertingFeature) setTopConvertingFeature(d.revenue.topConvertingFeature);
-      })
-      .catch(() => {});
-  }, [searchParams]);
-
-  useEffect(() => {
-    const intent = getCheckoutIntent();
-    if (!intent) return;
-    const elapsed = Date.now() - intent.startedAt;
-    const thresholdMs = 5 * 60 * 1000;
-    if (elapsed >= thresholdMs) {
-      setShowCheckoutReminder(true);
-      if (!intent.abandonedTracked) {
-        trackEvent("checkout_abandoned", {
-          source: intent.source ?? attribution.source,
-          feature: intent.feature ?? attribution.feature,
-          planId: intent.planId,
-          elapsedMs: elapsed
-        });
-        setCheckoutIntent({
-          ...intent,
-          abandonedTracked: true,
-          startedAt: intent.startedAt
-        });
-      }
+  const loadBilling = useCallback(async () => {
+    if (!user?.clientId) {
+      setLoading(false);
       return;
     }
-    const remaining = thresholdMs - elapsed;
-    const timeout = window.setTimeout(() => {
-      const fresh = getCheckoutIntent();
-      if (!fresh) return;
-      setShowCheckoutReminder(true);
-      if (!fresh.abandonedTracked) {
-        trackEvent("checkout_abandoned", {
-          source: fresh.source ?? attribution.source,
-          feature: fresh.feature ?? attribution.feature,
-          planId: fresh.planId,
-          elapsedMs: Date.now() - fresh.startedAt
-        });
-        setCheckoutIntent({
-          ...fresh,
-          abandonedTracked: true,
-          startedAt: fresh.startedAt
-        });
-      }
-    }, remaining);
-    return () => window.clearTimeout(timeout);
-  }, [attribution.feature, attribution.source]);
-
-  const handleUpgrade = async (plan: Plan) => {
-    if (plan.id === currentPlan) return;
-    if (plan.id !== "pioneer" && !plan.stripePriceId) return;
-    setUpgrading(plan.id);
     try {
-      trackEvent("checkout_started", {
-        source: attribution.source ?? "billing",
-        feature: attribution.feature ?? "plans",
-        planId: plan.id,
-        priceId: plan.stripePriceId || "pioneer-env"
-      });
-      setCheckoutIntent({
-        source: attribution.source ?? "billing",
-        feature: attribution.feature ?? "plans",
-        planId: plan.id
-      });
-      const token = getStoredToken();
-      const body =
-        plan.id === "pioneer"
-          ? {
-              planId: "pioneer" as const,
-              ...(plan.stripePriceId ? { priceId: plan.stripePriceId } : {}),
-              source: attribution.source ?? "billing",
-              feature: attribution.feature ?? "plans"
-            }
-          : {
-              priceId: plan.stripePriceId,
-              source: attribution.source ?? "billing",
-              feature: attribution.feature ?? "plans"
-            };
-      const res = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) {
-        throw new Error("Could not start checkout. Please try again.");
-      }
-      const data = (await res.json()) as { url?: string };
-      const url = data.url;
-      if (url) window.location.href = url;
-    } catch {
-      alert("Could not start checkout. Please try again.");
+      const [usageData, billingData] = await Promise.all([
+        getAgencyUsage(),
+        getBillingStatus(user.clientId).catch(() => null)
+      ]);
+      setUsage(usageData);
+      setBillingStatus(billingData);
+    } catch (error) {
+      toast.error("Something went sideways — let’s try again", error instanceof Error ? error.message : "Couldn’t load billing.");
     } finally {
-      setUpgrading(null);
+      setLoading(false);
     }
-  };
+  }, [toast, user?.clientId]);
 
-  const handlePortal = async () => {
-    setPortal(true);
+  useEffect(() => {
+    if (!isReady || !isAuthenticated) return;
+    void loadBilling();
+  }, [isAuthenticated, isReady, loadBilling]);
+
+  const currentPlan = usage?.plan ?? (user?.plan ?? "starter");
+  const usagePercent = useMemo(() => {
+    if (!billingStatus || billingStatus.generationsLimit <= 0) return 0;
+    return Math.min(100, Math.round((billingStatus.generationsUsed / billingStatus.generationsLimit) * 100));
+  }, [billingStatus]);
+
+  async function handleUpgrade(planId: "starter" | "growth" | "agency") {
+    if (checkoutPlan) return;
+    setCheckoutPlan(planId);
     try {
-      const { url } = await apiFetch<{ url?: string }>("/billing/portal", { method: "POST" });
-      if (url) window.location.href = url;
-    } catch {
-      alert("Could not open billing portal.");
+      const response = await startCheckout(planId);
+      if (response.url) {
+        window.location.href = response.url;
+        return;
+      }
+      toast.info("Checkout is almost ready", "Stripe is still warming up on this environment.");
+    } catch (error) {
+      toast.error("Something went sideways — let’s try again", error instanceof Error ? error.message : "Couldn’t start checkout.");
     } finally {
-      setPortal(false);
+      setCheckoutPlan(null);
     }
-  };
+  }
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 md:p-8 xl:grid-cols-5">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-80 animate-pulse rounded-2xl bg-white/5" />
-        ))}
-      </div>
-    );
+  async function handlePortal() {
+    setPortalLoading(true);
+    try {
+      const response = await openBillingPortal();
+      if (response.url) {
+        window.location.href = response.url;
+        return;
+      }
+      toast.info("Portal isn’t ready yet", "We’ll bring billing self-serve tools here soon.");
+    } catch (error) {
+      toast.error("Something went sideways — let’s try again", error instanceof Error ? error.message : "Couldn’t open the billing portal.");
+    } finally {
+      setPortalLoading(false);
+    }
   }
 
   return (
-    <div className="max-w-5xl space-y-6 p-6 md:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-white">Plans & billing</h1>
-          <p className="mt-1 text-sm text-white/40">Upgrade or downgrade anytime - changes take effect immediately.</p>
-          {attribution.feature ? (
-            <p className="mt-1 text-xs text-cyan-300/90">Upgrading from: {attribution.feature}</p>
-          ) : null}
-          {searchParams?.get("canceled") === "true" ? (
-            <p className="mt-1 text-xs text-amber-300/90">Checkout canceled. You can continue whenever ready.</p>
-          ) : null}
-        </div>
-        {currentPlan !== "free" && (
-          <button
-            onClick={handlePortal}
-            disabled={portalLoading}
-            className="rounded-xl border border-white/15 px-4 py-2 text-sm text-white/50 transition-all hover:border-white/30 hover:text-white/80 disabled:opacity-40"
-          >
-            {portalLoading ? "Opening..." : "Manage subscription →"}
-          </button>
-        )}
-      </div>
-      {showCheckoutReminder ? (
-        <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-          Complete your upgrade to unlock your report.
-        </div>
-      ) : null}
+    <section key={pathname} className={`page-section overview-grid ${pageClassName}`}>
+      {loading ? (
+        <Skeleton className="h-[240px]" />
+      ) : (
+        <Card className="section-card billing-current-card">
+          <div className="section-heading">
+            <div>
+              <p style={{ margin: 0, color: "rgba(255,255,255,0.75)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Current plan</p>
+              <h2 style={{ color: "var(--amber)", fontSize: "2rem", marginBottom: 8 }}>{formatPlanLabel(currentPlan)} Plan</h2>
+              <p>Renews on {new Date(Date.now() + 30 * 86400000).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
+            </div>
+            <Button variant="ghost" size="lg" loading={portalLoading} onClick={handlePortal}>Manage billing</Button>
+          </div>
+          <p style={{ marginTop: 18, fontSize: "2rem", fontFamily: "var(--font-display)", fontWeight: 800 }}>{formatCurrency(PLANS.find((plan) => plan.id === currentPlan)?.price ?? 1499)}<span style={{ fontSize: "1rem", fontWeight: 500 }}>/month</span></p>
+          <p style={{ marginTop: 10 }}>Automation credits this month</p>
+          <div className="usage-track">
+            <div className="usage-fill" style={{ width: `${usagePercent}%` }} />
+          </div>
+          <p style={{ marginTop: 10 }}>{billingStatus ? `${billingStatus.generationsUsed} / ${billingStatus.generationsLimit} automations used` : "Usage updates will appear here shortly."}</p>
+        </Card>
+      )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="billing-plan-grid">
         {PLANS.map((plan) => {
-          const isCurrent = plan.id === currentPlan;
-          const isDowngrade = PLANS.findIndex((p) => p.id === plan.id) < PLANS.findIndex((p) => p.id === currentPlan);
-
-          const isTopFeaturePlan =
-            (topConvertingFeature === "pdf_export" && plan.id === "starter") ||
-            (topConvertingFeature === "ai_generations" && plan.id === "growth");
-
-          return (
-            <div
-              key={plan.id}
-              className={`relative flex flex-col space-y-4 rounded-2xl border p-5 transition-all ${
-                isCurrent ? `${PLAN_ACCENTS[plan.id]} bg-white/[0.06]` : "border-white/10 bg-white/5 hover:border-white/20"
-              }`}
-            >
-              {plan.id === "pioneer" && !isCurrent ? (
-                <div
-                  className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${PLAN_BADGE.pioneer}`}
-                >
-                  Pioneer
+          const isCurrent = currentPlan === plan.id;
+          const card = (
+            <Card className={`billing-plan-card ${isCurrent ? "current" : ""} ${plan.pro ? "pro" : ""}`}>
+              <div className="section-heading" style={{ marginBottom: 12 }}>
+                <div>
+                  <h3>{plan.name}</h3>
+                  <p style={{ marginTop: 6 }}>{formatCurrency(plan.price)}/month</p>
                 </div>
-              ) : null}
-              {isCurrent && (
-                <div
-                  className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${PLAN_BADGE[plan.id]}`}
-                >
-                  Current
-                </div>
-              )}
-              {isTopFeaturePlan ? (
-                <div className="absolute left-3 top-3 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-300">
-                  🔥 Most upgraded feature
-                </div>
-              ) : null}
-
-              <div className="space-y-1">
-                <h2 className="text-lg font-bold text-white">{plan.name}</h2>
-                {plan.price === 0 ? (
-                  <p className="text-sm text-white/40">Free forever</p>
-                ) : (
-                  <p className="text-sm text-white">
-                    <span className="text-2xl font-bold">₹{plan.price.toLocaleString("en-IN")}</span>
-                    <span className="text-white/40">/month</span>
-                  </p>
-                )}
+                {isCurrent ? <Badge tone="amber">Current Plan</Badge> : null}
               </div>
-
-              <ul className="flex-1 space-y-2">
-                {plan.features.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-white/60">
-                    <span className={`mt-0.5 shrink-0 ${isCurrent ? "text-cyan-400" : "text-white/25"}`}>✓</span>
-                    {f}
-                  </li>
+              <ul>
+                {plan.features.map((feature) => (
+                  <li key={feature} style={{ marginBottom: 10 }}>{feature}</li>
                 ))}
               </ul>
-
-              <button
-                onClick={() => handleUpgrade(plan)}
-                disabled={isCurrent || upgrading === plan.id || plan.id === "free"}
-                className={`w-full rounded-xl py-2.5 text-sm font-bold transition-all disabled:opacity-40 ${
-                  isCurrent
-                    ? "cursor-default bg-white/8 text-white/40"
-                    : isDowngrade
-                      ? "border border-white/15 text-white/50 hover:border-white/30 hover:text-white/70"
-                      : plan.id === "pioneer"
-                        ? "bg-[#00D4AA] text-black hover:bg-[#00c29a]"
-                        : "bg-cyan-500 text-black hover:bg-cyan-400"
-                }`}
-              >
-                {upgrading === plan.id
-                  ? "Redirecting..."
-                  : isCurrent
-                    ? "Current plan"
-                    : plan.id === "free"
-                      ? "Downgrade via portal"
-                      : isDowngrade
-                        ? "Downgrade"
-                        : plan.id === "pioneer"
-                          ? "Join Pioneer →"
-                          : "Upgrade →"}
-              </button>
-            </div>
+              <div style={{ marginTop: 18 }}>
+                {isCurrent ? (
+                  <Button variant="ghost" size="lg" fullWidth>Current Plan</Button>
+                ) : (
+                  <Button className="upgrade-btn" variant="primary" size="lg" fullWidth loading={checkoutPlan === plan.id} onClick={() => handleUpgrade(plan.id)}>
+                    Upgrade
+                  </Button>
+                )}
+              </div>
+            </Card>
           );
+          if (plan.pro) {
+            return (
+              <div key={plan.id} className="billing-plan-pro-wrap">
+                <span className="billing-plan-ribbon" aria-hidden>
+                  Most Popular
+                </span>
+                {card}
+              </div>
+            );
+          }
+          return <div key={plan.id}>{card}</div>;
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 rounded-2xl border border-white/8 bg-white/[0.03] p-5 text-xs text-white/45 md:grid-cols-3">
-        <div>
-          <p className="mb-1 font-semibold text-white/70">When does billing start?</p>
-          Immediately on upgrade. Your first charge is prorated to the remaining days in the current month.
+      <Card className="section-card">
+        <div className="section-heading">
+          <div>
+            <h3>Billing History</h3>
+            <p>Clean, simple, and easy to forward to your accountant.</p>
+          </div>
+          <Badge tone="soft">1 invoice</Badge>
         </div>
-        <div>
-          <p className="mb-1 font-semibold text-white/70">Can I cancel anytime?</p>
-          Yes - cancel via "Manage subscription". Your plan stays active until the end of the billing period.
+        <table className="billing-history-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Invoice</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+              <td>{formatCurrency(PLANS.find((plan) => plan.id === currentPlan)?.price ?? 1499)}</td>
+              <td><Badge tone="green">Paid</Badge></td>
+              <td><span className="link-arrow"><Download size={14} aria-hidden /> Download PDF ↓</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="info-banner" style={{ marginTop: 18 }}>
+          <Bolt size={16} style={{ marginRight: 8 }} /> Upgrade when you’re ready — no surprises, no complicated billing maze.
         </div>
-        <div>
-          <p className="mb-1 font-semibold text-white/70">What happens to my data?</p>
-          Downgrading never deletes historical data. You keep full read access, just with lower limits going forward.
-        </div>
-      </div>
-    </div>
+      </Card>
+    </section>
   );
 }
+

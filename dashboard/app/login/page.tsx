@@ -1,46 +1,46 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { apiFetch } from "../../lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { useAuth } from "../../context/auth-context";
+import { useToast } from "../../context/toast-context";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { apiFetch } from "../../lib/api";
 
 const LOGIN_TIMEOUT_MS = 90_000;
 
 export default function LoginPage() {
   const router = useRouter();
   const { setSession, token, isReady } = useAuth();
-  /** Demo defaults: primary operator (README / docs/DEMO.md). */
-  const [email, setEmail] = useState("demo@demo.com");
-  const [password, setPassword] = useState("Demo1234!");
-  const [error, setError] = useState("");
+  const toast = useToast();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [slowBackendHint, setSlowBackendHint] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  usePageTitle("Login");
 
   useEffect(() => {
-    if (!submitting) {
-      setSlowBackendHint(false);
-      return;
-    }
-    const t = setTimeout(() => setSlowBackendHint(true), 5000);
-    return () => clearTimeout(t);
-  }, [submitting]);
-
-  useEffect(() => {
-    if (!isReady) return;
-    if (token) router.replace("/dashboard");
+    if (isReady && token) router.replace("/dashboard");
   }, [isReady, token, router]);
 
-  async function onLogin() {
-    setError("");
+  const canSubmit = useMemo(() => email.trim().length > 0 && password.trim().length >= 8, [email, password]);
+
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmit || submitting) return;
+
+    setError(null);
     setSubmitting(true);
-    setSlowBackendHint(false);
+    setSuccess(false);
+
     try {
       const payload = await apiFetch<{
         success: boolean;
         accessToken: string;
-        refreshToken: string;
         user: { clientId?: string | null };
       }>("/auth/login", {
         method: "POST",
@@ -48,98 +48,94 @@ export default function LoginPage() {
         timeoutMs: LOGIN_TIMEOUT_MS
       });
 
-      setSession(payload.accessToken, payload.user.clientId ?? null, payload.refreshToken);
-      router.push("/dashboard");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Sign-in failed.");
+      setSession(payload.accessToken);
+      setSuccess(true);
+      toast.success("Done! ✓", "Your dashboard is ready.");
+      window.setTimeout(() => router.push("/dashboard"), 550);
+    } catch {
+      const message = "Invalid email or password";
+      setError(message);
+      toast.error("Something went sideways — let’s try again", message);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="page-shell flex min-h-[calc(100vh-80px)] flex-col justify-center py-10 sm:py-16">
-      <div className="mx-auto w-full max-w-[440px]">
-        <div className="mb-8 text-center">
-          <div
-            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-accent-purple/35 bg-[linear-gradient(145deg,rgba(108,99,255,0.22),rgba(0,212,170,0.14))] shadow-glow"
-            aria-hidden
-          >
-            <Sparkles className="text-accent-teal" size={32} strokeWidth={1.75} />
-          </div>
-          <p className="text-accent-purple mb-2 text-[0.6875rem] font-bold uppercase tracking-[0.16em]">Welcome back</p>
-          <h1 className="text-ink font-display text-[clamp(1.75rem,4vw,2.25rem)] font-bold tracking-[-0.035em]">
-            Sign in to Pulse
-          </h1>
-          <p className="text-muted mx-auto mt-3 max-w-sm text-[1.0625rem] leading-relaxed">
-            Your analytics, AI insights, and caption tools — one calm, focused workspace.
-          </p>
-        </div>
-
-        <div className="gradient-border p-8 sm:p-9">
-          <form
-            className="flex flex-col gap-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void onLogin();
-            }}
-          >
-            <div>
-              <label className="text-muted mb-1 block text-xs font-bold uppercase tracking-wide" htmlFor="login-email">
-                Email
-              </label>
-              <input
-                id="login-email"
-                className="input"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
+    <div>
+      <div className="login-mobile-bar">PulseOS</div>
+      <section className="login-shell">
+        <aside className="login-brand-panel">
+          <div className="login-dot-grid" aria-hidden />
+          <div className="login-brand-content page-enter is-ready">
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px" }}>
+              <img
+                src="/logo.png"
+                alt="PulseOS"
+                width={220}
+                style={{ height: "auto", animation: "fadeIn 400ms var(--ease-enter) forwards" }}
               />
             </div>
-            <div>
-              <label
-                className="text-muted mb-1 block text-xs font-bold uppercase tracking-wide"
-                htmlFor="login-password"
-              >
-                Password
-              </label>
-              <input
-                id="login-password"
-                className="input"
+            <p className="login-brand-tagline">
+              <span>Your</span>{" "}
+              <span>WhatsApp.</span>{" "}
+              <span>Automated.</span>
+            </p>
+            <div className="login-feature-pills">
+              <div className="feature-pill">✓ AI-powered replies</div>
+              <div className="feature-pill">✓ Instant PDF reports</div>
+              <div className="feature-pill">✓ Built for Odisha MSMEs</div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="login-panel">
+          <div className="login-card page-enter is-ready">
+            <img
+              src="/logo.png"
+              alt="PulseOS"
+              width={80}
+              style={{
+                height: "auto",
+                marginBottom: "24px",
+                borderRadius: "12px",
+                padding: "8px 16px",
+                background: "white"
+              }}
+            />
+            <h1>Welcome back 👋</h1>
+            <p>Sign in to see your WhatsApp dashboard.</p>
+
+            <form className="login-form" onSubmit={handleLogin}>
+              <Input label="Email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Input
+                label="Password"
                 type="password"
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                onChange={(event) => setPassword(event.target.value)}
+                error={error}
               />
-            </div>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={submitting && !success}
+                success={success}
+                disabled={!canSubmit}
+              >
+                Sign in
+              </Button>
+            </form>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-purple to-accent-teal py-3.5 text-sm font-bold text-ink shadow-glow transition-transform duration-200 hover:scale-[1.01] hover:shadow-teal active:scale-[0.99] disabled:pointer-events-none disabled:opacity-55"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin" aria-hidden />
-                  Signing in…
-                </>
-              ) : (
-                "Continue"
-              )}
-            </button>
-
-            {submitting && slowBackendHint ? (
-              <p className="text-muted m-0 text-center text-sm leading-relaxed">
-                Backend is starting up, please wait… (Render free tier can take up to ~50 seconds after sleep.)
-              </p>
-            ) : null}
-            {error ? <p className="text-error m-0 text-center text-sm">{error}</p> : null}
-          </form>
+            <p className="login-footer">
+              Need help? <a href="mailto:support@pulseos.in">support@pulseos.in</a>
+            </p>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
+

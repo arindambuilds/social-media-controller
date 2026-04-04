@@ -1,39 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useDemoMode } from "../context/demo-mode-context";
 
-const DISMISS_KEY = "smc_demo_banner_dismissed";
+let demoBannerDismissed = false;
 
-/** Full-width banner when API runs with INGESTION_MODE=mock; dismiss hides until tab/session ends (sessionStorage). */
+/** Full-width banner when API runs with INGESTION_MODE=mock; dismiss hides until reload (in-memory only). */
 export function DemoModeBanner() {
   const { isDemoMode, loaded } = useDemoMode();
-  const [dismissRead, setDismissRead] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setDismissed(sessionStorage.getItem(DISMISS_KEY) === "1");
-    setDismissRead(true);
-  }, []);
+  const [dismissed, setDismissed] = useState(demoBannerDismissed);
 
   const onDismiss = useCallback(() => {
-    sessionStorage.setItem(DISMISS_KEY, "1");
+    demoBannerDismissed = true;
     setDismissed(true);
   }, []);
 
-  if (!loaded || !isDemoMode || !dismissRead || dismissed) return null;
+  if (!loaded || !isDemoMode || dismissed) return null;
 
   return (
     <div className="demo-mode-banner" role="status">
       <p className="demo-mode-banner-text">
-        Live demo — data is illustrative. Instagram connection available in production.
+        Sample workspace active - some data may be illustrative while live channels finish syncing.
       </p>
       <button
         type="button"
         className="demo-mode-banner-dismiss"
         onClick={onDismiss}
-        aria-label="Dismiss demo notice for this browser session"
+        aria-label="Dismiss sample workspace notice for this browser session"
       >
         Dismiss
       </button>

@@ -23,6 +23,14 @@ type RouteUser = { id: string; email?: string };
 async function resolveRouteUser(
   req: Request<Record<string, string>, unknown, MessageBody>
 ): Promise<RouteUser | undefined> {
+  if (req.auth?.userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth.userId },
+      select: { id: true, email: true }
+    });
+    return user ?? { id: req.auth.userId };
+  }
+
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return undefined;
   try {

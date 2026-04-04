@@ -1,5 +1,9 @@
 # Email subsystem — PR summary, Render runbook, and launch checklist
 
+> INTERNAL USE ONLY
+>
+> This document is an operator runbook for deployment and incident handling. It is not meant to be shared as customer-facing product material.
+
 This document mirrors the production-grade email rollout for PulseOS (`social-media-controller`). Keep it next to the code when opening a PR or operating Render.
 
 ---

@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import rateLimit from "express-rate-limit";
+import { createOptionalRedisRateLimitStore } from "./rateLimitStore";
 
 function tenantKey(req: Request): string {
   const auth = req.auth;
@@ -18,5 +19,7 @@ export const tenantRateLimit = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  store: createOptionalRedisRateLimitStore("rl:tenant:"),
+  passOnStoreError: true,
   keyGenerator: (req) => tenantKey(req)
 });

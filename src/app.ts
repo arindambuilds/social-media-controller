@@ -14,11 +14,10 @@ import { runWeeklyDatabaseCleanup } from "./jobs/databaseCleanup";
 import { startMorningBriefingJob } from "./jobs/morningBriefing";
 import { scheduleBriefingE2EOneShot } from "./jobs/scheduleMorningBriefing";
 import { pdfExportCircuit } from "./lib/circuitBreaker";
-import { getDetailedHealth, getPublicHealthSnapshot, withHealthProbeTimeout } from "./lib/healthCheck";
+import { getDetailedHealth, withHealthProbeTimeout } from "./lib/healthCheck";
 import { redisConnection } from "./lib/redis";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
 import { logger } from "./lib/logger";
-import { prisma } from "./lib/prisma";
 import { briefingQueue, isBriefingNineAmDispatchMode } from "./queues/briefingQueue";
 import {
   PDF_QUEUE_CAP_ACTIVE,
@@ -86,7 +85,6 @@ function buildApiRouter(): express.Router {
   api.get("/", (_req, res) => {
     res.type("text/plain").send("PulseOS Quadrapilot Ready 🚀");
   });
-  api.use("/health", healthRouter);
   api.use("/auth", authRouter);
   api.use("/instagram", instagramRouter);
   api.use("/ai", aiRouter);
@@ -99,8 +97,8 @@ function buildApiRouter(): express.Router {
   api.use("/audit-logs", auditLogsRouter);
   api.use("/social-accounts", socialAccountsRouter);
   api.use("/webhooks", webhookRouter);
-  api.use("/execute", executeRouter);
-  api.use("/message", messageRouter);
+  api.use("/execute", authenticate, executeRouter);
+  api.use("/message", authenticate, messageRouter);
   /** Public gov metrics: `GET /api/gov-preview` (alias of `/api/pulse/gov-preview` for older clients). */
   
   return api;
@@ -169,6 +167,7 @@ export function createApp() {
     })
   );
   app.use(globalApiLimiter);
+  app.use("/api/health", healthRouter);
 
   attachSseRoute(app);
   app.use("/api/briefing/public", briefingPublicRouter);
@@ -198,55 +197,6 @@ export function createApp() {
         message: err instanceof Error ? err.message : String(err)
       });
       res.status(503).json({ server: "error", database: "error", message: "Health check failed" });
-    }
-  });
-
-  /** Liveness: instant 200 without DB. Optional: ?deps=1 includes dependency checks. */
-  app.get("/api/health", async (req, res) => {
-    try {
-      const payload: Record<string, unknown> = {
-        status: "ok",
-        timestamp: new Date().toISOString(),
-        environment: env.NODE_ENV === "production" ? "production" : env.NODE_ENV
-      };
-      const wantDeps = req.query.deps === "1" || req.query.deps === "true";
-      if (!wantDeps) {
-        res.json(payload);
-        return;
-      }
-      const snapshot = await withHealthProbeTimeout(getPublicHealthSnapshot());
-      payload.status = snapshot.status;
-      payload.timestamp = snapshot.timestamp;
-      payload.components = snapshot.components;
-      res.status(200).json(payload);
-    } catch (err) {
-      logger.warn("/api/health failed", {
-        message: err instanceof Error ? err.message : String(err)
-      });
-      res.status(200).json({
-        status: "degraded",
-        timestamp: new Date().toISOString(),
-        message: "Health check dependency error."
-      });
-    }
-  });
-
-  /** DB connectivity probe (Prisma). Use after fixing DATABASE_URL on Render. */
-  app.get("/api/health/db", async (_req, res) => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-      res.json({
-        status: "ok",
-        database: "connected",
-        timestamp: new Date().toISOString()
-      });
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      logger.warn("/api/health/db failed", { message: detail });
-      res.status(503).json({
-        status: "error",
-        ...(env.NODE_ENV === "production" ? {} : { detail })
-      });
     }
   });
 

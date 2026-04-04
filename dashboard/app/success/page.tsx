@@ -1,13 +1,18 @@
 "use client";
 
+/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { usePageEnter } from "@/hooks/usePageEnter";
 import { useEffect } from "react";
 import { trackEvent } from "../../lib/trackEvent";
 import { clearCheckoutIntent, getAttributionContext, persistAttributionFromUrl } from "../../utils/analytics";
 import { getStoredExperimentVariant } from "../../lib/experiment";
 
 export default function SuccessPage() {
+  const pathname = usePathname();
+  const pageClassName = usePageEnter();
   const searchParams = useSearchParams();
   const sessionId = searchParams?.get("session_id") ?? "";
 
@@ -45,7 +50,7 @@ export default function SuccessPage() {
   }, [sessionId]);
 
   return (
-    <div className="page-shell max-w-2xl">
+    <div key={pathname} className={`page-shell max-w-2xl ${pageClassName}`}>
       <div className="gradient-border p-6 md:p-8">
         <h1 className="font-display text-2xl font-bold text-white">Payment successful</h1>
         <p className="mt-2 text-sm text-white/60">

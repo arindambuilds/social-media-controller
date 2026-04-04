@@ -1,5 +1,7 @@
+/** page-enter: server page wrapped with client `PageEnterShell` (see `@/components/page-enter`). */
 import Link from "next/link";
 import type { ReactElement } from "react";
+import { PageEnterShell } from "@/components/page-enter";
 
 export const revalidate = 3600;
 
@@ -32,7 +34,7 @@ export default async function GovPreviewPage(): Promise<ReactElement> {
   const m = await loadMetrics();
 
   return (
-    <div className="min-h-screen bg-[#050608] px-4 py-10 text-white md:px-8">
+    <PageEnterShell className="min-h-screen bg-[#050608] px-4 py-10 text-white md:px-8">
       <div className="mx-auto max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400/90">PulseOS · Public preview</p>
         <h1 className="mt-2 font-display text-3xl font-bold tracking-tight">Odisha MSME intelligence snapshot</h1>
@@ -80,6 +82,6 @@ export default async function GovPreviewPage(): Promise<ReactElement> {
           )}
         </footer>
       </div>
-    </div>
+    </PageEnterShell>
   );
 }

@@ -73,15 +73,7 @@ npm run dashboard:dev
 ```
 
 - API: `http://localhost:4000` · Dashboard: `http://localhost:3000`  
-- **Primary operator / smoke:** `demo@demo.com` / `Demo1234!`  
-- **Alternates** (after seed — same bcrypt rounds as `prisma/seed.ts`):
-
-  | Role | Email | Password |
-  |------|--------|----------|
-  | Primary operator / smoke | `demo@demo.com` | `Demo1234!` |
-  | Alternate — founder | `admin@demo.com` | `admin123` |
-  | Alternate — client (pilot UX) | `salon@pilot.demo` | `pilot123` |
-  | Alternate — agency (presentations) | `demo@agencyname.com` | `Demo1234!` |
+- Internal seeded demo credentials are documented in the operator runbooks only. Keep those docs private to your team.
 
 - Set `NEXT_PUBLIC_API_URL=http://localhost:4000` in `dashboard/.env.local` if needed.
 
@@ -89,18 +81,58 @@ npm run dashboard:dev
 
 ---
 
+## Diagnosing login failures
+
+This repo uses two database URLs:
+- `DATABASE_URL` — runtime DB the API connects to
+- `DIRECT_URL` — DB Prisma runs migrations against
+
+These can point to different servers. If you migrate locally but your dashboard
+points to the Render API, login will still fail because the live DB is unmigrated.
+
+**Fast check (30 seconds):**
+
+1. `npm run db:check` — are both URLs on the same latest migration?
+2. `cd dashboard && npm run api:check` — is the dashboard pointing where you think?
+3. `npm run db:health` — what DB is the local API actually using?
+
+**If `db:check` shows a mismatch:**
+
+Set `DIRECT_URL` to the target database's direct connection string, then run:
+
+```bash
+npx prisma migrate deploy
+```
+
+**If `api:check` shows dashboard → Render but migrations ran locally:**
+
+You need to run migrations against the Render database, not localhost.
+
+---
+
 ## Documentation map
+
+### Customer-shareable docs
+
+| Doc | Purpose |
+|-----|---------|
+| [docs/customer-shareable-overview.md](docs/customer-shareable-overview.md) | Safe external overview for customers, mentors, or partners |
+| [docs/mvp-product.md](docs/mvp-product.md) | Positioning, MVP promise, what to ignore |
+| [docs/incubation-readiness.md](docs/incubation-readiness.md) | Metrics, language, pilot evidence (no hype) |
+| [docs/mvp-status-one-pager.md](docs/mvp-status-one-pager.md) | Status, investor/pilot outline, Phases 2–3 + GTM |
+| [docs/government/](docs/government/README.md) | Grant package: 500-MSME pilot plan, IAS tech summary, ₹25–50L budget split |
+
+### Internal operator docs
 
 | Doc | Purpose |
 |-----|---------|
 | [GITHUB_SETUP.md](GITHUB_SETUP.md) | Push to GitHub, CI workflow, optional branch protection |
 | [SECURITY.md](SECURITY.md) | How to report vulnerabilities; hardening pointers |
+| [docs/DEMO.md](docs/DEMO.md) | Internal demo credentials, seeded tenants, and operator flow |
 | [docs/local-dev.md](docs/local-dev.md) | Env, migrations, seed, curl checks |
 | [docs/deploy-checklist.md](docs/deploy-checklist.md) | Operator-ready Supabase + Render deploy checklist |
-| [docs/mvp-product.md](docs/mvp-product.md) | Positioning, MVP promise, what to ignore |
 | [docs/2-week-plan.md](docs/2-week-plan.md) | Founder-sized execution plan |
 | [docs/demo-script.md](docs/demo-script.md) | 8-step live demo story (local business) |
-| [docs/incubation-readiness.md](docs/incubation-readiness.md) | Metrics, language, pilot evidence (no hype) |
 | [docs/launch-checklist.md](docs/launch-checklist.md) | Pre-demo env + smoke + manual pass |
 | [docs/cycle3-antigravity-tech-status.md](docs/cycle3-antigravity-tech-status.md) | **Cycle 3 / Antigravity** — Slack/Notion copy: **7/7** Render smoke, **9:00 Asia/Kolkata** cron (`0 9 * * *`, `tz: "Asia/Kolkata"`), **Task 15** Gov preview, migrate wording (Supabase vs laptop) |
 | [docs/production-parity-runbook.md](docs/production-parity-runbook.md) | **Render + DB parity** — gov-preview curl, `migrate deploy`, parity log line |
@@ -114,9 +146,9 @@ npm run dashboard:dev
 | [docs/smoke-harness-runbook.md](docs/smoke-harness-runbook.md) | **Smoke 7/7** — local vs Render URLs, triage, CI, Slack one-liner |
 | [docs/completion-report.md](docs/completion-report.md) | Endpoints, workers, founder Done / next (repo-aligned) |
 | [docs/implementation-roadmap.md](docs/implementation-roadmap.md) | Longer-term phases |
-| [docs/mvp-status-one-pager.md](docs/mvp-status-one-pager.md) | Status, investor/pilot outline, Phases 2–3 + GTM |
 | [docs/pilot-operational-readiness.md](docs/pilot-operational-readiness.md) | Evidence vs narrative: tenant isolation, OAuth/Redis, gov-facing discipline |
-| [docs/government/](docs/government/README.md) | Grant package: 500-MSME pilot plan, IAS tech summary, ₹25–50L budget split |
+| [docs/production-verification-checklist.md](docs/production-verification-checklist.md) | Internal production smoke and seeded login verification |
+| [docs/email-production-runbook.md](docs/email-production-runbook.md) | Internal email rollout and Render runbook |
 
 ---
 

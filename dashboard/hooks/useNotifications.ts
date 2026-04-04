@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_ORIGIN } from "../lib/api";
-import { TOKEN_KEY } from "../lib/auth-storage";
+import { getAccessToken } from "../lib/auth-storage";
 import {
   deleteNotification as apiDelete,
   getNotifications,
@@ -43,11 +43,11 @@ export function useNotifications(clientId: string | null) {
 
   const refresh = useCallback(async () => {
     try {
-      const { notifications: list, unreadCount: uc } = await getNotifications(false, 50);
+      const { notifications: list, unreadCount: unread } = await getNotifications(false, 50);
       setNotifications(list);
-      setUnreadCount(uc);
+      setUnreadCount(unread);
     } catch {
-      /* apiFetch may redirect to login */
+      // auth middleware handles redirects when session expires
     } finally {
       setLoading(false);
     }
@@ -59,13 +59,6 @@ export function useNotifications(clientId: string | null) {
       pollRef.current = null;
     }
   }, []);
-
-  const startPolling = useCallback(() => {
-    stopPolling();
-    pollRef.current = setInterval(() => {
-      void refresh();
-    }, POLL_MS);
-  }, [refresh, stopPolling]);
 
   const closeSse = useCallback(() => {
     if (esRef.current) {
@@ -81,14 +74,19 @@ export function useNotifications(clientId: string | null) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const startPolling = () => {
+      stopPolling();
+      pollRef.current = setInterval(() => {
+        void refresh();
+      }, POLL_MS);
+    };
+
     if (!clientId) {
       startPolling();
-      return () => {
-        stopPolling();
-      };
+      return () => stopPolling();
     }
 
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = getAccessToken();
     if (!token) {
       startPolling();
       return () => stopPolling();
@@ -98,17 +96,13 @@ export function useNotifications(clientId: string | null) {
     closeSse();
 
     const params = new URLSearchParams({ access_token: token, clientId });
-    const url = `${API_ORIGIN}/api/events?${params.toString()}`;
-    const es = new EventSource(url);
-    esRef.current = es;
+    const source = new EventSource(`${API_ORIGIN}/api/events?${params.toString()}`);
+    esRef.current = source;
 
-    es.addEventListener("open", () => {
-      stopPolling();
-    });
-
-    es.addEventListener("notification", (ev) => {
+    source.addEventListener("open", () => stopPolling());
+    source.addEventListener("notification", (event) => {
       try {
-        const raw = JSON.parse((ev as MessageEvent).data as string) as {
+        const raw = JSON.parse((event as MessageEvent).data as string) as {
           data?: {
             id: string;
             type: string;
@@ -117,20 +111,15 @@ export function useNotifications(clientId: string | null) {
             createdAt: string;
           };
         };
-        const d = raw.data;
-        if (!d?.id) return;
-        const row = ssePayloadToNotification(d);
-        setNotifications((prev) => {
-          if (prev.some((n) => n.id === row.id)) return prev;
-          return [row, ...prev].slice(0, 100);
-        });
-        setUnreadCount((c) => c + 1);
+        if (!raw.data?.id) return;
+        const row = ssePayloadToNotification(raw.data);
+        setNotifications((current) => (current.some((item) => item.id === row.id) ? current : [row, ...current].slice(0, 100)));
+        setUnreadCount((count) => count + 1);
       } catch {
         void refresh();
       }
     });
-
-    es.onerror = () => {
+    source.onerror = () => {
       closeSse();
       startPolling();
     };
@@ -139,36 +128,22 @@ export function useNotifications(clientId: string | null) {
       closeSse();
       stopPolling();
     };
-  }, [clientId, closeSse, refresh, startPolling, stopPolling]);
+  }, [API_ORIGIN, clientId, closeSse, refresh, stopPolling]);
 
-  const markAsRead = useCallback(
-    async (id: string) => {
-      await apiMarkRead(id);
-      await refresh();
-    },
-    [refresh]
-  );
+  const markAsRead = useCallback(async (id: string) => {
+    await apiMarkRead(id);
+    await refresh();
+  }, [refresh]);
 
   const markAllAsRead = useCallback(async () => {
     await apiMarkAll();
     await refresh();
   }, [refresh]);
 
-  const deleteNotification = useCallback(
-    async (id: string) => {
-      await apiDelete(id);
-      await refresh();
-    },
-    [refresh]
-  );
+  const deleteNotification = useCallback(async (id: string) => {
+    await apiDelete(id);
+    await refresh();
+  }, [refresh]);
 
-  return {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    refresh,
-    loading
-  };
+  return { notifications, unreadCount, loading, refresh, markAsRead, markAllAsRead, deleteNotification };
 }

@@ -8,6 +8,7 @@ import { upsertSocialAccount } from "../src/services/socialAccountService";
 import { writeAuditLog } from "../src/services/auditLogService";
 import { PdfService } from "../src/services/pdfService";
 import { hashPassword } from "../src/services/authService";
+import { signAccessToken } from "../src/auth/jwt";
 
 /** Skip DB-backed tests when Vitest supplies the default placeholder URL (no real Postgres). */
 const VITEST_PLACEHOLDER_DATABASE_URL = "postgresql://test:test@localhost:5432/test";
@@ -60,15 +61,19 @@ run("API MVP smoke", () => {
 
   it("GET /api/health/db returns status ok when database is reachable", async () => {
     const res = await request(app).get("/api/health/db");
-    expect([200, 503]).toContain(res.status);
-    if (res.status === 200) {
-      expect(res.body).toMatchObject({ status: "ok", database: "connected" });
-    } else {
-      expect(res.body).toMatchObject({ status: "error" });
-      if (process.env.NODE_ENV !== "production") {
-        expect(res.body).toHaveProperty("detail");
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: "ok",
+      database: {
+        host: expect.any(String),
+        name: expect.any(String),
+        reachable: true
+      },
+      migrations: {
+        latest: expect.anything(),
+        appliedAt: expect.anything()
       }
-    }
+    });
   });
 
   it("POST /api/auth/signup creates user", async () => {
@@ -174,6 +179,91 @@ run("API MVP smoke", () => {
     }
     expect(res.status).toBe(200);
     expect(res.body.accessToken).toBeTruthy();
+  });
+
+  it("POST /api/agency/branding rejects unsafe logo URLs for authenticated agency users", async () => {
+    const suffix = `${Date.now()}`;
+    const email = `branding-unsafe-${suffix}@example.com`;
+    const password = "testpasslong1";
+    const passwordHash = await hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name: "Branding Unsafe Test",
+        role: "AGENCY_ADMIN"
+      }
+    });
+
+    try {
+      const token = signAccessToken({
+        sub: user.id,
+        email,
+        role: "AGENCY_ADMIN"
+      });
+      const res = await request(app)
+        .post("/api/agency/branding")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          agencyName: "Unsafe Branding Test",
+          brandColor: "#112233",
+          logoUrl: "https://127.0.0.1/internal.png"
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain("logoUrl");
+    } finally {
+      await prisma.user.deleteMany({ where: { id: user.id } });
+    }
+  });
+
+  it("POST /api/agency/branding accepts safe public logo URLs and persists them", async () => {
+    const suffix = `${Date.now()}`;
+    const email = `branding-safe-${suffix}@example.com`;
+    const password = "testpasslong1";
+    const passwordHash = await hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name: "Branding Safe Test",
+        role: "AGENCY_ADMIN"
+      }
+    });
+
+    try {
+      const token = signAccessToken({
+        sub: user.id,
+        email,
+        role: "AGENCY_ADMIN"
+      });
+      const logoUrl = "https://cdn.example.com/logo.png";
+      const res = await request(app)
+        .post("/api/agency/branding")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          agencyName: "Safe Branding Test",
+          brandColor: "#112233",
+          logoUrl
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ ok: true });
+
+      const updated = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { agencyName: true, brandColor: true, logoUrl: true }
+      });
+      expect(updated).toEqual({
+        agencyName: "Safe Branding Test",
+        brandColor: "#112233",
+        logoUrl
+      });
+    } finally {
+      await prisma.user.deleteMany({ where: { id: user.id } });
+    }
   });
 
   it("GET /api/analytics/:clientId/overview returns 401 without token", async () => {

@@ -22,6 +22,10 @@ type SecondaryNavLink = { href: string; label: string; authOnly?: boolean; admin
 const secondaryLinks: SecondaryNavLink[] = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/conversations", label: "WhatsApp chats", authOnly: true },
+  { href: "/campaigns", label: "Campaigns", authOnly: true },
+  { href: "/reports", label: "Reports", authOnly: true },
+  { href: "/settings", label: "Settings", authOnly: true },
   { href: "/pulse", label: "Daily briefing", authOnly: true },
   { href: "/usage", label: "📊 Usage", authOnly: true },
   { href: "/billing", label: "💳 Billing", authOnly: true },
