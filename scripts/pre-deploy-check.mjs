@@ -124,14 +124,20 @@ function main() {
     if (lint.stdout.trim()) lines.push(lint.stdout.trim().slice(0, 2000));
   }
 
-  const test = run("npm", ["test"], { ...process.env, NODE_ENV: "test" });
-  if (test.status === 0) {
-    lines.push("PASS  tests");
+  // GitHub Actions deploy.yml already runs `npm test` — a second run can flake (rate limits, DB state).
+  const skipTests = process.env.GITHUB_ACTIONS === "true" || process.env.PRE_DEPLOY_SKIP_TESTS === "1";
+  if (skipTests) {
+    lines.push("SKIP  tests (GITHUB_ACTIONS or PRE_DEPLOY_SKIP_TESTS — suite already ran in CI)");
   } else {
-    failed = true;
-    lines.push("FAIL  tests");
-    if (test.stderr.trim()) lines.push(test.stderr.trim().slice(0, 2000));
-    if (test.stdout.trim()) lines.push(test.stdout.trim().slice(0, 2000));
+    const test = run("npm", ["test"], { ...process.env, NODE_ENV: "test" });
+    if (test.status === 0) {
+      lines.push("PASS  tests");
+    } else {
+      failed = true;
+      lines.push("FAIL  tests");
+      if (test.stderr.trim()) lines.push(test.stderr.trim().slice(0, 2000));
+      if (test.stdout.trim()) lines.push(test.stdout.trim().slice(0, 2000));
+    }
   }
 
   lines.push("──────────────────");
