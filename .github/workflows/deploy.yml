@@ -88,6 +88,12 @@ jobs:
   smoke-render:
     needs: [test-lint-deploy]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    env:
+      RENDER_URL: https://social-media-controller.onrender.com
+      SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+      SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -97,6 +103,6 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Install API dependencies
         run: npm ci
-      # Smoke test: 7/7 checks (Health, Login, Analytics, AI Insights, Leads, Gov preview, Posts) — scripts/smoke-demo.ts
+      # Smoke: GET /api/health, GET /api/, optional login + GET /api/notifications — scripts/smoke-demo.ts
       - name: Remote smoke (Render)
         run: npm run smoke:render

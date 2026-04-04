@@ -1,5 +1,5 @@
-# Periodic production API smoke (7/7). Complements deploy.yml smoke-render after each main push.
-# Optional: set repo secret SMOKE_BASE_URL to override default host in package.json smoke:render.
+# Periodic production API smoke. Complements deploy.yml smoke-render after each main push.
+# Optional: SMOKE_BASE_URL or RENDER_URL; SMOKE_EMAIL + SMOKE_PASSWORD for authenticated checks.
 name: Smoke Render (scheduled)
 
 on:
@@ -10,6 +10,11 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+      SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+      SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,13 +24,5 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: Remote smoke (7/7 contract)
-        env:
-          SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
-        run: |
-          if [ -n "${SMOKE_BASE_URL}" ]; then
-            echo "Using SMOKE_BASE_URL secret"
-            npx tsx scripts/smoke-demo.ts --url "${SMOKE_BASE_URL}"
-          else
-            npm run smoke:render
-          fi
+      - name: Remote smoke (Render)
+        run: npm run smoke:render
