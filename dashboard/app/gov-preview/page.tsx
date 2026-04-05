@@ -13,7 +13,11 @@ type GovMetrics = {
 };
 
 function apiGovUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  const raw = (
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "https://pulse-api.onrender.com"
+  ).replace(/\/$/, "");
   const withApi = raw.endsWith("/api") ? raw : `${raw}/api`;
   return `${withApi}/pulse/gov-preview`;
 }

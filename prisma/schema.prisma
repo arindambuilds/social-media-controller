@@ -29,6 +29,8 @@ model User {
   notifications    Notification[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+
+  @@map("users")
 }
 
 model Notification {
@@ -46,6 +48,7 @@ model Notification {
 
   @@index([userId, read, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
 }
 
 model Client {
@@ -95,6 +98,8 @@ model Client {
   language                 String           @default("en")
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
+
+  @@map("clients")
 }
 
 /// Dedupes upgrade / retention WhatsApp or in-app nudges (cooldown in app logic).
@@ -108,6 +113,7 @@ model PulseNudgeLog {
   createdAt DateTime @default(now())
 
   @@index([clientId, nudgeKey, createdAt])
+  @@map("pulse_nudge_logs")
 }
 
 model DmConversation {
@@ -125,6 +131,7 @@ model DmConversation {
 
   @@unique([clientId, instagramUserId])
   @@index([clientId, instagramUserId])
+  @@map("dm_conversations")
 }
 
 model DmMessage {
@@ -139,6 +146,7 @@ model DmMessage {
   createdAt      DateTime       @default(now())
 
   @@index([conversationId])
+  @@map("dm_messages")
 }
 
 model Briefing {
@@ -159,6 +167,7 @@ model Briefing {
 
   @@index([clientId])
   @@index([clientId, sentAt])
+  @@map("briefings")
 }
 
 model BriefingFeedback {
@@ -172,6 +181,7 @@ model BriefingFeedback {
   createdAt  DateTime @default(now())
 
   @@index([briefingId])
+  @@map("briefing_feedbacks")
 }
 
 model AiUsageLog {
@@ -186,6 +196,7 @@ model AiUsageLog {
 
   @@index([clientId, createdAt])
   @@index([feature])
+  @@map("ai_usage_logs")
 }
 
 /// Operational logs for admin monitoring (briefing failures, cleanup, ingestion, etc.).
@@ -199,6 +210,7 @@ model SystemEvent {
 
   @@index([createdAt])
   @@index([category, createdAt])
+  @@map("system_events")
 }
 
 model SocialAccount {
@@ -226,6 +238,7 @@ model SocialAccount {
   updatedAt             DateTime      @updatedAt
 
   @@unique([platform, platformUserId])
+  @@map("social_accounts")
 }
 
 /// Composer / scheduled outbound content (distinct from ingested `Post` rows).
@@ -250,6 +263,7 @@ model ScheduledPost {
   @@index([clientId])
   @@index([socialAccountId])
   @@index([status])
+  @@map("scheduled_posts")
 }
 
 /// Daily follower snapshot for growth charts (sync / seed).
@@ -263,6 +277,7 @@ model FollowerDaily {
 
   @@unique([socialAccountId, date])
   @@index([socialAccountId])
+  @@map("follower_dailies")
 }
 
 model Campaign {
@@ -275,6 +290,8 @@ model Campaign {
   endsAt      DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("campaigns")
 }
 
 model Post {
@@ -293,6 +310,7 @@ model Post {
   updatedAt        DateTime          @updatedAt
 
   @@unique([socialAccountId, platformPostId])
+  @@map("posts")
 }
 
 model PostInsight {
@@ -305,6 +323,8 @@ model PostInsight {
   shares        Int      @default(0)
   impressions   Int      @default(0)
   reach         Int      @default(0)
+
+  @@map("post_insights")
 }
 
 model PostMetricDaily {
@@ -323,6 +343,7 @@ model PostMetricDaily {
   updatedAt      DateTime @updatedAt
 
   @@unique([postId, date])
+  @@map("post_metric_dailies")
 }
 
 model Comment {
@@ -340,6 +361,7 @@ model Comment {
   createdAt         DateTime      @default(now())
 
   @@unique([socialAccountId, platformCommentId])
+  @@map("comments")
 }
 
 model Message {
@@ -355,6 +377,7 @@ model Message {
   createdAt         DateTime      @default(now())
 
   @@unique([socialAccountId, platformMessageId])
+  @@map("messages")
 }
 
 model Lead {
@@ -372,6 +395,7 @@ model Lead {
   updatedAt    DateTime   @updatedAt
 
   @@unique([clientId, source, sourceId])
+  @@map("leads")
 }
 
 model AuditLog {
@@ -385,6 +409,8 @@ model AuditLog {
   metadata   Json?
   ipAddress  String?
   createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
 }
 
 model EmailLog {
@@ -413,6 +439,7 @@ model EmailLog {
   @@index([status])
   @@index([userId])
   @@index([deduplicationKey])
+  @@map("email_logs")
 }
 
 model EmailSuppression {
@@ -421,6 +448,8 @@ model EmailSuppression {
   reason    String
   createdAt DateTime @default(now())
   expiresAt DateTime?
+
+  @@map("email_suppressions")
 }
 
 model SyncRun {
@@ -437,6 +466,8 @@ model SyncRun {
   recordsFetched  Int           @default(0)
   externalCursor  String?
   errorMessage    String?
+
+  @@map("sync_runs")
 }
 
 model AiInsight {
@@ -452,6 +483,7 @@ model AiInsight {
   generatedAt     DateTime @default(now())
 
   @@index([clientId])
+  @@map("ai_insights")
 }
 
 model AiMonthlyUsage {
@@ -464,6 +496,7 @@ model AiMonthlyUsage {
 
   @@unique([clientId, monthKey])
   @@index([clientId])
+  @@map("ai_monthly_usages")
 }
 
 model Recommendation {
@@ -477,6 +510,8 @@ model Recommendation {
   sourceData Json?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@map("recommendations")
 }
 
 enum Role {
@@ -560,4 +595,5 @@ model JobLog {
   @@unique([queue, jobId])
   @@index([queue, status])
   @@index([createdAt])
+  @@map("job_logs")
 }

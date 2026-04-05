@@ -1,3 +1,4 @@
+import axios from "axios";
 import {
   clearAccessToken as clearAccessTokenMem,
   getAccessToken,
@@ -6,16 +7,29 @@ import {
 
 export const DEFAULT_API_TIMEOUT_MS = 10_000;
 
+function resolveApiOrigin(): string {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || "";
+  const raw = fromEnv || "https://pulse-api.onrender.com";
+  return raw.replace(/\/$/, "");
+}
+
 if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
-  const value = process.env.NEXT_PUBLIC_API_URL;
+  const value = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL;
   if (!value || String(value).trim() === "") {
     throw new Error(
-      "NEXT_PUBLIC_API_URL is missing. Set it to your API origin, for example https://pulse-api.onrender.com"
+      "NEXT_PUBLIC_API_BASE_URL (or NEXT_PUBLIC_API_URL) is missing. Set it to your API origin, for example https://pulse-api.onrender.com"
     );
   }
 }
 
-const rawOrigin = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const rawOrigin = resolveApiOrigin();
+
+/** Axios client for modules that prefer axios; most routes still use `apiFetch` below. */
+export const apiClient = axios.create({
+  baseURL: rawOrigin.endsWith("/api") ? rawOrigin : `${rawOrigin}/api`,
+  withCredentials: true
+});
 export const API_URL = rawOrigin.endsWith("/api") ? rawOrigin : `${rawOrigin}/api`;
 export const API_ORIGIN = API_URL.replace(/\/api$/, "");
 export const API_BASE_URL = API_URL;

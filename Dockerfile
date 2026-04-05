@@ -5,13 +5,15 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 COPY package.json package-lock.json* ./
+
+# Copy prisma BEFORE npm ci — postinstall runs prisma generate
+COPY prisma ./prisma
+
 RUN npm ci
 
 COPY tsconfig.json ./
-COPY prisma ./prisma
 COPY src ./src
 
-RUN npx prisma generate
 RUN npm run build
 
 # --- Run ---
@@ -33,6 +35,8 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 RUN chown -R nodejs:nodejs /app
 
 USER nodejs
-EXPOSE 4000
 
-CMD ["node", "dist/server.js"]
+EXPOSE 10000
+
+# migrate deploy needs live DATABASE_URL at container start, not build time
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]

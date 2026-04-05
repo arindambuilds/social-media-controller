@@ -5,6 +5,7 @@ import { env } from "./env";
 const DEFAULT_CORS_ORIGINS = [
   "https://social-media-controller.vercel.app",
   "https://social-media-controller.onrender.com",
+  "https://pulse-api.onrender.com",
   "http://localhost:3000",
   "http://localhost:3002"
 ] as const;

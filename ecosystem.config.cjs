@@ -10,7 +10,7 @@ module.exports = {
   apps: [
     {
       name: "pulse-api",
-      script: "dist/server.js",
+      script: "dist/index.js",
       instances: 2,
       exec_mode: "cluster",
       max_memory_restart: "2G",

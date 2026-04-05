@@ -23,7 +23,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
 });
 
 function apiBaseUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  const raw = (
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "https://pulse-api.onrender.com"
+  ).replace(/\/$/, "");
   return raw.endsWith("/api") ? raw.slice(0, -4) : raw;
 }
 
@@ -84,8 +88,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const successUrl = `${process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3000"}/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3000"}/billing?canceled=true`;
+    const dashboardUrl = (
+      process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://social-media-controller.vercel.app"
+    ).replace(/\/$/, "");
+    const successUrl = `${dashboardUrl}/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${dashboardUrl}/billing?canceled=true`;
 
     const planIdMeta = planIdRaw ?? "";
 
