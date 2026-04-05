@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchFormData, apiFetchResponse } from "./api";
+import { getAccessToken } from "./auth-storage";
 
 export type WorkspaceMe = {
   success: boolean;
@@ -74,6 +75,25 @@ export type BillingStatus = {
   generationsLimit: number;
 };
 
+export type RazorpayCheckoutSession = {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+};
+
+function readErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== "object") return fallback;
+  const record = payload as Record<string, unknown>;
+  if (typeof record.error === "string" && record.error.trim()) return record.error;
+  if (typeof record.message === "string" && record.message.trim()) return record.message;
+  return fallback;
+}
+
+async function readJson<T>(response: Response): Promise<T | Record<string, unknown>> {
+  return response.json().catch(() => ({}));
+}
+
 export async function getAgencyUsage(): Promise<AgencyUsage> {
   return apiFetch<AgencyUsage>("/agency/usage");
 }
@@ -139,15 +159,40 @@ export async function getBillingStatus(clientId: string): Promise<BillingStatus>
   return apiFetch<BillingStatus>(`/billing/${encodeURIComponent(clientId)}/status`);
 }
 
-export async function startCheckout(planId: "starter" | "growth" | "agency" | "pioneer"): Promise<{ url?: string }> {
-  return apiFetch<{ url?: string }>("/billing/checkout", {
+export async function startCheckout(
+  planId: "starter" | "growth" | "agency" | "pioneer"
+): Promise<RazorpayCheckoutSession> {
+  if (planId !== "pioneer") {
+    throw new Error("Only the Pioneer Razorpay checkout is available right now.");
+  }
+
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error("Please sign in again before starting checkout.");
+  }
+
+  const response = await fetch("/api/create-checkout-session", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
     body: JSON.stringify({ planId })
   });
+  const payload = await readJson<RazorpayCheckoutSession>(response);
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload, "Couldn’t start Razorpay checkout."));
+  }
+  return payload as RazorpayCheckoutSession;
 }
 
-export async function openBillingPortal(): Promise<{ url?: string }> {
-  return apiFetch<{ url?: string }>("/billing/portal", { method: "POST" });
+export async function openBillingPortal(): Promise<{ url: string; message: string }> {
+  const url = "/billing?manage=1";
+  const message = "Manage your plan from the billing page for now.";
+  if (typeof window !== "undefined") {
+    window.location.assign(url);
+  }
+  return { url, message };
 }
 
 export async function exportReportPdf(clientId: string): Promise<Blob> {

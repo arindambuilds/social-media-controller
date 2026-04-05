@@ -141,7 +141,7 @@ export function createApp() {
     const challenge = typeof req.query["hub.challenge"] === "string" ? req.query["hub.challenge"] : "";
     const expected = process.env.WEBHOOK_VERIFY_TOKEN?.trim() ?? "";
 
-    if (mode === "subscribe" && token === expected) {
+    if (expected.length > 0 && mode === "subscribe" && token === expected) {
       res.status(200).type("text/plain").send(challenge);
       return;
     }
@@ -174,7 +174,7 @@ export function createApp() {
 
   app.get("/", (_req, res) => {
     res.json({
-      message: "Instagram Growth Copilot API",
+      message: "PulseOS API",
       version: "1.0.0",
       status: "running"
     });

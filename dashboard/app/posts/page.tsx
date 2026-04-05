@@ -4,6 +4,9 @@ import { ImageIcon, Plus, X } from "lucide-react";
 import type React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useState } from "react";
+import { StaggerContainer, StaggerItem } from "../../components/layout/StaggerContainer";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { ErrorState } from "../../components/ui/ErrorState";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { VoicePostButton } from "../../components/VoicePostButton";
 import { PageHeader } from "../../components/ui/page-header";
@@ -240,7 +243,7 @@ export default function PostsPage() {
         }
       />
 
-      {error ? <p className="text-error mt-4">{error}</p> : null}
+      {error ? <ErrorState message="Posts need attention" detail={error} onRetry={refreshPosts} /> : null}
 
       {clientId ? (
         <VoicePostButton clientId={clientId} disabled={accounts.length === 0} onScheduled={refreshPosts} />
@@ -250,72 +253,58 @@ export default function PostsPage() {
       <p className="text-muted mt-1 text-sm">Drafts, scheduled, and published outbound posts for this client.</p>
 
       {posts.length === 0 ? (
-        <div className="border-subtle mt-6 rounded-xl border border-dashed bg-surface/50 px-6 py-12 text-center">
-          <div
-            className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-subtle"
-            style={{
-              background: "linear-gradient(145deg, rgba(108,99,255,0.15), rgba(0,212,170,0.1))"
-            }}
-            aria-hidden
-          >
-            <ImageIcon className="text-[#C8A951] h-9 w-9 opacity-90" strokeWidth={1.25} />
-          </div>
-          <p className="text-ink m-0 text-sm font-medium">No posts yet</p>
-          <p className="text-muted mx-auto mt-2 max-w-sm text-sm leading-relaxed">
-            Create a draft or scheduled post here — your queue will show up in this space.
-          </p>
-          <button
-            type="button"
-            className="button mt-5"
-            onClick={() => setCreateOpen(true)}
-          >
-            Create your first post
-          </button>
-        </div>
+        <EmptyState
+          illustration="generic"
+          className="mt-6 rounded-xl border border-dashed border-glow bg-dark-secondary"
+          heading="No posts yet"
+          subline="Create a draft or scheduled post here and your publishing queue will appear in this space."
+          cta={{ label: "Create your first post", onClick: () => setCreateOpen(true) }}
+        />
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StaggerContainer className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((p) => {
             const stats = p.engagementStats as { likes?: number; comments?: number } | null;
             const preview = p.caption.slice(0, 120) + (p.caption.length > 120 ? "…" : "");
             return (
-              <article
-                key={p.id}
-                className="flex flex-col overflow-hidden rounded-xl border border-subtle bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:shadow-glow"
-              >
-                <div className="relative flex aspect-[4/3] items-center justify-center bg-[linear-gradient(145deg,#16161f,#0f0f16)]">
-                  <ImageIcon className="text-muted h-12 w-12 opacity-5" strokeWidth={1} aria-hidden />
-                  <span className="text-muted absolute bottom-2 left-2 rounded-md bg-canvas/80 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide">
-                    {p.socialAccount.platform}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col gap-2 p-4">
-                  <p className="text-ink line-clamp-3 min-h-[3.5rem] text-sm leading-relaxed">{preview || "—"}</p>
-                  <p className="text-muted text-xs tabular-nums">{formatScheduleLine(p)}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeClass(p.status)}`}
-                    >
-                      {p.status}
+              <StaggerItem key={p.id}>
+                <article
+                  className="flex flex-col overflow-hidden rounded-xl border border-subtle bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:shadow-glow"
+                >
+                  <div className="relative flex aspect-[4/3] items-center justify-center bg-[linear-gradient(145deg,#16161f,#0f0f16)]">
+                    <ImageIcon className="text-muted h-12 w-12 opacity-5" strokeWidth={1} aria-hidden />
+                    <span className="text-muted absolute bottom-2 left-2 rounded-md bg-canvas/80 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide">
+                      {p.socialAccount.platform}
                     </span>
                   </div>
-                  <div className="text-muted mt-auto pt-3 text-xs">
-                    {stats?.likes != null ? `${stats.likes} likes` : "—"}
-                    {stats?.comments != null ? ` · ${stats.comments} comments` : ""}
+                  <div className="flex flex-1 flex-col gap-2 p-4">
+                    <p className="text-ink line-clamp-3 min-h-[3.5rem] text-sm leading-relaxed">{preview || "—"}</p>
+                    <p className="text-muted text-xs tabular-nums">{formatScheduleLine(p)}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeClass(p.status)}`}
+                      >
+                        {p.status}
+                      </span>
+                    </div>
+                    <div className="text-muted mt-auto pt-3 text-xs">
+                      {stats?.likes != null ? `${stats.likes} likes` : "—"}
+                      {stats?.comments != null ? ` · ${stats.comments} comments` : ""}
+                    </div>
+                    {(p.status === "DRAFT" || p.status === "SCHEDULED") && (
+                      <button
+                        type="button"
+                        className="button secondary mt-2 w-full text-xs"
+                        onClick={() => onDelete(p.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
-                  {(p.status === "DRAFT" || p.status === "SCHEDULED") && (
-                    <button
-                      type="button"
-                      className="button secondary mt-2 w-full text-xs"
-                      onClick={() => onDelete(p.id)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </article>
+                </article>
+              </StaggerItem>
             );
           })}
-        </div>
+        </StaggerContainer>
       )}
 
       {createOpen ? (

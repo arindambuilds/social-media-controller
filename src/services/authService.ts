@@ -65,7 +65,6 @@ export async function signup(input: {
   email: string;
   password: string;
   name: string;
-  clientId?: string;
 }) {
   const email = input.email.toLowerCase().trim();
   const existing = await prisma.user.findUnique({
@@ -82,12 +81,7 @@ export async function signup(input: {
       email,
       name: input.name,
       passwordHash,
-      role: "CLIENT_USER",
-      client: input.clientId
-        ? {
-            connect: { id: input.clientId }
-          }
-        : undefined
+      role: "CLIENT_USER"
     },
     select: {
       id: true,

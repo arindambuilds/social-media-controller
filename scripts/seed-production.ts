@@ -11,7 +11,7 @@
  *   - `findUnique({ where: { email } })` with `select.passwordHash: true`.
  *   - `bcrypt.compare(input.password, user.passwordHash)` — library: `bcrypt` (same as this script).
  *
- * STEP 3 — prisma/seed.ts: demo user `demo@demo.com` already upserted with `passwordHash`; production failures were connectivity / migration / wrong column in ad-hoc SQL, not field name in app code.
+ * STEP 3 — prisma/seed.ts already upserts the demo user with `passwordHash`; production failures were connectivity / migration / wrong column in ad-hoc SQL, not field name in app code.
  *
  * STEP 4 — package.json dependencies: `bcrypt` and `bcryptjs` both present; auth + this script use `bcrypt` only.
  *
@@ -22,9 +22,6 @@
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 
-/** Primary operator / smoke user (alternates: prisma/seed.ts, README, docs/DEMO.md). */
-const DEMO_EMAIL = "demo@demo.com";
-const DEMO_PASSWORD = "Demo1234!";
 const BCRYPT_ROUNDS = 10;
 const DEMO_CLIENT_ID = "demo-client";
 
@@ -39,16 +36,25 @@ async function main() {
     process.env.DIRECT_URL = databaseUrl;
   }
 
+  const demoEmail = process.env.SEED_DEMO_EMAIL?.trim();
+  const demoPassword = process.env.SEED_DEMO_PASSWORD?.trim();
+  if (!demoEmail || !demoPassword) {
+    const scope = process.env.NODE_ENV === "production" ? "production" : "this script";
+    throw new Error(
+      `SEED_DEMO_EMAIL and SEED_DEMO_PASSWORD must be set before running ${scope}.`
+    );
+  }
+
   const prisma = new PrismaClient();
 
   try {
-    const passwordHash = await bcrypt.hash(DEMO_PASSWORD, BCRYPT_ROUNDS);
+    const passwordHash = await bcrypt.hash(demoPassword, BCRYPT_ROUNDS);
     const demoClient = await prisma.client.findUnique({
       where: { id: DEMO_CLIENT_ID },
       select: { id: true }
     });
     const user = await prisma.user.upsert({
-      where: { email: DEMO_EMAIL },
+      where: { email: demoEmail },
       update: {
         passwordHash,
         name: "Demo User",
@@ -56,7 +62,7 @@ async function main() {
         clientId: demoClient?.id ?? null
       },
       create: {
-        email: DEMO_EMAIL,
+        email: demoEmail,
         name: "Demo User",
         passwordHash,
         role: "AGENCY_ADMIN",

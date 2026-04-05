@@ -4,6 +4,8 @@ import type { ReactElement } from "react";
 import { PageEnterShell } from "@/components/page-enter";
 
 export const revalidate = 3600;
+const DEFAULT_LOCAL_API_ORIGIN = "http://localhost:4000";
+const DEFAULT_PRODUCTION_API_ORIGIN = "https://social-media-controller.onrender.com";
 
 type GovMetrics = {
   msmes: number;
@@ -16,7 +18,7 @@ function apiGovUrl(): string {
   const raw = (
     process.env.NEXT_PUBLIC_API_BASE_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
-    "https://pulse-api.onrender.com"
+    (process.env.NODE_ENV === "production" ? DEFAULT_PRODUCTION_API_ORIGIN : DEFAULT_LOCAL_API_ORIGIN)
   ).replace(/\/$/, "");
   const withApi = raw.endsWith("/api") ? raw : `${raw}/api`;
   return `${withApi}/pulse/gov-preview`;

@@ -3,11 +3,12 @@
 import { Link2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch, fetchMe } from "../../lib/api";
 import { getAccessToken } from "../../lib/auth-storage";
 import { ListPageSkeleton, TableFallbackSkeleton } from "../../components/page-skeleton";
 import { PageHeader } from "../../components/ui/page-header";
+import { useToast } from "../../context/toast-context";
 import { usePageEnter } from "../../hooks/usePageEnter";
 
 type AccountRow = {
@@ -27,18 +28,25 @@ function msUntil(iso: string | null): string {
   return d > 0 ? `${d}d ${h}h` : `${h}h`;
 }
 
+function formatPlatformLabel(platform: string): string {
+  const value = platform.trim().toLowerCase();
+  if (!value) return "Account";
+  return value[0]!.toUpperCase() + value.slice(1);
+}
+
 function AccountsPageContent() {
   const pathname = usePathname();
   const pageClassName = usePageEnter();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const [clientId, setClientId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [error, setError] = useState("");
   const [oauthError, setOauthError] = useState<string | null>(null);
-  const [oauthSuccess, setOauthSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const handledSuccessRef = useRef<string | null>(null);
 
   const load = useCallback(async (cid: string) => {
     try {
@@ -54,10 +62,21 @@ function AccountsPageContent() {
 
   useEffect(() => {
     const err = searchParams?.get("oauth_error") ?? null;
-    const success = searchParams?.get("oauth_success") ?? null;
+    const oauthSuccess = searchParams?.get("oauth_success") ?? null;
+    const connected = searchParams?.get("connected") ?? null;
+    const success = oauthSuccess || connected;
     setOauthError(err ? decodeURIComponent(err) : null);
-    setOauthSuccess(success);
-  }, [searchParams]);
+    if (!success) {
+      handledSuccessRef.current = null;
+      return;
+    }
+    if (handledSuccessRef.current === success) return;
+
+    handledSuccessRef.current = success;
+    const platform = formatPlatformLabel(success);
+    toast.success(`${platform} connected successfully!`, "Data sync will begin shortly. First results appear within a few minutes.");
+    router.replace("/accounts");
+  }, [router, searchParams, toast]);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -150,24 +169,6 @@ function AccountsPageContent() {
             type="button"
             onClick={() => router.replace("/accounts")}
             className="ml-auto text-lg leading-none text-red-400/60 hover:text-red-400"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-      {oauthSuccess && (
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/8 px-4 py-3">
-          <span className="shrink-0 text-lg">✅</span>
-          <div>
-            <p className="text-sm font-semibold text-emerald-300">Instagram connected successfully</p>
-            <p className="mt-0.5 text-xs text-emerald-300/60">
-              Data sync will begin shortly. First results appear within a few minutes.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => router.replace("/accounts")}
-            className="ml-auto text-lg leading-none text-emerald-400/60 hover:text-emerald-400"
           >
             ✕
           </button>

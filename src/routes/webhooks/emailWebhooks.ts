@@ -6,12 +6,16 @@ import { addSuppression, updateEmailStatus } from "../../services/email";
 export const emailWebhooksRouter = Router();
 
 function hasValidPostmarkWebhookSecret(headerValue: string | undefined): boolean {
-  if (!emailConfig.postmarkWebhookSecret) return true;
+  if (!emailConfig.postmarkWebhookSecret) return false;
   return headerValue === emailConfig.postmarkWebhookSecret;
 }
 
 emailWebhooksRouter.post("/postmark", async (req, res) => {
   const token = req.get("x-postmark-webhook-token") || undefined;
+  if (!emailConfig.postmarkWebhookSecret) {
+    res.status(403).json({ error: "Postmark webhook secret is not configured." });
+    return;
+  }
   if (!hasValidPostmarkWebhookSecret(token)) {
     res.status(401).json({ error: "Invalid Postmark webhook token." });
     return;

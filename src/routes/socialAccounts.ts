@@ -25,18 +25,31 @@ function oauthCallbackBase(): string {
   return env.OAUTH_REDIRECT_BASE_URL.replace(/\/$/, "");
 }
 
-function canAccessClient(
-  auth: { role: string; clientId?: string },
+async function agencyCanTouchClient(userId: string, clientId: string): Promise<boolean> {
+  const row = await prisma.client.findFirst({
+    where: {
+      id: clientId,
+      OR: [{ agencyId: userId }, { ownerId: userId }]
+    },
+    select: { id: true }
+  });
+  return !!row;
+}
+
+async function canAccessClient(
+  auth: { userId: string; role: string; clientId?: string },
   clientId: string
-): boolean {
-  if (auth.role === "AGENCY_ADMIN") return true;
+) {
+  if (auth.role === "AGENCY_ADMIN") {
+    return agencyCanTouchClient(auth.userId, clientId);
+  }
   return auth.clientId === clientId;
 }
 
 socialAccountsRouter.get("/", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
   try {
     const clientId = z.string().min(1).parse(req.query.clientId);
-    if (!req.auth || !canAccessClient(req.auth, clientId)) {
+    if (!req.auth || !(await canAccessClient(req.auth, clientId))) {
       res.status(403).json({ error: "Forbidden for this client." });
       return;
     }
@@ -63,7 +76,7 @@ socialAccountsRouter.delete("/:id", requireRole("AGENCY_ADMIN", "CLIENT_USER"), 
     res.status(404).json({ error: "Not found." });
     return;
   }
-  if (!req.auth || !canAccessClient(req.auth, existing.clientId)) {
+  if (!req.auth || !(await canAccessClient(req.auth, existing.clientId))) {
     res.status(403).json({ error: "Forbidden for this client." });
     return;
   }
@@ -85,7 +98,7 @@ const connectBody = z.object({ clientId: z.string().min(1) });
 
 socialAccountsRouter.post("/connect/facebook", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
   const { clientId } = connectBody.parse(req.body);
-  if (!req.auth || !canAccessClient(req.auth, clientId)) {
+  if (!req.auth || !(await canAccessClient(req.auth, clientId))) {
     res.status(403).json({ error: "Forbidden for this client." });
     return;
   }
@@ -110,7 +123,7 @@ socialAccountsRouter.post("/connect/facebook", requireRole("AGENCY_ADMIN", "CLIE
 
 socialAccountsRouter.post("/connect/instagram", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
   const { clientId } = connectBody.parse(req.body);
-  if (!req.auth || !canAccessClient(req.auth, clientId)) {
+  if (!req.auth || !(await canAccessClient(req.auth, clientId))) {
     res.status(403).json({ error: "Forbidden for this client." });
     return;
   }
@@ -135,7 +148,7 @@ socialAccountsRouter.post("/connect/instagram", requireRole("AGENCY_ADMIN", "CLI
 
 socialAccountsRouter.post("/connect/linkedin", requireRole("AGENCY_ADMIN", "CLIENT_USER"), async (req, res) => {
   const { clientId } = connectBody.parse(req.body);
-  if (!req.auth || !canAccessClient(req.auth, clientId)) {
+  if (!req.auth || !(await canAccessClient(req.auth, clientId))) {
     res.status(403).json({ error: "Forbidden for this client." });
     return;
   }
@@ -164,11 +177,9 @@ socialAccountsRouter.post("/instagram/start", requireRole("AGENCY_ADMIN", "CLIEN
   }).parse(req.body);
 
   const auth = req.auth!;
-  if (auth.role === "CLIENT_USER") {
-    if (!auth.clientId || auth.clientId !== payload.clientId) {
-      res.status(403).json({ error: "Forbidden for this client." });
-      return;
-    }
+  if (!(await canAccessClient(auth, payload.clientId))) {
+    res.status(403).json({ error: "Forbidden for this client." });
+    return;
   }
 
   const state = await issueOAuthState({
@@ -214,6 +225,10 @@ socialAccountsRouter.post("/", requireRole("AGENCY_ADMIN"), async (req, res) => 
     });
 
     const payload = bodySchema.parse(req.body);
+    if (!req.auth || !(await canAccessClient(req.auth, payload.clientId))) {
+      res.status(403).json({ error: "Forbidden for this client." });
+      return;
+    }
     const socialAccount = await upsertSocialAccount({
       clientId: payload.clientId,
       platform: payload.platform,
@@ -257,6 +272,10 @@ socialAccountsRouter.post("/instagram/exchange", requireRole("AGENCY_ADMIN"), as
       clientId: z.string().min(1),
       code: z.string().min(1)
     }).parse(req.body);
+    if (!req.auth || !(await canAccessClient(req.auth, payload.clientId))) {
+      res.status(403).json({ error: "Forbidden for this client." });
+      return;
+    }
 
     const result = await exchangeInstagramCode(payload.code);
     const socialAccount = await upsertSocialAccount({

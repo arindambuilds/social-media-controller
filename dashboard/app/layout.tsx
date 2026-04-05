@@ -21,10 +21,10 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "PulseOS — WhatsApp automation for small businesses",
-  description: "Warm, capable WhatsApp automation built for Odisha’s small businesses.",
+  title: "PulseOS — AI-powered social media copilot for Instagram creators and small businesses",
+  description: "PulseOS handles Instagram content, analytics, WhatsApp automation, and growth for creators and small businesses in India.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo.png",
     apple: "/logo.png"
   }
 };

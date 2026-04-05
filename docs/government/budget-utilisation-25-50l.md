@@ -1,6 +1,6 @@
 # Budget Utilisation Breakdown (Indicative)  
 ## Seed Grant: ₹25 Lakh — ₹50 Lakh  
-### Instagram Growth Copilot — Odisha MSME Pilot
+### PulseOS — Odisha MSME Pilot
 
 **Document type:** Financial annex · **Audience:** Grant committee, finance wing, implementing agency  
 **Note:** Figures are **illustrative** within the stated band; final lines must match approved scheme heads and GFR / state rules. Amounts in **Indian Rupees (lakhs)**; **1 L = ₹10,00,000**.

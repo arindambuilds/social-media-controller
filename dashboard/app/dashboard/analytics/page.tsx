@@ -5,7 +5,6 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { usePageEnter } from "@/hooks/usePageEnter";
-import { apiFetch } from "../../../lib/api";
 
 type StepCounts = {
   paywall_impression: number;
@@ -58,6 +57,21 @@ type FunnelResponse = {
   insights: string[];
 };
 
+type FunnelStubResponse = {
+  stages: Array<{ label: string; count: number }>;
+  message?: string;
+};
+
+function isFunnelResponse(payload: unknown): payload is FunnelResponse {
+  return Boolean(
+    payload &&
+      typeof payload === "object" &&
+      "totals" in payload &&
+      "breakdowns" in payload &&
+      "revenue" in payload
+  );
+}
+
 function fmtPct(v: number): string {
   return `${v.toFixed(1)}%`;
 }
@@ -82,13 +96,30 @@ export default function GrowthAnalyticsDashboardPage() {
   const [data, setData] = useState<FunnelResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [comingSoonMessage, setComingSoonMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await apiFetch<FunnelResponse>("/analytics/funnel", { method: "GET" });
-        if (!cancelled) setData(res);
+        const response = await fetch("/api/analytics/funnel", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store"
+        });
+        const payload = (await response.json().catch(() => ({}))) as FunnelResponse | FunnelStubResponse;
+        if (!response.ok) {
+          throw new Error("Could not load funnel data");
+        }
+        if (!cancelled) {
+          if (isFunnelResponse(payload)) {
+            setData(payload);
+            setComingSoonMessage("");
+          } else {
+            setData(null);
+            setComingSoonMessage(payload.message?.trim() || "Funnel analytics coming soon.");
+          }
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Could not load funnel data");
       } finally {
@@ -118,6 +149,17 @@ export default function GrowthAnalyticsDashboardPage() {
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-24 animate-pulse rounded-xl bg-white/5" />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (comingSoonMessage) {
+    return (
+      <div key={pathname} className={`p-6 md:p-8 ${pageClassName}`}>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+          <h1 className="font-display text-2xl font-bold text-white">Growth Funnel Analytics</h1>
+          <p className="mt-2 text-sm text-white/55">{comingSoonMessage}</p>
         </div>
       </div>
     );

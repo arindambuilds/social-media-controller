@@ -233,8 +233,7 @@ authRouter.post("/signup", registerAuthLimiter, async (req, res) => {
     const payload = z.object({
       email: z.string().email(),
       password: z.string().min(8),
-      name: z.string().min(2),
-      clientId: z.string().optional()
+      name: z.string().min(2)
     }).parse(req.body);
 
     const result = await signup(payload);

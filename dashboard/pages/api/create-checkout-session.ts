@@ -1,37 +1,40 @@
-/**
- * Pioneer ₹600/mo: resolve Price id from **`STRIPE_PRICE_PIONEER600_INR`** or **`NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID`**.
- * Parity with API `getPioneerSubscriptionPriceId()` in repo root **`src/config/stripe.ts`** (same env var on Render).
- */
 import type { NextApiRequest, NextApiResponse } from "next";
-import Stripe from "stripe";
+import Razorpay from "razorpay";
 
 type Body = {
-  priceId?: string;
-  /** When `pioneer`, server resolves price from env (same id as API Pioneer helper / dashboard public var). */
   planId?: string;
   source?: string;
   feature?: string;
 };
 
 type AuthMeResponse = {
-  user?: { id: string; email?: string | null } | null;
+  user?: { id: string; email?: string | null; name?: string | null } | null;
   success?: boolean;
 };
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2026-03-25.dahlia"
-});
+const PIONEER_PLAN_ID = "pioneer";
+const PIONEER_AMOUNT_PAISE = 60_000;
+const PIONEER_CURRENCY = "INR";
+const DEFAULT_LOCAL_API_ORIGIN = "http://localhost:4000";
+const DEFAULT_PRODUCTION_API_ORIGIN = "https://social-media-controller.onrender.com";
 
 function apiBaseUrl(): string {
   const raw = (
     process.env.NEXT_PUBLIC_API_BASE_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
-    "https://pulse-api.onrender.com"
+    (process.env.NODE_ENV === "production" ? DEFAULT_PRODUCTION_API_ORIGIN : DEFAULT_LOCAL_API_ORIGIN)
   ).replace(/\/$/, "");
   return raw.endsWith("/api") ? raw.slice(0, -4) : raw;
 }
 
-async function resolveUserFromToken(req: NextApiRequest): Promise<{ id: string; email: string | null } | null> {
+function buildReceipt(userId: string): string {
+  const safeUserId = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "pulse";
+  return `receipt_${safeUserId}_${Date.now()}`.slice(0, 40);
+}
+
+async function resolveUserFromToken(
+  req: NextApiRequest
+): Promise<{ id: string; email: string | null; name: string | null } | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
   const token = auth.slice(7);
@@ -44,7 +47,11 @@ async function resolveUserFromToken(req: NextApiRequest): Promise<{ id: string; 
   if (!meRes.ok) return null;
   const data = (await meRes.json()) as AuthMeResponse;
   if (!data.user?.id) return null;
-  return { id: data.user.id, email: data.user.email ?? null };
+  return {
+    id: data.user.id,
+    email: data.user.email ?? null,
+    name: data.user.name ?? null
+  };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
@@ -53,31 +60,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
-  if (!process.env.STRIPE_SECRET_KEY) {
-    res.status(500).json({ error: "Stripe not configured" });
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    res.status(500).json({ error: "Razorpay is not configured" });
     return;
   }
 
   const body = (req.body ?? {}) as Body;
   const planIdRaw = body.planId?.trim();
-  const pioneerFromServer = process.env.STRIPE_PRICE_PIONEER600_INR?.trim();
-  const pioneerPublic = process.env.NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID?.trim();
-  const resolvedPioneer = pioneerFromServer || pioneerPublic;
-  let priceId = body.priceId?.trim();
-  if (planIdRaw === "pioneer") {
-    if (!resolvedPioneer) {
-      res.status(503).json({
-        error:
-          "Pioneer price not configured. Set STRIPE_PRICE_PIONEER600_INR or NEXT_PUBLIC_STRIPE_PIONEER600_PRICE_ID to your Stripe Price id."
-      });
-      return;
-    }
-    priceId = resolvedPioneer;
-  }
-  const source = body.source?.trim() || null;
-  const feature = body.feature?.trim() || null;
-  if (!priceId) {
-    res.status(400).json({ error: "Missing priceId (or use planId: \"pioneer\" with pioneer env set)" });
+  if (planIdRaw !== PIONEER_PLAN_ID) {
+    res.status(400).json({ error: "Only the Pioneer plan is available in Razorpay checkout right now." });
     return;
   }
 
@@ -88,45 +79,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const dashboardUrl = (
-      process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://social-media-controller.vercel.app"
-    ).replace(/\/$/, "");
-    const successUrl = `${dashboardUrl}/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${dashboardUrl}/billing?canceled=true`;
-
-    const planIdMeta = planIdRaw ?? "";
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      customer_email: user.email ?? undefined,
-      metadata: {
-        source: source ?? "",
-        feature: feature ?? "",
+    const source = body.source?.trim() || "";
+    const feature = body.feature?.trim() || "";
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID ?? "",
+      key_secret: process.env.RAZORPAY_KEY_SECRET ?? ""
+    });
+    const order = await razorpay.orders.create({
+      amount: PIONEER_AMOUNT_PAISE,
+      currency: PIONEER_CURRENCY,
+      receipt: buildReceipt(user.id),
+      notes: {
         userId: user.id,
-        priceId,
-        planId: planIdMeta
-      },
-      subscription_data: {
-        metadata: {
-          userId: user.id,
-          priceId,
-          planId: planIdMeta,
-          source: source ?? "",
-          feature: feature ?? ""
-        }
+        planId: PIONEER_PLAN_ID,
+        source,
+        feature
       }
     });
 
-    if (!session.url) {
-      res.status(500).json({ error: "Failed to create checkout session" });
-      return;
-    }
-    res.status(200).json({ url: session.url, sessionId: session.id });
+    res.status(200).json({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim() || process.env.RAZORPAY_KEY_ID
+    });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Checkout failed";
+    const message = err instanceof Error ? err.message : "Failed to create Razorpay order";
     res.status(500).json({ error: message });
   }
 }

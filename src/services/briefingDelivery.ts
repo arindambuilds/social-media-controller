@@ -78,7 +78,7 @@ export function buildWhatsAppBriefingBody(
     lines.push("", "—", ...extras.upgradeLines);
   }
 
-  lines.push("", "Reply STOP to unsubscribe.", "— Pulse / Instagram Growth Copilot");
+  lines.push("", "Reply STOP to unsubscribe.", "— Pulse");
 
   return lines.join("\n");
 }

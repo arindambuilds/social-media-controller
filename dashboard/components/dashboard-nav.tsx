@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, LogOut, Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -81,6 +82,7 @@ function NavLinks({ pathname, hasToken, showAuditLink, showAdminLink, onNavigate
             href={href}
             className={linkClass}
             data-active={isActive(pathname, href) ? "true" : undefined}
+            style={isActive(pathname, href) ? { borderLeft: "2px solid var(--accent-cyan)", background: "var(--bg-card)" } : undefined}
             onClick={onNavigate}
           >
             {label}
@@ -101,6 +103,7 @@ function NavLinks({ pathname, hasToken, showAuditLink, showAdminLink, onNavigate
               href={href}
               className={linkClass}
               data-active={isActive(pathname, href) ? "true" : undefined}
+              style={isActive(pathname, href) ? { borderLeft: "2px solid var(--accent-cyan)", background: "var(--bg-card)" } : undefined}
               onClick={onNavigate}
             >
               {label}
@@ -185,16 +188,30 @@ export function DashboardNav() {
   }
 
   return (
-    <header className="app-nav">
+    <header className="app-nav" style={{ background: "var(--bg-secondary)" }}>
       <div className="app-nav-inner">
-        <div className="app-nav-brand-wrap">
-          <Link href={hasToken ? "/dashboard" : "/"} className="app-nav-mark" aria-hidden>
-            P
-          </Link>
-          <Link href={hasToken ? "/dashboard" : "/"} className="app-nav-brand">
-            Pulse
-          </Link>
-        </div>
+        <Link
+          href={hasToken ? "/dashboard" : "/"}
+          className="app-nav-brand-wrap"
+          style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0 4px" }}
+        >
+          <Image
+            src="/logo.png"
+            alt="PulseOS"
+            width={36}
+            height={36}
+            className="rounded-lg"
+            style={{ flexShrink: 0 }}
+          />
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+            <span className="app-nav-brand gradient-text" style={{ fontSize: "1rem", fontWeight: 700, letterSpacing: "0.05em" }}>
+              PULSEOS
+            </span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-secondary)", letterSpacing: "0.03em" }}>
+              AI social copilot
+            </span>
+          </div>
+        </Link>
 
         <button
           type="button"
@@ -284,10 +301,8 @@ export function DashboardNav() {
       >
         <div className="app-nav-drawer-head">
           <Link href={hasToken ? "/dashboard" : "/"} className="app-nav-drawer-brand" onClick={closeMenu}>
-            <span className="app-nav-mark app-nav-mark--sm" aria-hidden>
-              P
-            </span>
-            <span className="app-nav-brand">Pulse</span>
+            <Image src="/logo.png" alt="PulseOS" width={40} height={40} className="rounded-xl" />
+            <span className="app-nav-brand gradient-text">PULSEOS</span>
           </Link>
           <button
             type="button"

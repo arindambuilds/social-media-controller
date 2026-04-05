@@ -16,6 +16,14 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: APP_BASE_URL
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: AUTH_HTTPONLY_COOKIES
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
@@ -43,6 +51,14 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: APP_BASE_URL
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: AUTH_HTTPONLY_COOKIES
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
@@ -70,6 +86,14 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: APP_BASE_URL
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: AUTH_HTTPONLY_COOKIES
+        value: "true"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL

@@ -11,7 +11,7 @@ export function formatPlanLabel(plan?: string | null): string {
     case "agency":
       return "Pro";
     case "pioneer":
-      return "Starter";
+      return "Pioneer";
     case "pro":
       return "Pro";
     default:

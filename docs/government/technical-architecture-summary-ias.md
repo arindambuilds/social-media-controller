@@ -1,5 +1,5 @@
 # Technical Architecture Summary (Non-Technical)  
-## Instagram Growth Copilot — Security, Scale, and Data Privacy
+## PulseOS — Security, Scale, and Data Privacy
 
 **Document type:** One-page briefing · **Audience:** Senior administrative officers, policy reviewers, grant panels  
 **Note:** Descriptions below avoid implementation jargon; technical detail is available under separate engineering annex if required.

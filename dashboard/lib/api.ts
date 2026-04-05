@@ -6,19 +6,23 @@ import {
 } from "./auth-storage";
 
 export const DEFAULT_API_TIMEOUT_MS = 10_000;
+export const DEFAULT_LOCAL_API_ORIGIN = "http://localhost:4000";
+export const DEFAULT_PRODUCTION_API_ORIGIN = "https://social-media-controller.onrender.com";
 
 function resolveApiOrigin(): string {
   const fromEnv =
     process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || "";
-  const raw = fromEnv || "https://pulse-api.onrender.com";
+  const fallback =
+    process.env.NODE_ENV === "production" ? DEFAULT_PRODUCTION_API_ORIGIN : DEFAULT_LOCAL_API_ORIGIN;
+  const raw = fromEnv || fallback;
   return raw.replace(/\/$/, "");
 }
 
 if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
   const value = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL;
   if (!value || String(value).trim() === "") {
-    throw new Error(
-      "NEXT_PUBLIC_API_BASE_URL (or NEXT_PUBLIC_API_URL) is missing. Set it to your API origin, for example https://pulse-api.onrender.com"
+    console.warn(
+      "NEXT_PUBLIC_API_BASE_URL (or NEXT_PUBLIC_API_URL) is missing. Falling back to https://social-media-controller.onrender.com."
     );
   }
 }

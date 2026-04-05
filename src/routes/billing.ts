@@ -1,27 +1,18 @@
+import crypto from "node:crypto";
 import { Router } from "express";
-import Stripe from "stripe";
 import { z } from "zod";
-import { env } from "../config/env";
-import { getPioneerSubscriptionPriceId } from "../config/stripe";
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { requireAgency } from "../middleware/requireAgency";
 import { resolveTenant } from "../middleware/resolveTenant";
+import { writeAuditLog } from "../services/auditLogService";
+import { createNotification } from "../services/notificationService";
 import { getBillingStatus } from "../services/usageService";
 
 export const billingRouter = Router();
 
 billingRouter.use(authenticate);
-
-const stripe = env.STRIPE_SECRET_KEY
-  ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: "2026-03-25.dahlia" })
-  : null;
-
-function assertStripeEnabled(): Stripe | null {
-  if (!stripe) return null;
-  return stripe;
-}
 
 billingRouter.get("/:clientId/status", resolveTenant, async (req, res) => {
   const { clientId } = z.object({ clientId: z.string().min(1) }).parse(req.params);
@@ -29,38 +20,29 @@ billingRouter.get("/:clientId/status", resolveTenant, async (req, res) => {
   res.json({ success: true, ...status });
 });
 
-billingRouter.post("/checkout", requireAgency, async (req, res) => {
+billingRouter.post("/activate", requireAgency, async (req, res) => {
   try {
     const parsed = z
       .object({
-        planId: z.enum(["starter", "growth", "agency", "pioneer"]),
-        /** Ignored for `pioneer` — server uses `STRIPE_PRICE_PIONEER600_INR`. */
-        priceId: z.string().optional()
+        planId: z.literal("pioneer"),
+        razorpayOrderId: z.string().min(1),
+        razorpayPaymentId: z.string().min(1),
+        razorpaySignature: z.string().min(1)
       })
       .parse(req.body ?? {});
 
-    const pioneerPrice = getPioneerSubscriptionPriceId();
-    let resolvedPriceId: string;
-    if (parsed.planId === "pioneer") {
-      if (!pioneerPrice) {
-        res.status(503).json({
-          error: "Pioneer plan is not configured. Set STRIPE_PRICE_PIONEER600_INR to your Stripe Price id (INR 600/mo)."
-        });
-        return;
-      }
-      resolvedPriceId = pioneerPrice;
-    } else {
-      const pid = parsed.priceId?.trim();
-      if (!pid) {
-        res.status(400).json({ error: "priceId is required for this plan." });
-        return;
-      }
-      resolvedPriceId = pid;
+    const razorpaySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
+    if (!razorpaySecret) {
+      res.status(500).json({ error: "Razorpay verification is not configured." });
+      return;
     }
 
-    const stripeClient = assertStripeEnabled();
-    if (!stripeClient) {
-      res.status(503).json({ error: "Stripe is not configured." });
+    const payload = `${parsed.razorpayOrderId}|${parsed.razorpayPaymentId}`;
+    const expectedSignature = crypto.createHmac("sha256", razorpaySecret).update(payload).digest("hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+    const providedBuffer = Buffer.from(parsed.razorpaySignature, "utf8");
+    if (expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
+      res.status(400).json({ error: "Invalid Razorpay signature." });
       return;
     }
 
@@ -72,80 +54,78 @@ billingRouter.post("/checkout", requireAgency, async (req, res) => {
 
     const agencyUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true, stripeCustomerId: true }
+      select: { id: true, clientId: true, plan: true }
     });
     if (!agencyUser) {
       res.status(404).json({ error: "Agency user not found." });
       return;
     }
 
-    let customerId = agencyUser.stripeCustomerId ?? null;
-    if (!customerId) {
-      const customer = await stripeClient.customers.create({
-        email: agencyUser.email,
-        name: agencyUser.name ?? agencyUser.email,
-        metadata: { agencyUserId: agencyUser.id }
-      });
-      customerId = customer.id;
+    if (agencyUser.plan !== parsed.planId) {
       await prisma.user.update({
         where: { id: agencyUser.id },
-        data: { stripeCustomerId: customerId }
+        data: {
+          plan: parsed.planId,
+          stripeSubscriptionId: null,
+          planActivatedAt: new Date()
+        }
       });
+
+      await writeAuditLog({
+        clientId: agencyUser.clientId ?? null,
+        actorId: agencyUser.id,
+        action: "BILLING_PLAN_ACTIVATED",
+        entityType: "User",
+        entityId: agencyUser.id,
+        metadata: {
+          planId: parsed.planId,
+          provider: "razorpay",
+          razorpayOrderId: parsed.razorpayOrderId,
+          razorpayPaymentId: parsed.razorpayPaymentId
+        },
+        ipAddress: req.ip
+      });
+
+      void createNotification(agencyUser.id, {
+        type: "billing_checkout",
+        title: "Pioneer plan activated",
+        message: "Your Pioneer plan is now active and ready to use.",
+        metadata: {
+          planId: parsed.planId,
+          provider: "razorpay",
+          razorpayOrderId: parsed.razorpayOrderId,
+          razorpayPaymentId: parsed.razorpayPaymentId,
+          razorpaySignature: parsed.razorpaySignature
+        }
+      }).catch((e) =>
+        logger.warn("[POST /billing/activate] notification create failed", {
+          message: e instanceof Error ? e.message : String(e)
+        })
+      );
     }
 
-    const session = await stripeClient.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: [{ price: resolvedPriceId, quantity: 1 }],
-      success_url: `${env.DASHBOARD_URL}/billing?success=1`,
-      cancel_url: `${env.DASHBOARD_URL}/billing?cancelled=1`,
-      metadata: { agencyUserId: agencyUser.id, planId: parsed.planId },
-      subscription_data: {
-        metadata: { agencyUserId: agencyUser.id, planId: parsed.planId }
-      }
-    });
-
-    res.json({ url: session.url });
+    res.json({ success: true, plan: parsed.planId });
   } catch (err) {
-    logger.error("[POST /billing/checkout] failed", {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid payment activation payload." });
+      return;
+    }
+    logger.error("[POST /billing/activate] failed", {
       message: err instanceof Error ? err.message : String(err)
     });
-    res.status(500).json({ error: "Checkout failed" });
+    res.status(500).json({ error: "Payment activation failed" });
   }
 });
 
-billingRouter.post("/portal", requireAgency, async (req, res) => {
-  try {
-    const stripeClient = assertStripeEnabled();
-    if (!stripeClient) {
-      res.status(503).json({ error: "Stripe is not configured." });
-      return;
-    }
-    const userId = req.auth?.userId;
-    if (!userId) {
-      res.status(401).json({ error: "Not authenticated." });
-      return;
-    }
-    const agencyUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { stripeCustomerId: true }
-    });
-    if (!agencyUser?.stripeCustomerId) {
-      res.status(400).json({ error: "No Stripe customer found" });
-      return;
-    }
+billingRouter.post("/checkout", requireAgency, (_req, res) => {
+  res.status(200).json({
+    provider: "razorpay",
+    message: "Use /api/create-checkout-session on the dashboard"
+  });
+});
 
-    const session = await stripeClient.billingPortal.sessions.create({
-      customer: agencyUser.stripeCustomerId,
-      return_url: `${env.DASHBOARD_URL}/billing`
-    });
-
-    res.json({ url: session.url });
-  } catch (err) {
-    logger.error("[POST /billing/portal] failed", {
-      message: err instanceof Error ? err.message : String(err)
-    });
-    res.status(500).json({ error: "Portal failed" });
-  }
+billingRouter.post("/portal", requireAgency, (_req, res) => {
+  res.status(501).json({
+    error: "Billing portal is not available yet. Manage your Pioneer plan from the dashboard billing page."
+  });
 });

@@ -1,72 +1,66 @@
-"use client";
+"use client"
 
-/** page-enter: `usePageEnter` + `key={pathname}` on the root wrapper. */
+import { useSearchParams } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
+import Link from "next/link"
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { usePageEnter } from "@/hooks/usePageEnter";
-import { useEffect } from "react";
-import { trackEvent } from "../../lib/trackEvent";
-import { clearCheckoutIntent, getAttributionContext, persistAttributionFromUrl } from "../../utils/analytics";
-import { getStoredExperimentVariant } from "../../lib/experiment";
-
-export default function SuccessPage() {
-  const pathname = usePathname();
-  const pageClassName = usePageEnter();
-  const searchParams = useSearchParams();
-  const sessionId = searchParams?.get("session_id") ?? "";
+function SuccessContent() {
+  const searchParams = useSearchParams()
+  const [paymentId, setPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
-    persistAttributionFromUrl();
-    clearCheckoutIntent();
-    const attribution = getAttributionContext();
-    const variant = getStoredExperimentVariant("paywall_vs_pricing");
-    const ctaVariant = getStoredExperimentVariant("cta_text_variant");
-    trackEvent("payment_success", {
-      sessionId,
-      source: attribution.source,
-      feature: attribution.feature
-    });
-    if (variant) {
-      trackEvent("experiment_conversion", {
-        experiment: "paywall_vs_pricing",
-        variant,
-        source: attribution.source,
-        feature: attribution.feature,
-        conversionEvent: "payment_success",
-        sessionId
-      });
+    const rzpPaymentId = searchParams?.get("razorpay_payment_id") ?? null
+    if (rzpPaymentId) {
+      setPaymentId(rzpPaymentId)
     }
-    if (ctaVariant) {
-      trackEvent("experiment_conversion", {
-        experiment: "cta_text_variant",
-        variant: ctaVariant,
-        source: attribution.source,
-        feature: attribution.feature,
-        conversionEvent: "payment_success",
-        sessionId
-      });
-    }
-  }, [sessionId]);
+  }, [searchParams])
 
   return (
-    <div key={pathname} className={`page-shell max-w-2xl ${pageClassName}`}>
-      <div className="gradient-border p-6 md:p-8">
-        <h1 className="font-display text-2xl font-bold text-white">Payment successful</h1>
-        <p className="mt-2 text-sm text-white/60">
-          Your subscription is now active. You can return to billing or continue using reports.
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center",
+      justifyContent: "center", padding: 24, background: "#050608"
+    }}>
+      <div style={{
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 16, padding: "48px 40px",
+        textAlign: "center", maxWidth: 440, width: "100%"
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+        <h1 style={{
+          color: "white", fontSize: 22, fontWeight: 700, marginBottom: 8
+        }}>
+          Payment successful!
+        </h1>
+        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginBottom: 24 }}>
+          Your Pioneer plan is now active. Welcome to PulseOS.
         </p>
-        {sessionId ? <p className="mt-2 break-all text-xs text-white/35">Session: {sessionId}</p> : null}
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link href="/billing" className="button">
-            Go to billing
-          </Link>
-          <Link href="/dashboard" className="button secondary">
-            Go to dashboard
-          </Link>
-        </div>
+        {paymentId && (
+          <p style={{
+            color: "rgba(255,255,255,0.3)", fontSize: 11,
+            fontFamily: "monospace", marginBottom: 24
+          }}>
+            Payment ID: {paymentId}
+          </p>
+        )}
+        <Link href="/dashboard" style={{
+          display: "inline-block", background: "#C8A951",
+          color: "#0D1B3E", padding: "10px 28px",
+          borderRadius: 8, fontWeight: 600, fontSize: 14,
+          textDecoration: "none"
+        }}>
+          Go to dashboard →
+        </Link>
       </div>
     </div>
-  );
+  )
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense>
+      <SuccessContent />
+    </Suspense>
+  )
 }
 

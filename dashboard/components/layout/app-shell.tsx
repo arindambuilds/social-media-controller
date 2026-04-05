@@ -12,6 +12,7 @@ import {
   FileText,
   Sparkles
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -54,9 +55,31 @@ export function AppShell({ children }: Props) {
       <div className="pulse-shell">
         <aside className={cn("pulse-sidebar", mobileOpen && "is-open")}>
           <div className="pulse-sidebar-brand">
-            <div className="sidebar-logo">
-              <img src="/logo.png" alt="PulseOS" width={140} style={{ display: "block", height: "auto" }} />
-            </div>
+            <Link
+              href="/dashboard"
+              className="sidebar-logo"
+              style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0 4px" }}
+              onClick={() => setMobileOpen(false)}
+            >
+              <Image
+                src="/logo.png"
+                alt="PulseOS"
+                width={36}
+                height={36}
+                priority
+                unoptimized
+                className="rounded-lg"
+                style={{ flexShrink: 0 }}
+              />
+              <div className="pulse-sidebar-lockup" style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+                <span className="pulse-wordmark gradient-text" style={{ fontSize: "1rem", fontWeight: 700, letterSpacing: "0.05em" }}>
+                  PULSEOS
+                </span>
+                <span className="pulse-sidebar-tagline" style={{ fontSize: "0.65rem", color: "var(--text-secondary)", letterSpacing: "0.03em" }}>
+                  AI social copilot
+                </span>
+              </div>
+            </Link>
             <button
               type="button"
               className="pulse-mobile-close"
@@ -106,21 +129,27 @@ export function AppShell({ children }: Props) {
 
         {mobileOpen ? <button type="button" className="pulse-mobile-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)} /> : null}
 
-        <div className="pulse-shell-content">
-          <header className="pulse-header">
+        <div className="pulse-shell-content" style={{ background: "var(--bg-primary)" }}>
+          <header
+            className="pulse-header"
+            style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-glow)", color: "var(--white)" }}
+          >
             <div className="pulse-header-left">
               <button type="button" className="pulse-mobile-toggle" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
                 <Menu size={20} aria-hidden />
               </button>
-              <div>
-                <p className="pulse-header-brand">PulseOS</p>
+              <div className="pulse-header-brand-wrap">
+                <span className="circuit-dot" aria-hidden />
+                <p className="pulse-header-brand gradient-text">PULSEOS</p>
               </div>
             </div>
             <div className="pulse-header-center" aria-live="polite">
               {animatedHeader}
             </div>
             <div className="pulse-header-right">
-              <Badge tone="amber">{planLabel} Plan</Badge>
+              <Badge tone="amber" className="pulse-header-plan">
+                {planLabel} Plan
+              </Badge>
               <div className="notification-wrap">
                 <button
                   type="button"

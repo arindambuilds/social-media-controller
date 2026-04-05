@@ -1,4 +1,4 @@
-# Completion report — Instagram Growth Copilot (MVP)
+# Completion report — PulseOS (MVP)
 
 Generated from the current codebase. Update this file when routes or workers change.
 

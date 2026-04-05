@@ -7,7 +7,7 @@ type Props = PropsWithChildren<HTMLAttributes<HTMLDivElement>> & {
 
 export function Card({ className, children, accent = "none", ...props }: Props) {
   return (
-    <div {...props} className={cn("interactive pulse-card", accent !== "none" && `pulse-card-${accent}`, className)}>
+    <div {...props} className={cn("interactive pulse-card card-glow", accent !== "none" && `pulse-card-${accent}`, className)}>
       {children}
     </div>
   );

@@ -1,4 +1,4 @@
-# Instagram Growth Copilot — Demo Guide
+# PulseOS — Demo Guide
 
 > INTERNAL USE ONLY
 >

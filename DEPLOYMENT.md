@@ -1,4 +1,4 @@
-# PulseOS / IGC API — deployment (Render + Supabase)
+# PulseOS — Deployment Guide
 
 ## Prerequisites
 

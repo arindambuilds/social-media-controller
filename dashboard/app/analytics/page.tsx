@@ -9,6 +9,8 @@ import { apiFetch, fetchMe, type AnalyticsSummary } from "../../lib/api";
 import { getAccessToken } from "../../lib/auth-storage";
 import { AnalyticsPageSkeleton } from "../../components/page-skeleton";
 import { FormToast, type FormToastVariant } from "../../components/form-toast";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { ErrorState } from "../../components/ui/ErrorState";
 import { useExportPdf } from "../../hooks/useExportPdf";
 import { usePageEnter } from "../../hooks/usePageEnter";
 import { useUserPlan } from "../../hooks/useUserPlan";
@@ -210,7 +212,7 @@ export default function AnalyticsPage() {
       <div key={pathname} className={`page-shell ${pageClassName}`}>
         <section className="gradient-border p-6">
           <h2 className="text-ink font-display text-xl font-bold">Analytics</h2>
-          <p className="text-error mt-3">{error}</p>
+          <ErrorState message="Couldn’t load analytics" detail={error} onRetry={() => window.location.reload()} />
         </section>
       </div>
     );
@@ -225,24 +227,12 @@ export default function AnalyticsPage() {
     return (
       <div key={pathname} className={`page-shell ${pageClassName}`}>
         <section className="gradient-border p-6 text-center">
-          <div
-            className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border border-subtle"
-            style={{
-              background: "linear-gradient(145deg, rgba(108,99,255,0.2), rgba(0,212,170,0.12))"
-            }}
-            aria-hidden
-          >
-            <BarChart3 className="text-[#3B82F6]" size={44} strokeWidth={1.5} />
-          </div>
-          <h2 className="text-ink font-display text-xl font-bold">Analytics</h2>
-          <p className="text-muted mx-auto mt-3 max-w-md text-sm leading-relaxed">
-            No data yet — connect your Instagram account to see your analytics here.
-          </p>
-          <div className="mt-6">
-            <Link className="button" href="/onboarding">
-              Connect in setup
-            </Link>
-          </div>
+          <EmptyState
+            illustration="reports"
+            heading="No analytics yet"
+            subline="Connect your Instagram account and synced posts will start appearing here with performance insights."
+            cta={{ label: "Connect in setup", onClick: () => router.push("/onboarding") }}
+          />
         </section>
       </div>
     );

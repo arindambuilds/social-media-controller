@@ -3,6 +3,7 @@ import { env } from "../config/env";
 
 export const ACCESS_COOKIE = "smc_access";
 export const REFRESH_COOKIE = "smc_refresh";
+const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function parseDurationToMs(value: string): number {
   const s = value.trim();
@@ -16,7 +17,7 @@ function parseDurationToMs(value: string): number {
 }
 
 function cookieBase(): Pick<CookieOptions, "httpOnly" | "secure" | "sameSite" | "path"> {
-  const prod = env.NODE_ENV === "production";
+  const prod = process.env.NODE_ENV === "production";
   return {
     httpOnly: true,
     secure: prod,
@@ -33,12 +34,12 @@ export function setAuthCookieHeaders(res: Response, accessToken: string, refresh
   });
   res.cookie(REFRESH_COOKIE, refreshToken, {
     ...base,
-    maxAge: parseDurationToMs(env.JWT_REFRESH_EXPIRES_IN)
+    maxAge: REFRESH_COOKIE_MAX_AGE_MS
   });
 }
 
 export function clearAuthCookieHeaders(res: Response): void {
-  const { path } = cookieBase();
-  res.clearCookie(ACCESS_COOKIE, { path });
-  res.clearCookie(REFRESH_COOKIE, { path });
+  const base = cookieBase();
+  res.clearCookie(ACCESS_COOKIE, base);
+  res.clearCookie(REFRESH_COOKIE, base);
 }

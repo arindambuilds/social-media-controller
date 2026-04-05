@@ -1,5 +1,5 @@
 # Pilot Implementation Plan  
-## Instagram Growth Copilot — Bhubaneswar–Cuttack Corridor (up to 500 MSMEs)
+## PulseOS — Bhubaneswar–Cuttack Corridor (up to 500 MSMEs)
 
 **Document type:** One-page operational annex · **Audience:** MSME Department, district administration, implementing partner  
 **Posture:** Phased rollout with evidence; figures are **targets**, to be reported against actual enrolment with beneficiary consent.

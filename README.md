@@ -1,4 +1,4 @@
-# Instagram Growth Copilot (MVP)
+# PulseOS — Social Media Copilot for Creators & Small Businesses
 
 **Status:** **Production-ready (March 2026)** — live API on Render, gov-facing dashboard on Vercel (`/gov-preview`). Odia-first morning briefings use **`morningBriefing`** in `src/lib/claudeClient.ts` when **`Client.language`** is **`or`** (or alias **`odia`**). BullMQ **9:00 Asia/Kolkata** dispatch uses **`upsertJobScheduler`** id **`whatsapp-briefing-9am-ist`** when **`BRIEFING_DISPATCH_MODE=nine_am_ist`**.
 
@@ -8,7 +8,7 @@
 
 **CI:** `npm run lint` + **`npm test`** → **68/68** Vitest tests (includes Odia **`morningBriefing`** contract tests in `tests/briefing.test.ts`).
 
-**What it is:** An **Instagram-first AI copilot** for **local businesses and creators in India** — connect Instagram, see clear performance signals, and get AI-backed insights and content help. Built for **demos, pilots, and early revenue**, not as an all-platform social suite.
+**What it is:** An **AI-powered social media copilot** for **Instagram creators and small businesses in India** — handling content, analytics, WhatsApp automation, and growth. Built for **demos, pilots, and early revenue**, not as an all-platform social suite.
 
 **Origin:** Product development from **Bhubaneswar, Odisha** — designed for realistic use by salons, cafés, gyms, boutiques, coaches, and neighbourhood service brands.
 

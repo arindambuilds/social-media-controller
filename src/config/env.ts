@@ -128,8 +128,12 @@ const envSchema = z
      * still returned for API clients; the dashboard should use `credentials: "include"` (already default).
      */
     AUTH_HTTPONLY_COOKIES: z
-      .preprocess((val) => val === true || val === "true" || val === "1", z.boolean())
-      .default(false),
+      .string()
+      .default("true")
+      .transform((val) => {
+        const normalized = val.trim().toLowerCase();
+        return normalized !== "false" && normalized !== "0";
+      }),
     /** Morning briefing (Claude + Twilio + SMTP) — all optional; feature degrades gracefully. */
     ANTHROPIC_API_KEY: z.string().optional(),
     ANTHROPIC_BRIEFING_MODEL: z.string().optional(),

@@ -1,5 +1,7 @@
 # PulseOS - Customer-Shareable Overview
 
+PulseOS is an AI-powered social media copilot for Instagram creators and small businesses in India. It handles Instagram content, analytics, WhatsApp automation, and growth — acting like a smart consulting partner so creators and business owners can focus on what they do best.
+
 This document is safe to share with customers, mentors, partners, or pilot stakeholders.
 
 It intentionally excludes:

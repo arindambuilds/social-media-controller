@@ -66,7 +66,7 @@
     "label": "This week's growth",
     "shareBtn": "Share",
     "copied": "Copied!",
-    "text": "{businessName} gained +{followers} new followers and reach is {reachPct}% up this week \u2014 with help from Pulse AI. \ud83d\ude80"
+    "text": "{businessName} gained +{followers} new followers and reach is {reachPct}% up this week \u2014 with help from PulseOS. \ud83d\ude80"
   },
   "usage": {
     "title": "Usage & limits",

@@ -4,9 +4,12 @@ import { Check, Copy, Info, Pencil, ShieldAlert, Trash2, User, Smartphone } from
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PageTransition } from "../../components/layout/PageTransition";
+import { StaggerContainer, StaggerItem } from "../../components/layout/StaggerContainer";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { ErrorState } from "../../components/ui/ErrorState";
 import { Input } from "../../components/ui/input";
 import { Skeleton } from "../../components/ui/skeleton";
 import { cn } from "../../lib/cn";
@@ -40,6 +43,7 @@ export default function SettingsPage() {
   const toast = useToast();
   const pageClassName = usePageEnter();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
@@ -85,8 +89,11 @@ export default function SettingsPage() {
       setBrandColor(branding.brandColor ?? "#C8A951");
       setAgencyName(branding.agencyName ?? "");
       setLogoUrl(branding.logoUrl ?? "");
+      setLoadError(null);
     } catch (error) {
-      toast.error("Something went sideways — let’s try again", error instanceof Error ? error.message : "Couldn’t load settings.");
+      const detail = error instanceof Error ? error.message : "Couldn’t load settings.";
+      setLoadError(detail);
+      toast.error("Something went sideways — let’s try again", detail);
     } finally {
       setLoading(false);
     }
@@ -170,9 +177,18 @@ export default function SettingsPage() {
   }
 
   return (
-    <section key={pathname} className={`page-section overview-grid ${pageClassName}`}>
-      <div className="settings-grid">
-        <Card className="settings-section-card" style={{ gridColumn: "span 3" }}>
+    <PageTransition>
+      <section key={pathname} className={`page-section overview-grid ${pageClassName} px-4 md:px-6 lg:px-8`}>
+        <StaggerContainer className="settings-grid">
+          {loadError ? (
+            <StaggerItem style={{ gridColumn: "1 / -1" }}>
+              <Card className="section-card">
+                <ErrorState message="Couldn’t load settings" detail={loadError} onRetry={() => void loadSettings()} />
+              </Card>
+            </StaggerItem>
+          ) : null}
+          <StaggerItem style={{ gridColumn: "span 3" }}>
+            <Card className="settings-section-card">
           <div className="section-heading">
             <div>
               <h2><User size={18} style={{ marginRight: 8 }} /> Account Details</h2>
@@ -214,9 +230,11 @@ export default function SettingsPage() {
               {editingProfile ? <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 18 }}><Button variant="ghost" onClick={() => setEditingProfile(false)}>Cancel</Button><Button variant="primary" loading={savingProfile} onClick={handleSaveProfile}>Save ✓</Button></div> : null}
             </>
           )}
-        </Card>
+            </Card>
+          </StaggerItem>
 
-        <Card className="settings-section-card" style={{ gridColumn: "span 3" }}>
+          <StaggerItem style={{ gridColumn: "span 3" }}>
+            <Card className="settings-section-card">
           <div className="section-heading">
             <div>
               <h2><Smartphone size={18} style={{ marginRight: 8 }} /> WhatsApp Configuration</h2>
@@ -267,9 +285,11 @@ export default function SettingsPage() {
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}><Button variant="primary" loading={savingConfig} onClick={handleSaveConfig}>Save ✓</Button></div>
             </>
           )}
-        </Card>
+            </Card>
+          </StaggerItem>
 
-        <Card className="settings-section-card" style={{ gridColumn: "span 3" }}>
+          <StaggerItem style={{ gridColumn: "span 3" }}>
+            <Card className="settings-section-card">
           <div className="section-heading">
             <div>
               <h2>Branding</h2>
@@ -306,9 +326,11 @@ export default function SettingsPage() {
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}><Button variant="primary" loading={savingBrand} onClick={handleSaveBrand}>Save ✓</Button></div>
             </>
           )}
-        </Card>
+            </Card>
+          </StaggerItem>
 
-        <Card className="settings-section-card" style={{ gridColumn: "span 2" }}>
+          <StaggerItem style={{ gridColumn: "span 2" }}>
+            <Card className="settings-section-card">
           <div className="section-heading">
             <div>
               <h2>Security</h2>
@@ -326,9 +348,11 @@ export default function SettingsPage() {
             <Input label="Confirm New Password" type="password" value={securityValues.confirm} onChange={(event) => setSecurityValues((current) => ({ ...current, confirm: event.target.value }))} />
             <div style={{ display: "flex", justifyContent: "flex-end" }}><Button variant="primary" onClick={handleSecuritySubmit}>Save ✓</Button></div>
           </div>
-        </Card>
+            </Card>
+          </StaggerItem>
 
-        <Card className="settings-section-card" style={{ gridColumn: "span 1" }}>
+          <StaggerItem style={{ gridColumn: "span 1" }}>
+            <Card className="settings-section-card">
           <div className="danger-zone">
             <div className="section-heading" style={{ marginBottom: 10 }}>
               <div>
@@ -341,8 +365,9 @@ export default function SettingsPage() {
               <Trash2 size={16} /> Delete Account
             </Button>
           </div>
-        </Card>
-      </div>
+            </Card>
+          </StaggerItem>
+        </StaggerContainer>
 
       {deleteModalOpen ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-account-modal-title">
@@ -383,7 +408,8 @@ export default function SettingsPage() {
           </div>
         </div>
       ) : null}
-    </section>
+      </section>
+    </PageTransition>
   );
 }
 

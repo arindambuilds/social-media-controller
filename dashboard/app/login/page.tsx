@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
+import { CircuitBg } from "../../components/ui/circuit-bg";
 import { Input } from "../../components/ui/input";
 import { useAuth } from "../../context/auth-context";
 import { useToast } from "../../context/toast-context";
@@ -65,21 +67,20 @@ export default function LoginPage() {
     <div>
       <div className="login-mobile-bar">PulseOS</div>
       <section className="login-shell">
-        <aside className="login-brand-panel">
+        <aside
+          className="login-brand-panel"
+          style={{ background: "radial-gradient(ellipse at center, rgba(139,92,246,0.25) 0%, #0D0B1F 70%)" }}
+        >
           <div className="login-dot-grid" aria-hidden />
+          <CircuitBg className="opacity-[0.16]" />
           <div className="login-brand-content page-enter is-ready">
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px" }}>
-              <img
-                src="/logo.png"
-                alt="PulseOS"
-                width={220}
-                style={{ height: "auto", animation: "fadeIn 400ms var(--ease-enter) forwards" }}
-              />
+              <Image src="/logo.png" alt="PulseOS" width={120} height={120} className="rounded-2xl" />
             </div>
-            <p className="login-brand-tagline">
-              <span>Your</span>{" "}
-              <span>WhatsApp.</span>{" "}
-              <span>Automated.</span>
+            <p className="login-brand-tagline gradient-text">
+              <span>Instagram content, analytics, and WhatsApp</span>{" "}
+              <span>— on</span>{" "}
+              <span>autopilot.</span>
             </p>
             <div className="login-feature-pills">
               <div className="feature-pill">✓ AI-powered replies</div>
@@ -91,19 +92,8 @@ export default function LoginPage() {
 
         <div className="login-panel">
           <div className="login-card page-enter is-ready">
-            <img
-              src="/logo.png"
-              alt="PulseOS"
-              width={80}
-              style={{
-                height: "auto",
-                marginBottom: "24px",
-                borderRadius: "12px",
-                padding: "8px 16px",
-                background: "white"
-              }}
-            />
-            <h1>Welcome back 👋</h1>
+            <Image src="/logo.png" alt="PulseOS" width={80} height={80} className="rounded-2xl login-card-logo" />
+            <h1 className="gradient-text">Welcome back 👋</h1>
             <p>Sign in to see your WhatsApp dashboard.</p>
 
             <form className="login-form" onSubmit={handleLogin}>
