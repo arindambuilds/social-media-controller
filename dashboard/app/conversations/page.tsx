@@ -357,6 +357,7 @@ export default function ConversationsPage() {
                     )}
                     <div className="message-input-row">
                       <Input
+                      label="Reply"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder="Type your reply..."
