@@ -49,6 +49,7 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [savingBrand, setSavingBrand] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
   const [copied, setCopied] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteCheck, setDeleteCheck] = useState("");
@@ -122,6 +123,36 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleTestConnection() {
+    const num = whatsappNumber.trim();
+    if (!num) {
+      toast.error("Enter a number first", "Add your WhatsApp number before testing.");
+      return;
+    }
+    setTestingConnection(true);
+    try {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+      const res = await fetch(`${apiBase}/api/whatsapp/test-connection`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAccessToken()}`
+        },
+        body: JSON.stringify({ testPhoneNumber: num.replace(/\s/g, "") })
+      });
+      const data = (await res.json()) as { success?: boolean; message?: string; error?: { message?: string } };
+      if (data.success) {
+        toast.success("Connection successful ✓", data.message ?? "Test message sent to your WhatsApp.");
+      } else {
+        toast.error("Connection failed", data.error?.message ?? "Could not send test message.");
+      }
+    } catch {
+      toast.error("Connection failed", "Could not reach the API. Check your network.");
+    } finally {
+      setTestingConnection(false);
+    }
+  }
+
   async function handleSaveConfig() {
     if (!user?.clientId) return;
     setSavingConfig(true);
@@ -167,6 +198,26 @@ export default function SettingsPage() {
       toast.error("Something went sideways — let’s try again", error instanceof Error ? error.message : "Couldn’t save branding.");
     } finally {
       setSavingBrand(false);
+    }
+  }
+
+  async function handleExportData() {
+    try {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
+      const res = await fetch(`${apiBase}/api/account/export`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` }
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pulseos-data-export-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Export ready', 'Your data has been downloaded.');
+    } catch {
+      toast.error('Export failed', 'Could not export your data. Please try again.');
     }
   }
 
@@ -302,7 +353,12 @@ export default function SettingsPage() {
                 <div style={{ width: "min(420px, 100%)" }}><Input label="Business Context" value={businessContext} onChange={(event) => setBusinessContext(event.target.value)} /></div>
               </div>
               {!autoReplyEnabled ? <div className="warning-banner" style={{ marginTop: 16 }}>Auto replies are currently off, so customers may wait longer than usual.</div> : null}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}><Button variant="primary" loading={savingConfig} onClick={handleSaveConfig}>Save ✓</Button></div>
+              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
+                <Button variant="outline" loading={testingConnection} onClick={handleTestConnection} type="button">
+                  {testingConnection ? "Sending test…" : "Test Connection"}
+                </Button>
+                <Button variant="primary" loading={savingConfig} onClick={handleSaveConfig}>Save ✓</Button>
+              </div>
             </>
           )}
             </Card>
@@ -381,6 +437,9 @@ export default function SettingsPage() {
               </div>
               <ShieldAlert size={18} aria-hidden />
             </div>
+            <Button variant="outline" fullWidth onClick={handleExportData} style={{ marginBottom: 10 }}>
+              Export My Data
+            </Button>
             <Button variant="danger" fullWidth onClick={() => setDeleteModalOpen(true)}>
               <Trash2 size={16} /> Delete Account
             </Button>

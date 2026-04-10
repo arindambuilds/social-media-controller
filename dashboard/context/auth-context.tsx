@@ -25,6 +25,7 @@ export type AuthUser = {
   role: string;
   clientId: string | null;
   plan?: string | null;
+  onboardingCompleted?: boolean;
 };
 
 export type AuthContextValue = {

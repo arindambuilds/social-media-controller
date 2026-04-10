@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+// Global error boundary — catches errors in the root layout itself
 export default function GlobalError({
   error,
   reset
@@ -10,7 +11,6 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log to console in dev; in prod this would go to Sentry via next.config instrumentation
     console.error("[GlobalError]", error);
   }, [error]);
 
@@ -33,12 +33,10 @@ export default function GlobalError({
       >
         <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>Something went wrong</h1>
         <p style={{ color: "#8b949e", maxWidth: 400, margin: 0 }}>
-          An unexpected error occurred. Our team has been notified. You can try refreshing the page.
+          An unexpected error occurred. Our team has been notified.
         </p>
         {error.digest ? (
-          <p style={{ fontSize: "0.75rem", color: "#484f58", margin: 0 }}>
-            Error ID: {error.digest}
-          </p>
+          <p style={{ fontSize: "0.75rem", color: "#484f58", margin: 0 }}>Error ID: {error.digest}</p>
         ) : null}
         <button
           onClick={reset}

@@ -137,6 +137,31 @@ export const registerAuthLimiter = rateLimit({
   }
 });
 
+/** AI suggest-reply — Claude cost control per user (10 req/min). */
+export const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createOptionalRedisRateLimitStore("rl:ai:"),
+  passOnStoreError: true,
+  keyGenerator: (req) => {
+    const auth = (req as { auth?: { userId?: string } }).auth;
+    const uid = auth?.userId;
+    if (uid) return `ai:${uid}`;
+    return `ai:ip:${ipKeyGenerator(req.ip ?? "")}`;
+  },
+  handler: (_req, res, _next, options) => {
+    sendLimit(res, options.windowMs, {
+      success: false,
+      error: {
+        code: "RATE_LIMIT",
+        message: "Too many AI requests. Wait a minute and try again."
+      }
+    });
+  }
+});
+
 /** High-throughput webhook endpoint (Meta retries on non-200). */
 export const webhookLimiter = rateLimit({
   windowMs: 60 * 1000,

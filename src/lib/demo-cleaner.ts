@@ -1,37 +1,34 @@
 import { prisma } from "./prisma";
+import { logger } from "./logger";
 
 export async function cleanDemoDataForUser(userId: string) {
-  console.log(`Checking for demo data for user ${userId}`);
+  logger.info("Checking for demo data", { userId });
   const demoData = await prisma.demoData.findUnique({ where: { userId } });
   if (!demoData) {
-    console.log("No demo data found, nothing to clean");
+    logger.info("No demo data found, nothing to clean", { userId });
     return;
   }
 
-  console.log("Starting transaction to clean demo data");
+  logger.info("Starting transaction to clean demo data", { userId });
   await prisma.$transaction(async (tx) => {
-    console.log("Deleting conversations and messages");
+    logger.info("Deleting conversations and messages", { userId });
     for (const convId of demoData.conversationIds) {
       await tx.dmMessage.deleteMany({ where: { conversationId: convId } });
       await tx.dmConversation.delete({ where: { id: convId } });
     }
 
-    console.log("Deleting reports");
+    logger.info("Deleting reports", { userId });
     for (const reportId of demoData.reportIds) {
       await tx.report.delete({ where: { id: reportId } });
     }
 
-    console.log("Deleting DemoData record");
     await tx.demoData.delete({ where: { userId } });
 
-    console.log("Updating user flags");
     await tx.user.update({
       where: { id: userId },
-      data: {
-        hasDemoData: false,
-      },
+      data: { hasDemoData: false },
     });
   });
 
-  console.log("Demo data cleaning complete");
+  logger.info("Demo data cleaning complete", { userId });
 }

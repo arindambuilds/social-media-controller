@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, Download, MessageSquare, TrendingUp, Zap } from "lucide-react";
+import { Clock3, Download, MessageSquare, TrendingUp, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -191,7 +191,16 @@ export default function DashboardPage() {
   }
 
   const greeting = getGreeting(user?.name ?? user?.email ?? "there");
-  const recentConversations = dashboardStats ? dashboardStats.recentConversations : conversations.slice(0, 5);
+  const recentConversations = dashboardStats
+    ? dashboardStats.recentConversations
+    : conversations.slice(0, 5).map((c) => ({
+        id: c.id,
+        customerName: c.contactName ?? c.instagramUserId,
+        lastMessage: c.lastMessage,
+        lastMessageTime: c.lastMessageAt,
+        status: c.resolved ? "resolved" : "open",
+        isAutoReplied: false,
+      }));
   void tick;
   const pageDate = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -418,7 +427,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
-      {user && !user.onboardingCompleted && <OnboardingWizard user={user} onComplete={() => window.location.reload()} />}
+      {user && !user.onboardingCompleted && <OnboardingWizard user={{ id: user.id, onboardingCompleted: user.onboardingCompleted ?? false, clientId: user.clientId ?? undefined }} onComplete={() => window.location.reload()} />}
     </PageTransition>
   );
 }

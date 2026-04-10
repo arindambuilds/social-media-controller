@@ -1,5 +1,6 @@
 import { env } from "../config/env";
 import { logger } from "../lib/logger";
+import { prisma } from "../lib/prisma";
 import { redisConnection } from "../lib/redis";
 import type { WhatsAppOutboundJobPayload } from "../queues/whatsappOutboundQueue";
 import { getLastInboundTs } from "../whatsapp/session.store";
@@ -119,14 +120,17 @@ export async function sendWhatsAppMessage(
 
   if (!res.ok) {
     const code = data.error?.code;
+    // 130429 — throughput rate limit (retryable)
     if (code === 130429) {
       throw new WhatsAppMetaRateLimitError();
     }
+    // 131047 — message outside 24h window, template required
     if (code === 131047) {
       recordWhatsApp24hViolation(waId);
       recordWhatsAppOutboundFailed(waId, code);
       return { status: "template_required" };
     }
+    // 131026 — recipient phone not on WhatsApp
     if (code === 131026) {
       if (redisConnection) {
         await redisConnection.set(PAUSED_KEY(waId), "1", "EX", 30 * 86400).catch(() => {
@@ -136,6 +140,20 @@ export async function sendWhatsAppMessage(
       recordWhatsAppOutboundFailed(waId, code);
       return { status: "recipient_unreachable" };
     }
+    // 131048 — spam rate limit (account-level, retryable after backoff)
+    if (code === 131048) {
+      throw new WhatsAppMetaRateLimitError("WA_SPAM_RATE_LIMIT_131048");
+    }
+    // 131056 — pair rate limit (too many messages to same recipient)
+    if (code === 131056) {
+      throw new WhatsAppMetaRateLimitError("WA_PAIR_RATE_LIMIT_131056");
+    }
+    // 100 — invalid parameter (unrecoverable)
+    if (code === 100) {
+      logger.error("[whatsappCloudApiSender] invalid parameter (100)", { waId, detail: data.error?.message });
+      recordWhatsAppOutboundFailed(waId, code);
+      throw new Error(`WA_INVALID_PARAM: ${data.error?.message ?? "invalid parameter"}`);
+    }
     recordWhatsAppOutboundFailed(waId, code);
     throw new Error(data.error?.message ?? `graph_http_${res.status}`);
   }
@@ -143,5 +161,34 @@ export async function sendWhatsAppMessage(
   const mid = data.messages?.[0]?.id;
   recordWhatsAppOutboundSent(waId);
   logger.info("[whatsappCloudApiSender] Graph send ok", { waId, messageId: mid });
+
+  // Persist outbound message status for delivery tracking
+  if (mid) {
+    const textBody =
+      typeof job.payload.body === "string"
+        ? job.payload.body
+        : typeof job.payload.text === "string"
+          ? job.payload.text
+          : undefined;
+    prisma.whatsAppMessage
+      .create({
+        data: {
+          clientId: job.clientId ?? waId,
+          waId,
+          metaMessageId: mid,
+          direction: "outbound",
+          content: textBody,
+          messageType: job.messageType,
+          status: "sent",
+          withinWindow: !outside
+        }
+      })
+      .catch((e) =>
+        logger.warn("[whatsappCloudApiSender] status persist failed", {
+          message: e instanceof Error ? e.message : String(e)
+        })
+      );
+  }
+
   return { status: "sent", messageId: mid };
 }

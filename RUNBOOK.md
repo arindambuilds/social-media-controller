@@ -305,3 +305,78 @@ If you choose Render for the dashboard instead of Vercel:
 - Local login will fail until you run both migrations and seed.
 - The dashboard install is separate from the backend install: run `npm --prefix dashboard install`.
 - `dashboard/utils/analytics.ts` still emits POST events to `/api/analytics`, while the current analytics route is GET-only. This is a known non-blocking limitation.
+
+---
+
+## Scaling Plan (Section 9.2)
+
+### When to upgrade from Render free tier
+
+| Signal | Action |
+|--------|--------|
+| API response p95 > 2s consistently | Upgrade to Render Starter ($7/mo) for dedicated CPU |
+| Memory usage > 400MB (check `/api/metrics`) | Upgrade to Render Standard ($25/mo) |
+| > 50 concurrent users | Upgrade to Render Standard + enable auto-scaling |
+| > 500 WhatsApp messages/day | Move WhatsApp workers to separate Render worker dyno |
+| Cold starts causing > 30s delays | Upgrade from free tier (free tier spins down after 15min) |
+
+### When to upgrade Supabase plan
+
+| Signal | Action |
+|--------|--------|
+| Database size > 500MB | Upgrade to Supabase Pro ($25/mo) |
+| > 60 concurrent DB connections | Enable PgBouncer pooler (already configured in DATABASE_URL) |
+| Backup retention needed > 7 days | Upgrade to Supabase Pro (7-day PITR included) |
+| > 2GB bandwidth/month | Upgrade to Supabase Pro |
+
+### First bottleneck under load
+
+The **AI suggest-reply endpoint** (`POST /api/ai/suggest-reply`) will be the first to break under load because:
+1. Each request makes a synchronous Anthropic API call (200–800ms latency)
+2. Rate limited to 10 req/min per user — but concurrent users multiply this
+3. No response caching (each message is unique)
+
+**Mitigation when you hit this:**
+- Add Redis caching for identical `lastMessage` + `businessType` combinations (TTL 5min)
+- Move to async: queue the request, return a job ID, poll for result
+- Consider Anthropic batch API for non-real-time use cases
+
+### Recovery steps if database goes down
+
+1. Check Supabase status: https://status.supabase.com
+2. Verify `DATABASE_URL` pooler is reachable: `curl https://your-app.onrender.com/api/health?deps=1`
+3. If pooler is down, switch `DATABASE_URL` to direct connection (port 5432) temporarily
+4. To restore from backup: Supabase Dashboard → Project → Backups → select point-in-time → Restore
+5. After restore, run `npx prisma migrate deploy` to ensure schema is current
+6. Restart Render service to clear any stale Prisma connection pool
+
+---
+
+## How to rotate API keys
+
+| Key | Steps |
+|-----|-------|
+| `JWT_SECRET` | Generate new: `openssl rand -hex 32`. Update in Render env vars. All existing sessions will be invalidated — users must log in again. |
+| `JWT_REFRESH_SECRET` | Same as above. |
+| `WA_ACCESS_TOKEN` | Meta Business Manager → System Users → Generate new token → update Render env var → redeploy. |
+| `OPENAI_API_KEY` | OpenAI dashboard → API Keys → Create new → update Render → delete old key. |
+| `ANTHROPIC_API_KEY` | Anthropic console → API Keys → Create new → update Render → delete old key. |
+| `STRIPE_SECRET_KEY` | Stripe dashboard → Developers → API Keys → Roll key → update Render. |
+| `ENCRYPTION_KEY` | Run `npm run security:reencrypt:social-accounts` after updating to re-encrypt stored tokens. |
+
+---
+
+## Manual test checklist (pre-release)
+
+Run this before every major release:
+
+1. **Sign up**: create a new account at `/login` → click Sign Up → verify email received
+2. **Log in**: log in with the new account → confirm redirect to `/dashboard`
+3. **Log out**: click Logout → confirm redirect to `/login` → confirm token cleared
+4. **WhatsApp config**: Settings → WhatsApp Configuration → enter `+91XXXXXXXXXX` → click Save → click Test Connection → confirm success toast
+5. **Receive message**: send a WhatsApp message to your configured number → confirm it appears in `/conversations` within 30 seconds
+6. **Suggest Reply**: open the conversation → click ✨ Suggest Reply → confirm 3 suggestions appear
+7. **Send reply**: type a reply → confirm it sends (check WhatsApp on your phone)
+8. **Auto-reply toggle**: DM Settings → toggle Auto-reply ON → send a test DM → confirm AI reply is sent within 60 seconds → toggle OFF
+9. **Data export**: Settings → Export My Data → confirm JSON file downloads
+10. **Health check**: `curl https://your-app.onrender.com/api/health?deps=1` → confirm all components `"ok"`

@@ -10,6 +10,11 @@ if (fs.existsSync(envTestPath)) {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],

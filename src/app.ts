@@ -60,6 +60,8 @@ import { waWebhookRouter } from "./whatsapp/webhook.router";
 import { adminSystemRouter } from "./routes/adminSystem";
 import { briefingPublicRouter } from "./routes/briefingPublic";
 import { attachSseRoute } from "./routes/sse";
+import { whatsappRouter } from "./routes/whatsapp";
+import { accountRouter } from "./routes/account";
 
 /** Tight Helmet defaults for JSON API — explicit CSP / Referrer-Policy / HSTS in prod. */
 function securityHelmet() {
@@ -188,6 +190,23 @@ export function createApp() {
       }
     })
   );
+
+  // Request timing — logs slow requests (>500ms) at warn level for easy identification
+  app.use((req, _res, next) => {
+    const start = Date.now();
+    _res.on("finish", () => {
+      const ms = Date.now() - start;
+      if (ms > 500) {
+        logger.warn("slow_request", {
+          method: req.method,
+          path: req.path,
+          status: _res.statusCode,
+          durationMs: ms
+        });
+      }
+    });
+    next();
+  });
 
   app.get("/health", async (_req, res) => {
     try {
@@ -365,6 +384,8 @@ export function createApp() {
   app.use("/api/voice", voicePostRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminSystemRouter);
+  app.use("/api/whatsapp", whatsappRouter);
+  app.use("/api/account", accountRouter);
 
   if (env.NODE_ENV === "production") {
     if (briefingQueue) {

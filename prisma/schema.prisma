@@ -116,6 +116,8 @@ model Client {
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
 
+  @@index([ownerId])
+  @@index([agencyId])
   @@map("clients")
 }
 
@@ -160,10 +162,36 @@ model DmMessage {
   sentByAi       Boolean        @default(false)
   confidence     Float?
   intentLabel    String?
+  /// Delivery status for outbound messages: sent | delivered | read | failed
+  messageStatus  String?
+  /// Meta message ID returned by Graph API on send
+  metaMessageId  String?
   createdAt      DateTime       @default(now())
 
   @@index([conversationId])
   @@map("dm_messages")
+}
+
+/// Tracks WhatsApp Cloud API messages (inbound + outbound) for status updates via webhook
+model WhatsAppMessage {
+  id            String   @id @default(cuid())
+  clientId      String
+  waId          String
+  metaMessageId String   @unique
+  direction     String   // inbound | outbound
+  content       String?
+  messageType   String   @default("text")
+  /// sent | delivered | read | failed
+  status        String   @default("sent")
+  failureReason String?
+  withinWindow  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([waId, createdAt(sort: Desc)])
+  @@index([metaMessageId])
+  @@map("whatsapp_messages")
 }
 
 model Briefing {
@@ -257,6 +285,7 @@ model SocialAccount {
   updatedAt             DateTime      @updatedAt
 
   @@unique([platform, platformUserId])
+  @@index([clientId])
   @@map("social_accounts")
 }
 
@@ -310,6 +339,7 @@ model Campaign {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([clientId])
   @@map("campaigns")
 }
 
@@ -329,6 +359,7 @@ model Post {
   updatedAt        DateTime          @updatedAt
 
   @@unique([socialAccountId, platformPostId])
+  @@index([socialAccountId, publishedAt(sort: Desc)])
   @@map("posts")
 }
 
@@ -414,6 +445,7 @@ model Lead {
   updatedAt    DateTime   @updatedAt
 
   @@unique([clientId, source, sourceId])
+  @@index([clientId, createdAt(sort: Desc)])
   @@map("leads")
 }
 
@@ -429,6 +461,8 @@ model AuditLog {
   ipAddress  String?
   createdAt  DateTime @default(now())
 
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([actorId])
   @@map("audit_logs")
 }
 
@@ -486,6 +520,8 @@ model SyncRun {
   externalCursor  String?
   errorMessage    String?
 
+  @@index([clientId, status])
+  @@index([socialAccountId])
   @@map("sync_runs")
 }
 

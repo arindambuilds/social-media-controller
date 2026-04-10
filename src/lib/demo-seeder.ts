@@ -1,14 +1,15 @@
 import { prisma } from "./prisma";
+import { logger } from "./logger";
 
 export async function seedDemoDataForUser(userId: string) {
-  console.log(`Checking if demo data already exists for user ${userId}`);
+  logger.info("Checking if demo data already exists", { userId });
   const existing = await prisma.demoData.findUnique({ where: { userId } });
   if (existing) {
-    console.log("Demo data already exists, skipping");
+    logger.info("Demo data already exists, skipping", { userId });
     return;
   }
 
-  console.log("Fetching user and client");
+  logger.info("Fetching user and client", { userId });
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { client: true },
@@ -18,7 +19,7 @@ export async function seedDemoDataForUser(userId: string) {
   }
   const clientId = user.client.id;
 
-  console.log("Starting transaction to seed demo data");
+  logger.info("Starting transaction to seed demo data", { userId });
   await prisma.$transaction(async (tx) => {
     const conversationIds: string[] = [];
     const personas = [
@@ -30,7 +31,7 @@ export async function seedDemoDataForUser(userId: string) {
     ];
 
     for (const persona of personas) {
-      console.log(`Creating conversation for ${persona.name}`);
+      logger.debug("Creating conversation for persona", { name: persona.name });
       const conv = await tx.dmConversation.create({
         data: {
           clientId,
@@ -42,7 +43,7 @@ export async function seedDemoDataForUser(userId: string) {
       conversationIds.push(conv.id);
 
       const numMessages = 3 + Math.floor(Math.random() * 4);
-      console.log(`Creating ${numMessages} messages for conversation ${conv.id}`);
+      logger.debug("Creating messages for conversation", { convId: conv.id, count: numMessages });
       for (let i = 0; i < numMessages; i++) {
         const isCustomer = i % 2 === 0;
         const direction = isCustomer ? "inbound" : "outbound";
@@ -63,7 +64,7 @@ export async function seedDemoDataForUser(userId: string) {
       }
     }
 
-    console.log("Creating demo reports");
+    logger.info("Creating demo reports", { userId });
     const reportIds: string[] = [];
     const reportsData = [
       {
@@ -97,7 +98,7 @@ export async function seedDemoDataForUser(userId: string) {
       reportIds.push(report.id);
     }
 
-    console.log("Creating DemoData record");
+    logger.info("Creating DemoData record", { userId });
     await tx.demoData.create({
       data: {
         userId,
@@ -106,7 +107,7 @@ export async function seedDemoDataForUser(userId: string) {
       },
     });
 
-    console.log("Updating user flags");
+    logger.info("Updating user flags", { userId });
     await tx.user.update({
       where: { id: userId },
       data: {
@@ -116,7 +117,7 @@ export async function seedDemoDataForUser(userId: string) {
     });
   });
 
-  console.log("Demo data seeding complete");
+  logger.info("Demo data seeding complete", { userId });
 }
 
 function getDemoMessage(topic: string, index: number, isCustomer: boolean): string {

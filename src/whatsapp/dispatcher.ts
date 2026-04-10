@@ -3,6 +3,7 @@ import { Queue } from "bullmq";
 import type Redis from "ioredis";
 import { env } from "../config/env";
 import { logger } from "../lib/logger";
+import { prisma } from "../lib/prisma";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "../queues/queueNames";
 import type { PulseNormalisedWhatsAppMessage, WhatsAppIngressQueuePayload } from "../types/pulse-message.types";
@@ -137,6 +138,9 @@ export async function dispatchNormalisedWhatsAppMessage(
 }
 
 export async function dispatchWhatsAppCloudWebhookBody(body: unknown): Promise<void> {
+  // Handle delivery/read status updates from Meta
+  await handleWhatsAppStatusUpdates(body);
+
   const messages = normaliseWhatsAppCloudWebhook(body);
   for (const m of messages) {
     try {
@@ -147,5 +151,61 @@ export async function dispatchWhatsAppCloudWebhookBody(body: unknown): Promise<v
         waId: m.waId
       });
     }
+  }
+}
+
+/**
+ * Processes Meta status update webhooks (sent → delivered → read → failed).
+ * Updates WhatsAppMessage rows by metaMessageId.
+ */
+async function handleWhatsAppStatusUpdates(body: unknown): Promise<void> {
+  try {
+    if (!body || typeof body !== "object") return;
+    const root = body as Record<string, unknown>;
+    if (root.object !== "whatsapp_business_account") return;
+    const entries = Array.isArray(root.entry) ? root.entry : [];
+    for (const entry of entries) {
+      if (!entry || typeof entry !== "object") continue;
+      const changes = (entry as Record<string, unknown>).changes;
+      if (!Array.isArray(changes)) continue;
+      for (const change of changes) {
+        if (!change || typeof change !== "object") continue;
+        const c = change as Record<string, unknown>;
+        if (c.field !== "messages") continue;
+        const value = c.value as Record<string, unknown> | undefined;
+        if (!value) continue;
+        const statuses = value.statuses;
+        if (!Array.isArray(statuses)) continue;
+        for (const s of statuses) {
+          if (!s || typeof s !== "object") continue;
+          const st = s as Record<string, unknown>;
+          const metaMessageId = typeof st.id === "string" ? st.id : null;
+          const status = typeof st.status === "string" ? st.status : null;
+          if (!metaMessageId || !status) continue;
+          // Map Meta statuses: sent | delivered | read | failed
+          const mapped = ["sent", "delivered", "read", "failed"].includes(status) ? status : null;
+          if (!mapped) continue;
+          const failureReason =
+            mapped === "failed" && st.errors && Array.isArray(st.errors) && st.errors[0]
+              ? String((st.errors[0] as Record<string, unknown>).title ?? "unknown")
+              : undefined;
+          prisma.whatsAppMessage
+            .updateMany({
+              where: { metaMessageId },
+              data: { status: mapped, ...(failureReason ? { failureReason } : {}) }
+            })
+            .catch((e) =>
+              logger.warn("[dispatcher] status update persist failed", {
+                message: e instanceof Error ? e.message : String(e),
+                metaMessageId
+              })
+            );
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn("[dispatcher] status update handling failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
   }
 }

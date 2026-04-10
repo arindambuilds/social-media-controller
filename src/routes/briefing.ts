@@ -281,7 +281,19 @@ briefingRouter.patch("/settings", async (req, res) => {
   const body = z
     .object({
       clientId: z.string().optional(),
-      whatsappNumber: z.string().nullable().optional(),
+      whatsappNumber: z
+        .string()
+        .max(20)
+        .nullable()
+        .optional()
+        .refine(
+          (val) =>
+            val === undefined ||
+            val === null ||
+            val === "" ||
+            /^\+\d{7,15}$/.test(val.replace(/\s/g, "")),
+          { message: "WhatsApp number must be in E.164 format, e.g. +919876543210" }
+        ),
       briefingEnabled: z.boolean().optional(),
       briefingHourIst: z.number().int().min(0).max(23).optional()
     })

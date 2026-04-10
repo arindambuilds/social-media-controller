@@ -4,7 +4,7 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { authenticate } from "../middleware/authenticate";
 import { resolveTenant, resolveTenantFromBody } from "../middleware/resolveTenant";
-import { dmPreviewLimiter } from "../middleware/rateLimiter";
+import { dmPreviewLimiter, aiLimiter } from "../middleware/rateLimiter";
 import { tenantRateLimit } from "../middleware/tenantRateLimit";
 import { redisConnection } from "../lib/redis";
 import { prisma } from "../lib/prisma";
@@ -164,7 +164,7 @@ aiRouter.post("/:clientId/captions/generate", resolveTenant, async (req, res) =>
   res.json(result);
 });
 
-aiRouter.post("/suggest-reply", async (req, res) => {
+aiRouter.post("/suggest-reply", aiLimiter, async (req, res) => {
   const body = z.object({
     conversationId: z.string(),
     lastMessage: z.string(),

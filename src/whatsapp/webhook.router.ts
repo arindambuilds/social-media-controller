@@ -18,6 +18,29 @@ function resolveMetaAppSecret(): string {
 /** Mounted at `/whatsapp/webhook` in `app.ts` (Meta callback URL). */
 export const waWebhookRouter = Router();
 
+/**
+ * GET /whatsapp/webhook - Meta webhook verification
+ * Meta sends: ?hub.mode=subscribe&hub.verify_token=YOUR_TOKEN&hub.challenge=CHALLENGE
+ * We must return the challenge string if token matches
+ */
+waWebhookRouter.get("/", (req: Request, res: Response) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  // Verify the webhook
+  if (mode === "subscribe" && token === env.WEBHOOK_VERIFY_TOKEN) {
+    logger.info("[whatsapp webhook] Verification successful");
+    res.status(200).send(challenge);
+  } else {
+    logger.warn("[whatsapp webhook] Verification failed", {
+      mode,
+      tokenMatch: token === env.WEBHOOK_VERIFY_TOKEN
+    });
+    res.status(403).send("Forbidden");
+  }
+});
+
 waWebhookRouter.post(
   "/",
   whatsappHmacPreParseMiddleware(resolveMetaAppSecret),

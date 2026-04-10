@@ -192,6 +192,13 @@ export function AppShell({ children }: Props) {
           </header>
 
           <main className="pulse-main">{children}</main>
+          <footer className="pulse-footer" style={{ borderTop: "1px solid var(--border-glow)", padding: "12px 24px", display: "flex", gap: 16, justifyContent: "center", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+            <Link href="/privacy" className="hover:text-white/70 transition-colors">Privacy Policy</Link>
+            <span aria-hidden>·</span>
+            <Link href="/terms" className="hover:text-white/70 transition-colors">Terms of Service</Link>
+            <span aria-hidden>·</span>
+            <span>Powered by WhatsApp Business API</span>
+          </footer>
         </div>
       </div>
     </div>
