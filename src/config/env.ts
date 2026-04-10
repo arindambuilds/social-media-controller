@@ -91,7 +91,7 @@ const envSchema = z
       .url()
       .optional()
       .default("http://localhost:3000/onboarding/callback"),
-    OPENAI_MODEL: z.string().optional().default("gpt-5"),
+    OPENAI_MODEL: z.string().optional().default("gpt-4o"),
     WEBHOOK_SIGNING_SECRET: z.string().optional().default(""),
     /** Meta Instagram / Messenger webhook verification (GET hub.verify_token). */
     WEBHOOK_VERIFY_TOKEN: z.string().optional().default(""),

@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
+import { logger } from "../lib/logger";
 
 export const dashboardRouter = Router();
 
@@ -111,7 +112,7 @@ dashboardRouter.get("/stats", authenticate, async (req, res) => {
       isDemoData,
     });
   } catch (error) {
-    console.error("Dashboard stats error", error);
+    logger.error("Dashboard stats error", { message: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Failed to fetch stats" });
   }
 });
