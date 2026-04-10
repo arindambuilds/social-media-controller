@@ -206,3 +206,37 @@ export async function exportReportPdf(clientId: string): Promise<Blob> {
   }
   return response.blob();
 }
+
+// ─── Campaigns ───────────────────────────────────────────────────────────────
+
+export type Campaign = {
+  id: string;
+  clientId: string;
+  name: string;
+  budget: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function getCampaigns(clientId: string): Promise<Campaign[]> {
+  const res = await apiFetch<{ success: boolean; campaigns: Campaign[] }>(
+    `/campaigns?clientId=${encodeURIComponent(clientId)}`
+  );
+  return res.campaigns;
+}
+
+export async function createCampaign(
+  payload: { clientId: string; name: string; budget?: number; startsAt?: string; endsAt?: string }
+): Promise<Campaign> {
+  const res = await apiFetch<{ success: boolean; campaign: Campaign }>("/campaigns", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return res.campaign;
+}
+
+export async function deleteCampaign(id: string): Promise<void> {
+  await apiFetch(`/campaigns/${encodeURIComponent(id)}`, { method: "DELETE" });
+}

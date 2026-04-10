@@ -60,6 +60,7 @@ import { waWebhookRouter } from "./whatsapp/webhook.router";
 import { adminSystemRouter } from "./routes/adminSystem";
 import { briefingPublicRouter } from "./routes/briefingPublic";
 import { attachSseRoute } from "./routes/sse";
+import { campaignsRouter } from "./routes/campaigns";
 import { dashboardRouter } from "./routes/dashboard";
 import { whatsappRouter } from "./routes/whatsapp";
 import { accountRouter } from "./routes/account";
@@ -105,6 +106,7 @@ function buildApiRouter(): express.Router {
   api.use("/message", authenticate, messageRouter);
   api.use("/onboarding", onboardingRouter);
   api.use("/dashboard", dashboardRouter);
+  api.use("/campaigns", campaignsRouter);
 
   return api;
 }
