@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { logger } from "../lib/logger";
 import { authenticate } from "../middleware/authenticate";
 import { resolveTenant, resolveTenantFromBody } from "../middleware/resolveTenant";
 import { reportPdfExportLimiter } from "../middleware/rateLimiter";
@@ -11,7 +12,17 @@ import { PdfService } from "../services/pdfService";
 import { buildClientReportHtml } from "../services/reportHtmlBuilder";
 import { CircuitOpenError, pdfExportCircuit } from "../lib/circuitBreaker";
 import { pdfJobTierForRole } from "../lib/pdfFairPriority";
-import { enqueuePdfGenerationAndWait, pdfQueue, PdfQueueOverloadedError } from "../queues/pdfQueue";
+import {
+  enqueuePdfJob,
+  pdfQueue,
+  PdfQueueOverloadedError
+} from "../queues/pdfQueue";
+import {
+  createReport,
+  getReportStatus,
+  saveReportPdf,
+  updateReportStatus
+} from "../services/reportService";
 
 export const reportsRouter = Router();
 
@@ -65,51 +76,75 @@ async function exportClientPdf(
       }
     }
 
-    let pdf: Buffer;
-    let hasQuickChart: boolean;
+    const report = await createReport({ clientId, userId, reportType });
 
-    /** Vitest often has REDIS_URL but no PDF worker — keep synchronous PdfService + spy-friendly path. */
-    const usePdfQueue = pdfQueue && process.env.NODE_ENV !== "test";
-
-    if (usePdfQueue) {
+    if (pdfQueue && process.env.NODE_ENV !== "test") {
       const tier = pdfJobTierForRole(user?.role);
-      const out = await enqueuePdfGenerationAndWait({ clientId, userId, reportType }, 120_000, {
-        tier
-      });
-      pdf = out.pdf;
-      hasQuickChart = out.hasQuickChart;
-    } else {
-      const built = await buildClientReportHtml({ clientId, userId, reportType });
-      hasQuickChart = built.html.includes("quickchart.io/chart");
-      pdf = await pdfExportCircuit.execute(async () =>
-        PdfService.generatePdf({
-          html: built.html,
-          options: {
-            format: "A4",
-            margin: { top: "16mm", right: "12mm", bottom: "16mm", left: "12mm" },
-            displayHeaderFooter: true,
-            footerTemplate: built.footerTemplate,
-            timeoutMs: built.timeoutMs
-          }
-        })
+      const job = await enqueuePdfJob(
+        {
+          clientId,
+          userId,
+          reportType,
+          reportId: report.id,
+          pdfRoleBase: tier,
+          enqueuedAtMs: Date.now()
+        },
+        {
+          priority: tier,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 2000 },
+          jobId: report.id
+        }
       );
+      await updateReportStatus(report.id, "queued", { pdfJobId: String(job.id) });
+      await writeAuditLog({
+        clientId,
+        actorId: userId,
+        action: "REPORT_EXPORTED_PDF",
+        entityType: "Client",
+        entityId: clientId,
+        metadata: { period: "Last 30 days", reportId: report.id, queued: true },
+        ipAddress: req.ip
+      });
+      res.status(202).json({ jobId: String(job.id), reportId: report.id, status: "queued" });
+      return;
     }
 
-    const periodLabel = "Last 30 days";
+    logger.error({
+      msg: 'PDF queue unavailable — falling back to synchronous inline generation. OOM risk at concurrent load.',
+      reportId: report.id,
+      userId,
+    });
 
+    const built = await buildClientReportHtml({ clientId, userId, reportType });
+    const hasQuickChart = built.html.includes("quickchart.io/chart");
+    const pdf = await pdfExportCircuit.execute(async () =>
+      PdfService.generatePdf({
+        html: built.html,
+        options: {
+          format: "A4",
+          margin: { top: "16mm", right: "12mm", bottom: "16mm", left: "12mm" },
+          displayHeaderFooter: true,
+          footerTemplate: built.footerTemplate,
+          timeoutMs: built.timeoutMs
+        }
+      })
+    );
+
+    const pdfUrl = await saveReportPdf(report.id, pdf);
+    await updateReportStatus(report.id, "ready", { pdfUrl });
     await writeAuditLog({
       clientId,
       actorId: userId,
       action: "REPORT_EXPORTED_PDF",
       entityType: "Client",
       entityId: clientId,
-      metadata: { period: periodLabel },
+      metadata: { period: "Last 30 days", reportId: report.id },
       ipAddress: req.ip
     });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="report.pdf"');
-    /** Contract for tests and clients: free plan → "1", paid → "0". Not gated on NODE_ENV (CI often runs Vitest with NODE_ENV=development). */
     res.setHeader("X-Report-Watermark", applyWatermark ? "1" : "0");
     res.setHeader("X-Report-Has-Charts", hasQuickChart ? "1" : "0");
     res.status(200).send(pdf);
@@ -131,6 +166,25 @@ async function exportClientPdf(
     res.status(status).json({ error: message });
   }
 }
+
+reportsRouter.get("/:reportId/status", authenticate, tenantRateLimit, async (req, res) => {
+  const { reportId } = z.object({ reportId: z.string().min(1) }).parse(req.params);
+  const report = await getReportStatus(reportId);
+  if (!report) {
+    res.status(404).json({ error: "Report not found." });
+    return;
+  }
+  if (req.auth?.role === "CLIENT_USER" && req.auth.clientId !== report.clientId) {
+    res.status(403).json({ error: "Forbidden for this report." });
+    return;
+  }
+  res.status(200).json({
+    reportId: report.id,
+    status: report.pdfStatus,
+    url: report.pdfUrl ?? undefined,
+    failureReason: report.failureReason ?? undefined
+  });
+});
 
 /** POST /api/reports — same PDF export as `/:clientId/export/pdf`, clientId in JSON body. */
 reportsRouter.post(

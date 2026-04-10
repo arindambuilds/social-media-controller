@@ -13,6 +13,7 @@ import { ErrorState } from "../../components/ui/ErrorState";
 import { Input } from "../../components/ui/input";
 import { Skeleton } from "../../components/ui/skeleton";
 import { cn } from "../../lib/cn";
+import { getAccessToken } from "../../lib/auth-storage";
 import { useToast } from "../../context/toast-context";
 import { usePageEnter } from "../../hooks/usePageEnter";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -131,6 +132,25 @@ export default function SettingsPage() {
         whatsappNumber
       });
       toast.success("Save ✓", "Your WhatsApp settings are updated.");
+
+      // Clean demo data if user is connecting WhatsApp for the first time
+      if (whatsappNumber) {
+        try {
+          await fetch("/api/onboarding/clean-demo", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${getAccessToken()}`,
+            },
+          });
+          toast.success("Welcome to PulseOS! 🎉", "Your demo data has been cleared and you're now connected to WhatsApp.");
+          // Redirect to conversations page
+          window.location.href = "/conversations";
+        } catch (error) {
+          // Don't show error for demo cleanup failure - it's not critical
+          console.warn("Failed to clean demo data:", error);
+        }
+      }
     } catch (error) {
       toast.error("Something went sideways — let’s try again", error instanceof Error ? error.message : "Couldn’t save WhatsApp settings.");
     } finally {

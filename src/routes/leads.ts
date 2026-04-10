@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { requireRole } from "../middleware/requireRole";
 import { tenantRateLimit } from "../middleware/tenantRateLimit";

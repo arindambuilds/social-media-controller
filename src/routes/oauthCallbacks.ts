@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { env } from "../config/env";
+import { redisConnection } from "../lib/redis";
+import { logger } from "../lib/logger";
 import { consumeOAuthState } from "../services/oauthStateStore";
 import {
   exchangeCode as exchangeMetaCode,
@@ -18,10 +20,18 @@ function oauthBase(): string {
   return env.OAUTH_REDIRECT_BASE_URL.replace(/\/$/, "");
 }
 
+function getOAuthStateError(state: string): Error {
+  if (!redisConnection) {
+    logger.warn("Redis unavailable during OAuth state validation", { state });
+    return new Error("Authentication service temporarily unavailable. Please try again.");
+  }
+  return new Error("Invalid or expired OAuth state.");
+}
+
 async function runFacebookOAuth(code: string, state: string): Promise<string> {
   const ctx = await consumeOAuthState(state);
   if (!ctx?.clientId) {
-    throw new Error("Invalid or expired OAuth state.");
+    throw getOAuthStateError(state);
   }
 
   const redirectUri = `${oauthBase()}/api/oauth/facebook/callback`;
@@ -53,7 +63,7 @@ async function runFacebookOAuth(code: string, state: string): Promise<string> {
 async function runInstagramOAuth(code: string, state: string): Promise<string> {
   const ctx = await consumeOAuthState(state);
   if (!ctx?.clientId) {
-    throw new Error("Invalid or expired OAuth state.");
+    throw getOAuthStateError(state);
   }
 
   const redirectUri = `${oauthBase()}/api/oauth/instagram/callback`;
@@ -96,7 +106,7 @@ async function runInstagramOAuth(code: string, state: string): Promise<string> {
 async function runLinkedInOAuth(code: string, state: string): Promise<string> {
   const ctx = await consumeOAuthState(state);
   if (!ctx?.clientId) {
-    throw new Error("Invalid or expired OAuth state.");
+    throw getOAuthStateError(state);
   }
 
   const redirectUri = `${oauthBase()}/api/oauth/linkedin/callback`;
@@ -138,6 +148,11 @@ function dashboardOrigin(): string {
   }
 }
 
+function isAuthServiceUnavailableError(err: unknown): boolean {
+  return err instanceof Error &&
+    err.message === "Authentication service temporarily unavailable. Please try again.";
+}
+
 oauthCallbacksRouter.post("/facebook/callback", async (req, res) => {
   try {
     const { code, state } = parseCodeState(req.body, req.query as Record<string, unknown>);
@@ -145,7 +160,8 @@ oauthCallbacksRouter.post("/facebook/callback", async (req, res) => {
     res.json({ success: true, socialAccountId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "OAuth failed.";
-    res.status(400).json({ error: message });
+    const status = isAuthServiceUnavailableError(err) ? 503 : 400;
+    res.status(status).json({ error: message });
   }
 });
 
@@ -167,7 +183,8 @@ oauthCallbacksRouter.post("/instagram/callback", async (req, res) => {
     res.json({ success: true, socialAccountId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "OAuth failed.";
-    res.status(400).json({ error: message });
+    const status = isAuthServiceUnavailableError(err) ? 503 : 400;
+    res.status(status).json({ error: message });
   }
 });
 
@@ -189,7 +206,8 @@ oauthCallbacksRouter.post("/linkedin/callback", async (req, res) => {
     res.json({ success: true, socialAccountId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "OAuth failed.";
-    res.status(400).json({ error: message });
+    const status = isAuthServiceUnavailableError(err) ? 503 : 400;
+    res.status(status).json({ error: message });
   }
 });
 

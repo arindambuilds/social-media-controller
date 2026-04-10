@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { publishNotificationToUser } from "../lib/notificationSse";
-import { prisma } from "../lib/prisma";
+import { prisma } from "@/lib/prisma";
 import type { CreateNotificationInput, NotificationDto } from "../types/notification";
 
 function toDto(row: {

@@ -12,6 +12,7 @@ export type PdfGenerateJob = {
   clientId: string;
   userId: string;
   reportType: ReportType;
+  reportId?: string;
   /** Role tier for fair scheduling (10 / 50 / 100). */
   pdfRoleBase?: number;
   /** When the job was enqueued (ms); used with tier for wait-weighted BullMQ priority. */
@@ -121,4 +122,28 @@ export async function enqueuePdfGenerationAndWait(
       hasQuickChart: Boolean(result.hasQuickChart)
     };
   });
+}
+
+export async function enqueuePdfJob(
+  data: PdfGenerateJob,
+  opts?: JobsOptions
+) {
+  if (!pdfQueue) {
+    throw new Error("PDF queue unavailable");
+  }
+  await assertPdfQueueHasCapacity();
+  const tier = data.pdfRoleBase ?? pdfJobTierForRole(undefined);
+  const enqueuedAtMs = data.enqueuedAtMs ?? Date.now();
+  const payload: PdfGenerateJob = {
+    ...data,
+    pdfRoleBase: tier,
+    enqueuedAtMs
+  };
+  const priority = computeFairPdfQueuePriority(tier, enqueuedAtMs, enqueuedAtMs);
+  return pdfQueue.add("generate", payload, {
+    ...defaultJobOpts,
+    timeout: PDF_JOB_TIMEOUT_MS,
+    priority,
+    ...opts
+  } as JobsOptions);
 }

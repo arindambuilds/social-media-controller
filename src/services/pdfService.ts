@@ -1,4 +1,4 @@
-import type { Browser, PDFOptions } from "puppeteer-core";
+import type { Browser, Page, PDFOptions } from "puppeteer-core";
 import puppeteer from "puppeteer-core";
 
 export type PdfGenerateInput = {
@@ -14,18 +14,12 @@ export type PdfGenerateInput = {
 };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
-let sharedBrowserPromise: Promise<Browser> | null = null;
+let browser: Browser | null = null;
 let jobsSinceBrowserRecycle = 0;
 
 function recycleAfterJobs(): number {
   const n = Number(process.env.PDF_RECYCLE_AFTER_JOBS ?? "25");
   return Number.isFinite(n) && n >= 1 ? Math.min(200, Math.floor(n)) : 25;
-}
-
-function resolveExecutablePath(): string | undefined {
-  const fromEnv = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
-  if (fromEnv) return fromEnv;
-  return undefined;
 }
 
 function marginMmToInches(raw?: string): number {
@@ -86,34 +80,33 @@ async function withTimeout<T>(task: Promise<T>, timeoutMs: number, stage: string
 }
 
 async function getBrowser(): Promise<Browser> {
-  if (!sharedBrowserPromise) {
-    const executablePath = resolveExecutablePath();
-    if (!executablePath) {
-      throw new Error(
-        "PDF engine not configured. Set PUPPETEER_EXECUTABLE_PATH to a Chrome/Chromium executable path."
-      );
-    }
-    // No `--disable-web-security` — keeps normal renderer security boundaries.
-    // HTML uses trusted templates + `sanitizeHtml` on user text; charts use `https://quickchart.io/...`.
-    // Logo URLs are validated on write and re-checked before report rendering.
-    sharedBrowserPromise = puppeteer.launch({
-      executablePath,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--disable-software-rasterizer",
-        "--mute-audio"
-      ],
-      headless: true
-    });
-    const browser = await sharedBrowserPromise;
-    browser.on("disconnected", () => {
-      sharedBrowserPromise = null;
-    });
+  if (browser && browser.isConnected()) {
+    return browser;
   }
-  return sharedBrowserPromise;
+  browser = null;
+  browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    handleSIGINT: false,
+    handleSIGTERM: false,
+  });
+  return browser;
+}
+
+async function getPage(): Promise<{ page: Page; cleanup: () => Promise<void> }> {
+  const b = await getBrowser();
+  let page: Page;
+  try {
+    page = await b.newPage();
+  } catch {
+    // browser died mid-session — relaunch once
+    browser = null;
+    const fresh = await getBrowser();
+    page = await fresh.newPage();
+  }
+  return {
+    page,
+    cleanup: async () => { try { await page.close(); } catch {} }
+  };
 }
 
 /**
@@ -121,16 +114,12 @@ async function getBrowser(): Promise<Browser> {
  * sanitized before being embedded in HTML (see `sanitizeHtml` in `src/utils/sanitize.ts` and report templates).
  */
 export class PdfService {
-  /**
-   * Close the shared Chromium instance (worker should call `notePdfJobComplete` instead for gradual recycle).
-   */
   static async closeSharedBrowser(): Promise<void> {
-    const pending = sharedBrowserPromise;
-    sharedBrowserPromise = null;
-    if (!pending) return;
+    const currentBrowser = browser;
+    browser = null;
+    if (!currentBrowser) return;
     try {
-      const browser = await pending;
-      await browser.close();
+      await currentBrowser.close();
     } catch {
       /* ignore */
     }
@@ -157,8 +146,7 @@ export class PdfService {
       return generatePdfViaGotenberg(gotenberg, html, options, timeoutMs);
     }
 
-    const browser = await withTimeout(getBrowser(), timeoutMs, "browser launch");
-    const page = await withTimeout(browser.newPage(), timeoutMs, "page init");
+    const { page, cleanup } = await withTimeout(getPage(), timeoutMs, "page init");
     try {
       /** `networkidle0` can stall 30s+ on external chart URLs; `load` bounds time and stabilizes the event loop. */
       await withTimeout(page.setContent(html, { waitUntil: "load", timeout: timeoutMs }), timeoutMs, "html render");
@@ -181,8 +169,13 @@ export class PdfService {
     } catch (err) {
       throw err instanceof Error ? err : new Error("PDF generation failed.");
     } finally {
-      await page.close().catch(() => {});
+      await cleanup();
     }
   }
 }
+
+process.on('SIGTERM', async () => {
+  if (browser) await browser.close();
+  process.exit(0);
+});
 

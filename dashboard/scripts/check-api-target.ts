@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../src/generated/prisma";
 import fs from "node:fs";
 import path from "node:path";
 

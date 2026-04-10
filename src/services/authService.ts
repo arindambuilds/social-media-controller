@@ -43,7 +43,8 @@ export async function registerUserByAgency(input: {
       role: true,
       clientId: true,
       createdAt: true,
-      updatedAt: true
+      updatedAt: true,
+      onboardingCompleted: true
     }
   });
 
@@ -90,7 +91,8 @@ export async function signup(input: {
       role: true,
       clientId: true,
       createdAt: true,
-      updatedAt: true
+      updatedAt: true,
+      onboardingCompleted: true
     }
   });
 
@@ -118,7 +120,8 @@ export async function login(input: { email: string; password: string }) {
       name: true,
       role: true,
       passwordHash: true,
-      clientId: true
+      clientId: true,
+      onboardingCompleted: true
     }
   });
 
@@ -156,7 +159,8 @@ export async function refresh(refreshToken: string) {
       role: true,
       clientId: true,
       createdAt: true,
-      updatedAt: true
+      updatedAt: true,
+      onboardingCompleted: true
     }
   });
 

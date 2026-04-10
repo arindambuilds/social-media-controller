@@ -21,7 +21,26 @@ import { useProtectedRoute } from "../../hooks/useProtectedRoute";
 import { exportReportPdf, getConversations, getDmSettings } from "../../lib/workspace";
 import { formatPlanLabel, formatRelativeTime, getGreeting, minutesAgoLabel } from "../../lib/pulse";
 
+import { OnboardingWizard } from "../../components/onboarding/OnboardingWizard";
+
 const REFRESH_MS = 60_000;
+
+type DashboardStats = {
+  totalConversations: number;
+  messagesThisMonth: number;
+  replyRate: number;
+  avgResponseTime: number;
+  recentConversations: Array<{
+    id: string;
+    customerName: string;
+    lastMessage: string;
+    lastMessageTime: string;
+    status: string;
+    isAutoReplied: boolean;
+  }>;
+  automationEnabled: boolean;
+  isDemoData: boolean;
+};
 
 export default function DashboardPage() {
   const pathname = usePathname();
@@ -35,8 +54,15 @@ export default function DashboardPage() {
   const [autoReplyEnabled, setAutoReplyEnabled] = useState<boolean | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(Date.now());
   const [tick, setTick] = useState(0);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
 
   usePageTitle("Dashboard");
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem("demoBannerDismissed") === "true";
+    setDemoBannerDismissed(dismissed);
+  }, []);
 
   const refreshData = useCallback(async () => {
     if (!user?.clientId) {
@@ -66,18 +92,45 @@ export default function DashboardPage() {
     }
   }, [toast, user?.clientId]);
 
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dashboard/stats");
+      if (res.ok) {
+        const stats: DashboardStats = await res.json();
+        setDashboardStats(stats);
+      } else {
+        setLoadError("Failed to load stats");
+      }
+    } catch (error) {
+      setLoadError("Failed to load stats");
+    }
+  }, []);
+
   useEffect(() => {
     if (!isReady || !isAuthenticated) return;
     void refreshData();
+    void fetchDashboardStats();
     const refreshTimer = window.setInterval(() => void refreshData(), REFRESH_MS);
     const clock = window.setInterval(() => setTick((value) => value + 1), REFRESH_MS);
     return () => {
       window.clearInterval(refreshTimer);
       window.clearInterval(clock);
     };
-  }, [isAuthenticated, isReady, refreshData]);
+  }, [isAuthenticated, isReady, refreshData, fetchDashboardStats]);
 
   const stats = useMemo(() => {
+    if (dashboardStats) {
+      return {
+        messagesToday: dashboardStats.messagesThisMonth, // approximate
+        messagesThisMonth: dashboardStats.messagesThisMonth,
+        replyRate: dashboardStats.replyRate,
+        avgResponseTime: dashboardStats.avgResponseTime,
+        todayTrend: 0, // placeholder
+        monthTrend: 0,
+        replyTrend: 0,
+        responseTrend: 0
+      };
+    }
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const startOfYesterday = startOfToday - 86400000;
@@ -114,7 +167,7 @@ export default function DashboardPage() {
       replyTrend: safeTrend(replyRate, 65),
       responseTrend: autoReplyEnabled ? 18 : -6
     };
-  }, [autoReplyEnabled, conversations]);
+  }, [autoReplyEnabled, conversations, dashboardStats]);
 
   async function handleDownloadReport() {
     if (!user?.clientId || downloading) return;
@@ -138,7 +191,7 @@ export default function DashboardPage() {
   }
 
   const greeting = getGreeting(user?.name ?? user?.email ?? "there");
-  const recentConversations = conversations.slice(0, 5);
+  const recentConversations = dashboardStats ? dashboardStats.recentConversations : conversations.slice(0, 5);
   void tick;
   const pageDate = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -146,15 +199,33 @@ export default function DashboardPage() {
     month: "long"
   });
   const planLabel = formatPlanLabel(user?.plan);
-  const heroTitle = autoReplyEnabled
+  const heroTitle = (dashboardStats?.automationEnabled ?? autoReplyEnabled)
     ? "Auto-replies are keeping response speed healthy"
     : "Manual follow-up needs attention today";
-  const heroDescription = autoReplyEnabled
-    ? `${stats.messagesToday} conversations landed today and PulseOS is helping the queue stay under control.`
+  const heroDescription = (dashboardStats?.automationEnabled ?? autoReplyEnabled)
+    ? `${dashboardStats?.totalConversations ?? stats.messagesToday} conversations landed today and PulseOS is helping the queue stay under control.`
     : "Auto-replies are off right now, so your team may need to step in faster to keep response time steady.";
+
+  const handleDismissDemoBanner = () => {
+    setDemoBannerDismissed(true);
+    localStorage.setItem("demoBannerDismissed", "true");
+  };
 
   return (
     <PageTransition>
+      {dashboardStats?.isDemoData && !demoBannerDismissed && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>📊 Showing sample data — Connect WhatsApp to see real results</span>
+            <Link href="/settings#whatsapp" className="text-amber-700 underline">
+              Connect Now →
+            </Link>
+          </div>
+          <Button variant="ghost" size="sm" onClick={handleDismissDemoBanner}>
+            <X size={16} />
+          </Button>
+        </div>
+      )}
       <section key={pathname} className={`page-section overview-grid ${pageClassName} space-y-8 lg:space-y-10`}>
         <div className="px-4 md:px-6 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -278,16 +349,18 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {recentConversations.map((conversation) => {
-                    const active = Date.now() - new Date(conversation.lastMessageAt).getTime() < 3600000;
+                    const active = Date.now() - new Date(conversation.lastMessageTime).getTime() < 3600000;
+                    const resolved = conversation.status === "resolved";
                     return (
                       <tr key={conversation.id}>
-                        <td>{conversation.contactName || conversation.instagramUserId}</td>
+                        <td>{conversation.customerName}</td>
                         <td>{conversation.lastMessage.length > 40 ? `${conversation.lastMessage.slice(0, 40)}…` : conversation.lastMessage || "Getting your data ready…"}</td>
-                        <td>{formatRelativeTime(conversation.lastMessageAt)}</td>
+                        <td>{formatRelativeTime(conversation.lastMessageTime)}</td>
                         <td>
                           <span className="conversation-status">
                             <span className={`status-dot ${active ? "active" : "idle"}`} />
-                            {conversation.resolved ? "Resolved" : active ? "Active" : "Idle"}
+                            {resolved ? "Resolved" : active ? "Active" : "Idle"}
+                            {conversation.isAutoReplied && <Badge tone="green" className="ml-2">AI</Badge>}
                           </span>
                         </td>
                       </tr>
@@ -345,6 +418,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+      {user && !user.onboardingCompleted && <OnboardingWizard user={user} onComplete={() => window.location.reload()} />}
     </PageTransition>
   );
 }

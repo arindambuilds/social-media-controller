@@ -1,5 +1,5 @@
 import { OutboundPostStatus } from "@prisma/client";
-import { prisma } from "../lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { logger } from "../lib/logger";
 
 export type BriefingData = {

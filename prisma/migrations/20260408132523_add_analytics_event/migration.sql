@@ -74,6 +74,12 @@ ALTER TABLE "scheduled_posts" RENAME CONSTRAINT "ScheduledPost_pkey" TO "schedul
 ALTER TABLE "social_accounts" RENAME CONSTRAINT "SocialAccount_pkey" TO "social_accounts_pkey";
 
 -- AlterTable
+ALTER TABLE "social_accounts" ADD COLUMN "needsReauth" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "social_accounts" ADD COLUMN "syncStatus" TEXT NOT NULL DEFAULT 'idle';
+
+-- AlterTable
 ALTER TABLE "sync_runs" RENAME CONSTRAINT "SyncRun_pkey" TO "sync_runs_pkey";
 
 -- AlterTable
@@ -81,6 +87,42 @@ ALTER TABLE "system_events" RENAME CONSTRAINT "SystemEvent_pkey" TO "system_even
 
 -- AlterTable
 ALTER TABLE "users" RENAME CONSTRAINT "User_pkey" TO "users_pkey";
+
+-- CreateTable
+CREATE TABLE "reports" (
+    "id" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "reportType" TEXT NOT NULL,
+    "pdfStatus" TEXT NOT NULL DEFAULT 'pending',
+    "pdfUrl" TEXT,
+    "pdfJobId" TEXT,
+    "failureReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "reports_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "analytics_events" (
+    "id" TEXT NOT NULL,
+    "eventType" TEXT NOT NULL,
+    "userId" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "analytics_events_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "reports_clientId_idx" ON "reports"("clientId");
+
+-- CreateIndex
+CREATE INDEX "reports_userId_idx" ON "reports"("userId");
+
+-- CreateIndex
+CREATE INDEX "analytics_events_eventType_createdAt_idx" ON "analytics_events"("eventType", "createdAt");
 
 -- RenameForeignKey
 ALTER TABLE "ai_insights" RENAME CONSTRAINT "AiInsight_clientId_fkey" TO "ai_insights_clientId_fkey";
@@ -162,6 +204,12 @@ ALTER TABLE "sync_runs" RENAME CONSTRAINT "SyncRun_socialAccountId_fkey" TO "syn
 
 -- RenameForeignKey
 ALTER TABLE "users" RENAME CONSTRAINT "User_clientId_fkey" TO "users_clientId_fkey";
+
+-- AddForeignKey
+ALTER TABLE "reports" ADD CONSTRAINT "reports_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "reports" ADD CONSTRAINT "reports_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- RenameIndex
 ALTER INDEX "AiInsight_clientId_idx" RENAME TO "ai_insights_clientId_idx";

@@ -20,7 +20,7 @@
  */
 
 import bcrypt from "bcrypt";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma";
 
 const BCRYPT_ROUNDS = 10;
 const DEMO_CLIENT_ID = "demo-client";

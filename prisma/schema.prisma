@@ -27,10 +27,26 @@ model User {
   ownedClients     Client[]           @relation("ClientOwner")
   briefingFeedback BriefingFeedback[]
   notifications    Notification[]
+  reports          Report[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+  onboardingCompleted Boolean @default(false)
+  onboardingStep      Int     @default(0)
+  businessType        String?
+  businessName        String?
+  hasDemoData         Boolean @default(false)
+  demoData           DemoData?
 
   @@map("users")
+}
+
+model DemoData {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seededAt         DateTime @default(now())
+  conversationIds  String[]
+  reportIds        String[]
 }
 
 model Notification {
@@ -68,6 +84,7 @@ model Client {
   aiInsights               AiInsight[]
   recommendations          Recommendation[]
   briefings                Briefing[]
+  reports                  Report[]
   whatsappNumber           String?
   briefingEnabled          Boolean          @default(true)
   /// Hour (0–23) in Asia/Kolkata when the daily briefing should run.
@@ -224,6 +241,8 @@ model SocialAccount {
   encryptedRefreshToken String?
   tokenExpiresAt        DateTime?
   lastSyncedAt          DateTime?
+  syncStatus            String        @default("idle")
+  needsReauth           Boolean       @default(false)
   metadata              Json?
   clientId              String
   client                Client        @relation(fields: [clientId], references: [id])
@@ -470,6 +489,25 @@ model SyncRun {
   @@map("sync_runs")
 }
 
+model Report {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  reportType String
+  pdfStatus String   @default("pending")
+  pdfUrl    String?
+  pdfJobId  String?
+  failureReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([userId])
+  @@map("reports")
+}
+
 model AiInsight {
   id              String   @id @default(cuid())
   clientId        String
@@ -596,4 +634,15 @@ model JobLog {
   @@index([queue, status])
   @@index([createdAt])
   @@map("job_logs")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  eventType String
+  userId    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@map("analytics_events")
 }

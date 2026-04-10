@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma";
 import { decryptWithKeySources, encryptWithKeySource } from "../src/lib/encryption";
 import { env } from "../src/config/env";
 

@@ -88,7 +88,7 @@ export default function ReportsPage() {
       });
     });
 
-    const items = Array.from(monthBuckets.values());
+    const items = Array.from(monthBuckets.values()).filter(item => item.inbound > 0 || item.outbound > 0);
     const current = items[items.length - 1] ?? { inbound: 0, outbound: 0, contacts: new Set<string>(), label: monthLabel(new Date()) };
     const replyRate = current.inbound > 0 ? Math.round((current.outbound / current.inbound) * 100) : 0;
 

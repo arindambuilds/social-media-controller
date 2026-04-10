@@ -18,6 +18,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useProtectedRoute } from "../../hooks/useProtectedRoute";
 import { cn } from "../../lib/cn";
 import { formatCompactTime, formatRelativeTime, hashColor } from "../../lib/pulse";
+import { apiFetch } from "../../lib/api";
 import { ConversationMessage, ConversationSummary, getConversationMessages, getConversations } from "../../lib/workspace";
 
 const FILTERS = ["all", "active", "today", "this-week"] as const;
@@ -39,6 +40,9 @@ export default function ConversationsPage() {
   const [showThread, setShowThread] = useState(false);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const [message, setMessage] = useState("");
+  const [suggestions, setSuggestions] = useState<Array<{text: string, tone: string}>>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   usePageTitle("Conversations");
 
@@ -55,9 +59,9 @@ export default function ConversationsPage() {
       })
       .catch((error) => {
         if (!cancelled) {
-          const detail = error instanceof Error ? error.message : "Couldn’t load conversations.";
+          const detail = error instanceof Error ? error.message : "Couldn't load conversations.";
           setListError(detail);
-          toast.error("Something went sideways — let’s try again", detail);
+          toast.error("Something went sideways — let's try again", detail);
         }
       })
       .finally(() => {
@@ -86,9 +90,9 @@ export default function ConversationsPage() {
       })
       .catch((error) => {
         if (!cancelled) {
-          const detail = error instanceof Error ? error.message : "Couldn’t load the conversation.";
+          const detail = error instanceof Error ? error.message : "Couldn't load the conversation.";
           setThreadError(detail);
-          toast.error("Something went sideways — let’s try again", detail);
+          toast.error("Something went sideways — let's try again", detail);
         }
       })
       .finally(() => {
@@ -128,9 +132,9 @@ export default function ConversationsPage() {
       setConversations(rows);
       setSelectedId((current) => current ?? rows[0]?.id ?? null);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : "Couldn’t load conversations.";
+      const detail = error instanceof Error ? error.message : "Couldn't load conversations.";
       setListError(detail);
-      toast.error("Something went sideways — let’s try again", detail);
+      toast.error("Something went sideways — let's try again", detail);
     }
   }
 
@@ -142,9 +146,9 @@ export default function ConversationsPage() {
       setThreadError(null);
       setMessages(rows);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : "Couldn’t load the conversation.";
+      const detail = error instanceof Error ? error.message : "Couldn't load the conversation.";
       setThreadError(detail);
-      toast.error("Something went sideways — let’s try again", detail);
+      toast.error("Something went sideways — let's try again", detail);
     } finally {
       setMessageLoading(false);
     }
@@ -157,6 +161,30 @@ export default function ConversationsPage() {
 
   function handleThreadBack() {
     setShowThread(false);
+  }
+
+  async function handleSuggestReply() {
+    if (!selectedConversation || !user) return;
+    setLoadingSuggestions(true);
+    try {
+      const lastInbound = messages.filter(m => m.direction === 'inbound').pop();
+      const lastMessage = lastInbound?.content || '';
+      const data = await apiFetch<{ suggestions: Array<{text: string, tone: string}> }>('/ai/suggest-reply', {
+        method: 'POST',
+        body: JSON.stringify({
+          conversationId: selectedId,
+          lastMessage,
+          businessName: (user as any).businessName || 'Our Business',
+          businessType: (user as any).businessType || 'General'
+        })
+      });
+      setSuggestions(data.suggestions || []);
+    } catch (error) {
+      console.error('Failed to get suggestions', error);
+      toast.error('Could not get suggestions', 'Please try again.');
+    } finally {
+      setLoadingSuggestions(false);
+    }
   }
 
   return (
@@ -191,7 +219,7 @@ export default function ConversationsPage() {
                   ))}
                 </div>
               ) : listError && !filteredConversations.length ? (
-                <ErrorState message="Couldn’t load conversations" detail={listError} onRetry={() => void reloadConversations()} />
+                <ErrorState message="Couldn't load conversations" detail={listError} onRetry={() => void reloadConversations()} />
               ) : filteredConversations.length ? (
                 <StaggerContainer className="conversation-list">
                   {filteredConversations.map((conversation) => {
@@ -280,18 +308,18 @@ export default function ConversationsPage() {
                       ))}
                     </div>
                   ) : threadError && !messages.length ? (
-                    <ErrorState message="Couldn’t load this thread" detail={threadError} onRetry={() => void reloadSelectedConversation()} />
+                    <ErrorState message="Couldn't load this thread" detail={threadError} onRetry={() => void reloadSelectedConversation()} />
                   ) : messages.length ? (
                     <div ref={threadRef} className="thread-scroll">
                       <div className="date-divider">Today</div>
                       <StaggerContainer className="grid gap-3">
-                        {messages.map((message) => (
-                          <StaggerItem key={message.id}>
-                            <div className={`message-row ${message.direction === "outbound" ? "outbound" : ""}`}>
-                              <div className={`message-bubble ${message.direction === "outbound" ? "outbound" : "inbound"}`}>
-                                {message.direction === "outbound" ? <div style={{ fontSize: "0.72rem", fontWeight: 700, marginBottom: 6, opacity: 0.8 }}>PulseOS AI</div> : null}
-                                <div>{message.content}</div>
-                                <div className="message-meta">{formatCompactTime(message.sentAt)}</div>
+                        {messages.map((msg) => (
+                          <StaggerItem key={msg.id}>
+                            <div className={`message-row ${msg.direction === "outbound" ? "outbound" : ""}`}>
+                              <div className={`message-bubble ${msg.direction === "outbound" ? "outbound" : "inbound"}`}>
+                                {msg.direction === "outbound" ? <div style={{ fontSize: "0.72rem", fontWeight: 700, marginBottom: 6, opacity: 0.8 }}>PulseOS AI</div> : null}
+                                <div>{msg.content}</div>
+                                <div className="message-meta">{formatCompactTime(msg.sentAt)}</div>
                               </div>
                             </div>
                           </StaggerItem>
@@ -307,6 +335,43 @@ export default function ConversationsPage() {
                   )}
 
                   <div className="ai-banner">PulseOS AI handles all replies automatically.</div>
+
+                  <div className="message-input-section">
+                    {suggestions.length > 0 && (
+                      <div className="suggestions-container">
+                        <span className="powered-by-ai">Powered by AI</span>
+                        <div className="suggestion-chips">
+                          {suggestions.map((sug, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              className="suggestion-chip"
+                              onClick={() => setMessage(sug.text)}
+                            >
+                              {sug.text}
+                              <Badge tone="soft" className="ml-2">{sug.tone}</Badge>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="message-input-row">
+                      <Input
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Type your reply..."
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleSuggestReply}
+                        loading={loadingSuggestions}
+                        variant="outline"
+                        className="ml-2"
+                      >
+                        ✨ Suggest Reply
+                      </Button>
+                    </div>
+                  </div>
                 </>
               )}
             </Card>

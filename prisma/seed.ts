@@ -15,7 +15,7 @@
  */
 import "dotenv/config";
 import bcrypt from "bcrypt";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma";
 import { encrypt } from "../src/lib/encryption";
 
 const prisma = new PrismaClient();

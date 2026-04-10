@@ -24,6 +24,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "seed:demo": "cross-env SEED_DEMO=true tsx prisma/seed-demo.ts",
     "seed:production": "tsx scripts/seed-production.ts",
+    "seed:demo-user": "tsx scripts/seed-demo-user.ts",
     "security:reencrypt:social-accounts": "tsx scripts/reencrypt-social-accounts.ts",
     "db:deploy:seed": "prisma migrate deploy && prisma db seed",
     "seed:railway": "railway run tsx prisma/seed.ts",

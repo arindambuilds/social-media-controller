@@ -10,6 +10,7 @@ import { toBullMqProcessorError } from "../lib/bullmqRetry";
 import { jobLogMarkActive, jobLogMarkCompleted, jobLogMarkFailed } from "../services/jobLogService";
 import { PdfService } from "../services/pdfService";
 import { pdfQueue } from "../queues/pdfQueue";
+import { saveReportPdf, updateReportStatus } from "../services/reportService";
 
 /**
  * Cap concurrent Puppeteer work — shared browser + pages; 2 reduces OOM risk on 4GB dynos.
@@ -39,7 +40,7 @@ export function startPdfWorker(): Worker<PdfGenerateJob> | null {
         attempts: job.attemptsMade
       });
       try {
-        const { clientId, userId, reportType } = job.data;
+        const { clientId, userId, reportType, reportId } = job.data;
         const built = await buildClientReportHtml({ clientId, userId, reportType });
         const pdf = await PdfService.generatePdf({
           html: built.html,
@@ -61,6 +62,22 @@ export function startPdfWorker(): Worker<PdfGenerateJob> | null {
             pdfBytes: pdf.length
           }
         });
+
+        if (reportId) {
+          try {
+            const pdfUrl = await saveReportPdf(reportId, pdf);
+            await updateReportStatus(reportId, "ready", {
+              pdfUrl,
+              pdfJobId: String(job.id)
+            });
+          } catch (persistErr) {
+            logger.error("Failed to persist generated PDF or update report status", {
+              reportId,
+              error: persistErr instanceof Error ? persistErr.message : String(persistErr)
+            });
+          }
+        }
+
         return {
           pdfBase64: pdf.toString("base64"),
           hasQuickChart
@@ -100,12 +117,30 @@ export function startPdfWorker(): Worker<PdfGenerateJob> | null {
     }
   );
 
-  worker.on("failed", (job, err) => {
+  worker.on("failed", async (job, err) => {
     logger.warn("[pdfWorker] job failed", {
       jobId: job?.id,
       clientId: job?.data?.clientId,
-      message: err instanceof Error ? err.message : String(err)
+      message: err instanceof Error ? err.message : String(err),
+      attemptsMade: job?.attemptsMade,
+      maxAttempts: job?.opts?.attempts
     });
+
+    if (job?.data?.reportId && job.attemptsMade >= (job.opts?.attempts ?? 1)) {
+      try {
+        await updateReportStatus(job.data.reportId, "failed", {
+          pdfUrl: undefined,
+          failureReason: err instanceof Error ? err.message : String(err),
+          pdfJobId: String(job.id)
+        });
+      } catch (statusErr) {
+        logger.error("Failed to update report status after PDF job failure", {
+          jobId: job.id,
+          reportId: job.data.reportId,
+          error: statusErr instanceof Error ? statusErr.message : String(statusErr)
+        });
+      }
+    }
   });
 
   worker.on("completed", (job) => {

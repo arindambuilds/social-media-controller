@@ -43,13 +43,15 @@ function toAuthUserResponse(user: {
   name?: string | null;
   role: string;
   clientId?: string | null;
+  onboardingCompleted: boolean;
 }) {
   return {
     id: user.id,
     email: user.email,
     name: user.name ?? null,
     role: user.role,
-    clientId: user.clientId ?? null
+    clientId: user.clientId ?? null,
+    onboardingCompleted: user.onboardingCompleted
   };
 }
 
@@ -81,7 +83,7 @@ authRouter.get("/me", authenticate, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: req.auth.userId },
-      select: { id: true, email: true, name: true, role: true, clientId: true, plan: true }
+      select: { id: true, email: true, name: true, role: true, clientId: true, plan: true, onboardingCompleted: true }
     });
     if (!user) {
       res.status(401).json({ success: false, error: { code: "USER_NOT_FOUND", message: "User not found." } });
@@ -103,6 +105,39 @@ authRouter.get("/me", authenticate, async (req, res) => {
       message: err instanceof Error ? err.message : String(err)
     });
     res.status(500).json({ success: false, error: { code: "ME_ERROR", message: "Failed to load user." } });
+  }
+});
+
+authRouter.get("/onboarding-status", authenticate, async (req, res) => {
+  try {
+    if (!req.auth?.userId) {
+      res.status(401).json({ success: false, error: { code: "NO_SESSION", message: "Not authenticated." } });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth.userId },
+      select: {
+        onboardingCompleted: true,
+        onboardingStep: true,
+        hasDemoData: true,
+        businessType: true,
+        businessName: true,
+      }
+    });
+
+    if (!user) {
+      res.status(401).json({ success: false, error: { code: "USER_NOT_FOUND", message: "User not found." } });
+      return;
+    }
+
+    res.json(user);
+  } catch (err) {
+    if (respondDbUnavailable(res, err, "GET /api/auth/onboarding-status")) return;
+    logger.error("GET /api/auth/onboarding-status failed", {
+      message: err instanceof Error ? err.message : String(err)
+    });
+    res.status(500).json({ success: false, error: { code: "ONBOARDING_STATUS_ERROR", message: "Failed to load onboarding status." } });
   }
 });
 
@@ -138,7 +173,7 @@ authRouter.patch("/me", authenticate, async (req, res) => {
       ...(body.email !== undefined ? { email: body.email } : {}),
       ...(body.name !== undefined ? { name: body.name } : {})
     },
-    select: { id: true, email: true, name: true, role: true, clientId: true }
+    select: { id: true, email: true, name: true, role: true, clientId: true, onboardingCompleted: true }
   });
 
   let instagramConnected = false;

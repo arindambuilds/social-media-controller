@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { Prisma } from "@prisma/client";
+import { Prisma } from '@prisma/client';
 import * as Sentry from "@sentry/node";
 import { ZodError } from "zod";
 import { env } from "../config/env";
@@ -45,7 +45,6 @@ export function errorHandler(
     return;
   }
 
-  /** express.json / body-parser — client sent non-JSON or invalid JSON (e.g. shell-mangled curl body). */
   const parseMeta = err as { type?: string; status?: number };
   if (parseMeta.type === "entity.parse.failed") {
     logger.warn("Invalid JSON request body", {

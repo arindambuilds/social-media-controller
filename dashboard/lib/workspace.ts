@@ -10,6 +10,7 @@ export type WorkspaceMe = {
     role: string;
     clientId: string | null;
     plan?: string | null;
+    onboardingCompleted: boolean;
   };
   instagramConnected: boolean;
   plan?: string;

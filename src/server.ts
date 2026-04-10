@@ -25,6 +25,7 @@ import {
   startWhatsAppOutboundWorker
 } from "./workers/whatsappOutboundWorker";
 import { gracefulShutdownWhatsAppWorker, startWhatsAppSendWorker } from "./workers/whatsappWorker";
+import { startInstagramSyncWorker } from "./workers/instagramSyncWorker";
 import { scheduleMorningBriefing } from "./jobs/briefingDispatch";
 import { logger } from "./lib/logger";
 
@@ -75,6 +76,7 @@ let workerMaintenance: Worker | null = null;
 let workerWhatsAppBriefing: Worker | null = null;
 let workerWhatsAppSend: Worker | null = null;
 let workerWhatsAppOutbound: Worker | null = null;
+let workerInstagramSync: Worker | null = null;
 let workerEmail: Worker | null = null;
 
 if (process.env.NODE_ENV === "production" && redisConnection) {
@@ -103,6 +105,12 @@ if (process.env.NODE_ENV === "production" && redisConnection) {
         hint: "Check REDIS_URL / BullMQ connection, or run a dedicated worker: npm run worker:wa:outbound"
       });
     }
+  }
+  workerInstagramSync = startInstagramSyncWorker();
+  if (!workerInstagramSync) {
+    logger.warn("[pulse] Instagram sync worker did not start — instagram-sync jobs will not be processed", {
+      hint: "Check REDIS_URL / BullMQ connection, or run a dedicated worker: npm run worker:instagram-sync"
+    });
   }
   if (shouldEmbedEmailWorkerInApi()) {
     try {
@@ -136,6 +144,7 @@ function registerQueueShutdownHooks(): void {
   if (workerWhatsAppOutbound) {
     registerShutdownHook(async () => closeWhatsAppOutboundWorker(workerWhatsAppOutbound!));
   }
+  if (workerInstagramSync) registerShutdownHook(() => workerInstagramSync!.close());
   if (workerEmail) {
     registerShutdownHook(async () => closeEmailWorker(workerEmail!));
   }

@@ -3,7 +3,7 @@ import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { OutboundPostStatus, Platform } from "@prisma/client";
-import { prisma } from "../lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { tenantRateLimit } from "../middleware/tenantRateLimit";
 import { addPostPublishJob } from "../queues/postPublishQueue";

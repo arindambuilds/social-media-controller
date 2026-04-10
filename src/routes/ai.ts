@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { Router } from "express";
 import { z } from "zod";
+import Anthropic from "@anthropic-ai/sdk";
 import { authenticate } from "../middleware/authenticate";
 import { resolveTenant, resolveTenantFromBody } from "../middleware/resolveTenant";
 import { dmPreviewLimiter } from "../middleware/rateLimiter";
@@ -14,6 +15,8 @@ import {
 } from "../services/aiService";
 import { generateDmReplyPreview } from "../services/dmReplyPreviewService";
 import { logAiUsage } from "../services/aiUsageLogService";
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export const aiRouter = Router();
 
@@ -160,3 +163,64 @@ aiRouter.post("/:clientId/captions/generate", resolveTenant, async (req, res) =>
   });
   res.json(result);
 });
+
+aiRouter.post("/suggest-reply", async (req, res) => {
+  const body = z.object({
+    conversationId: z.string(),
+    lastMessage: z.string(),
+    businessName: z.string(),
+    businessType: z.string()
+  }).parse(req.body);
+
+  const suggestions = await generateReplySuggestions(body.lastMessage, body.businessName, body.businessType);
+  res.json({ suggestions });
+});
+
+async function generateReplySuggestions(lastMessage: string, businessName: string, businessType: string) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return getFallbackSuggestions(lastMessage);
+  }
+
+  try {
+    const systemPrompt = `You are a helpful WhatsApp business assistant for ${businessName}, a ${businessType} business in India. Generate 3 short, friendly reply suggestions in Hinglish (Hindi-English mix). Each reply must be under 30 words. Return ONLY a JSON array: [{text, tone}] where tone is one of: 'friendly', 'professional', 'quick'. Never use emojis in professional tone.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 300,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Customer message: "${lastMessage}"` }]
+    });
+
+    const content = response.content[0];
+    if (content.type === 'text') {
+      const parsed = JSON.parse(content.text);
+      return parsed;
+    }
+  } catch (error) {
+    console.error('Claude API error', error);
+  }
+
+  return getFallbackSuggestions(lastMessage);
+}
+
+function getFallbackSuggestions(lastMessage: string) {
+  if (lastMessage.toLowerCase().includes('price') || lastMessage.toLowerCase().includes('kitna')) {
+    return [
+      { text: "Our prices start from ₹500/month. DM for details!", tone: "friendly" },
+      { text: "Please check our pricing page for current rates.", tone: "professional" },
+      { text: "₹500 onwards. Let me know if you need more info.", tone: "quick" }
+    ];
+  }
+  if (lastMessage.toLowerCase().includes('order') || lastMessage.toLowerCase().includes('deliver')) {
+    return [
+      { text: "Your order is on the way! Tracking details sent.", tone: "friendly" },
+      { text: "Order status updated. Delivery expected soon.", tone: "professional" },
+      { text: "Order dispatched. Check your email for tracking.", tone: "quick" }
+    ];
+  }
+  return [
+    { text: "Thanks for reaching out! How can I help?", tone: "friendly" },
+    { text: "Hello! We're here to assist you.", tone: "professional" },
+    { text: "Hi! What's on your mind?", tone: "quick" }
+  ];
+}

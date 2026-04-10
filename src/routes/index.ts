@@ -14,6 +14,8 @@ import { instagramRouter } from "./instagram";
 import { reportsRouter } from "./reports";
 import { executeRouter } from "./execute";
 import { messageRouter } from "./message";
+import { onboardingRouter } from "./onboarding";
+import { dashboardRouter } from "./dashboard";
 
 export const apiRouter = Router();
 
@@ -32,3 +34,5 @@ apiRouter.use("/social-accounts", socialAccountsRouter);
 apiRouter.use("/webhooks", webhookRouter);
 apiRouter.use("/execute", executeRouter);
 apiRouter.use("/message", messageRouter);
+apiRouter.use("/onboarding", onboardingRouter);
+apiRouter.use("/dashboard", dashboardRouter);

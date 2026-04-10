@@ -1,6 +1,5 @@
-import type { Prisma } from "@prisma/client";
-import type { ScheduledPost, SocialAccount } from "@prisma/client";
-import { prisma } from "../lib/prisma";
+import type { Prisma, ScheduledPost, SocialAccount } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { decrypt } from "../lib/encryption";
 
 const GRAPH = "https://graph.facebook.com/v19.0";

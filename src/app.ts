@@ -52,6 +52,7 @@ import { pulseRouter } from "./routes/pulse";
 import { reportsRouter } from "./routes/reports";
 import { socialAccountsRouter } from "./routes/socialAccounts";
 import { executeRouter } from "./routes/execute";
+import { onboardingRouter } from "./routes/onboarding";
 import { voicePostRouter } from "./routes/voicePost";
 import { instagramWebhookRouter } from "./routes/webhook";
 import { webhookRouter } from "./routes/webhooks";
@@ -99,8 +100,8 @@ function buildApiRouter(): express.Router {
   api.use("/webhooks", webhookRouter);
   api.use("/execute", authenticate, executeRouter);
   api.use("/message", authenticate, messageRouter);
-  /** Public gov metrics: `GET /api/gov-preview` (alias of `/api/pulse/gov-preview` for older clients). */
-  
+  api.use("/onboarding", onboardingRouter);
+
   return api;
 }
 
@@ -200,10 +201,6 @@ export function createApp() {
     }
   });
 
-  /**
-   * Load-shedding signal for monitors: PDF circuit state + queue depth (no secrets).
-   * Use with alerts: ok=false or circuit.state=OPEN or queue past PDF_QUEUE_CAP_*.
-   */
   app.get("/api/health/degraded", async (_req, res) => {
     try {
       const circuit = pdfExportCircuit.snapshot();
@@ -241,10 +238,6 @@ export function createApp() {
     }
   });
 
-  /**
-   * Load balancer / synthetic probe: **503** when PDF path is unsafe to send traffic.
-   * Stricter than `/api/health/degraded` (which stays 200 for observability).
-   */
   app.get("/api/health/critical", async (_req, res) => {
     const circuit = pdfExportCircuit.snapshot();
     if (circuit.state === "OPEN") {
@@ -283,10 +276,6 @@ export function createApp() {
     res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
   });
 
-  /**
-   * Operator snapshot: memory, circuit, PDF queue counts, Redis ping.
-   * Disabled unless `METRICS_SECRET` is set; requires `x-pulse-metrics-key` header.
-   */
   app.get("/api/metrics", async (req, res) => {
     if (!env.METRICS_SECRET || req.get("x-pulse-metrics-key") !== env.METRICS_SECRET) {
       res.status(404).json({ error: "Not found" });

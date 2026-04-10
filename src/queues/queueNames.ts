@@ -10,9 +10,12 @@ export const queueNames = {
   whatsappSend: "whatsapp-send",
   maintenance: "maintenance",
   /** HTML→PDF (Puppeteer or Gotenberg); worker concurrency 3. */
-  pdfGenerate: "pdf-generate",
+  pdfGenerate: "pdf-generation",
+  instagramSync: "instagram-sync",
   /** Meta WhatsApp Cloud ingress (session + metrics). */
   whatsappIngress: "whatsapp-ingress",
   /** Meta WhatsApp Cloud outbound Graph sends. */
-  whatsappOutbound: "whatsapp-outbound"
+  whatsappOutbound: "whatsapp-outbound",
+  /** Analytics event processing and persistence. */
+  analytics: "analytics"
 } as const;
