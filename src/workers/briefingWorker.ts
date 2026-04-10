@@ -65,7 +65,10 @@ export function startBriefingWorker(): Worker<BriefingJob> | null {
       connection: redisConnection,
       concurrency: 3,
       maxStalledCount: 2,
-      stalledInterval: 30_000
+      stalledInterval: 60_000,
+      lockDuration: 60_000,
+      lockRenewTime: 30_000,
+      drainDelay: 10
     }
   );
 

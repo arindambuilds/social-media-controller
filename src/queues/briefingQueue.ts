@@ -22,7 +22,10 @@ const dispatchRepeatOpts: JobsOptions = {
 
 export const briefingQueue: Queue<BriefingJob> | null =
   redisConnection != null
-    ? new Queue<BriefingJob>(queueNames.briefing, { connection: redisConnection })
+    ? new Queue<BriefingJob>(queueNames.briefing, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 /** When true, skip hourly `dispatch-hour` and use `whatsapp-briefing` queue at 09:00 IST instead. */

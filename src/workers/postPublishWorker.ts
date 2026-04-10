@@ -18,7 +18,11 @@ async function handlePublish(job: Job<PostPublishJob>): Promise<void> {
 
 new Worker<PostPublishJob>(queueNames.postPublish, handlePublish, {
   connection: redis,
-  concurrency: 2
+  concurrency: 2,
+  stalledInterval: 60_000,
+  lockDuration: 60_000,
+  lockRenewTime: 30_000,
+  drainDelay: 10
 });
 
 logger.info("Post publish worker started");

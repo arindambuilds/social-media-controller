@@ -113,7 +113,10 @@ export function startPdfWorker(): Worker<PdfGenerateJob> | null {
       connection: workerConnection,
       concurrency: PDF_WORKER_CONCURRENCY,
       maxStalledCount: 2,
-      stalledInterval: 30_000
+      stalledInterval: 60_000,
+      lockDuration: 60_000,
+      lockRenewTime: 30_000,
+      drainDelay: 10
     }
   );
 

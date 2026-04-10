@@ -6,7 +6,10 @@ export type MaintenanceJob = Record<string, never>;
 
 export const maintenanceQueue: Queue<MaintenanceJob> | null =
   redisConnection != null
-    ? new Queue<MaintenanceJob>(queueNames.maintenance, { connection: redisConnection })
+    ? new Queue<MaintenanceJob>(queueNames.maintenance, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 /** Idempotent weekly DB cleanup (Sunday 02:00 Asia/Kolkata). */

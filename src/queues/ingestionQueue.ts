@@ -65,7 +65,10 @@ export async function executeIngestionJobSync(data: IngestionJob): Promise<void>
 
 export const ingestionQueue: Queue<IngestionJob> | null =
   redisConnection != null
-    ? new Queue<IngestionJob>(queueNames.ingestion, { connection: redisConnection })
+    ? new Queue<IngestionJob>(queueNames.ingestion, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 export async function addIngestionJob(

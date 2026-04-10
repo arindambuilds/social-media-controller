@@ -76,7 +76,10 @@ export async function executePostPublishJobSync(scheduledPostId: string): Promis
 
 export const postPublishQueue: Queue<PostPublishJob> | null =
   redisConnection != null
-    ? new Queue<PostPublishJob>(queueNames.postPublish, { connection: redisConnection })
+    ? new Queue<PostPublishJob>(queueNames.postPublish, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 export async function addPostPublishJob(

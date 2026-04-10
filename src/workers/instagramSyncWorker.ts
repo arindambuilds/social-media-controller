@@ -48,7 +48,11 @@ export function startInstagramSyncWorker(): Worker<InstagramSyncJob> | null {
     }
   }, {
     connection: redisConnection,
-    concurrency: 3
+    concurrency: 3,
+    stalledInterval: 60_000,
+    lockDuration: 60_000,
+    lockRenewTime: 30_000,
+    drainDelay: 10
   });
 
   worker.on("completed", (job) => {

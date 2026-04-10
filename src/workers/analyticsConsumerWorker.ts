@@ -16,7 +16,11 @@ export function startAnalyticsConsumerWorker(): Worker<AnalyticsEventJob> | null
     await executeAnalyticsEventJobSync(job.data);
   }, {
     connection: redisConnection,
-    concurrency: 5 // Higher concurrency for analytics events
+    concurrency: 5,
+    stalledInterval: 60_000,
+    lockDuration: 60_000,
+    lockRenewTime: 30_000,
+    drainDelay: 10
   });
 
   worker.on("completed", (job) => {

@@ -48,7 +48,10 @@ export function startWhatsAppBriefingWorker(): Worker<WhatsAppBriefingJob> | nul
       connection: redisConnection,
       concurrency: 1,
       maxStalledCount: 2,
-      stalledInterval: 30_000
+      stalledInterval: 60_000,
+      lockDuration: 60_000,
+      lockRenewTime: 30_000,
+      drainDelay: 10
     }
   );
 

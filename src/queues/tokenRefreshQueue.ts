@@ -114,7 +114,10 @@ export async function executeTokenRefreshJobSync(data: TokenRefreshJob): Promise
 
 export const tokenRefreshQueue: Queue<TokenRefreshJob> | null =
   redisConnection != null
-    ? new Queue<TokenRefreshJob>(queueNames.tokenRefresh, { connection: redisConnection })
+    ? new Queue<TokenRefreshJob>(queueNames.tokenRefresh, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 export async function addTokenRefreshJob(

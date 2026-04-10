@@ -31,7 +31,10 @@ export async function executeInstagramSyncJobSync(job: InstagramSyncJob): Promis
 
 export const instagramSyncQueue: Queue<InstagramSyncJob> | null =
   redisConnection != null
-    ? new Queue<InstagramSyncJob>(queueNames.instagramSync, { connection: redisConnection })
+    ? new Queue<InstagramSyncJob>(queueNames.instagramSync, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 export async function enqueueInstagramSync(

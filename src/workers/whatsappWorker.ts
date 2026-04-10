@@ -49,10 +49,11 @@ export function startWhatsAppSendWorker(): Worker<WhatsAppSendBriefJob> | null {
     {
       connection: redisConnection,
       concurrency: 10,
-      stalledInterval: 30_000,
+      stalledInterval: 60_000,
       maxStalledCount: 1,
-      lockDuration: 30_000,
-      lockRenewTime: 15_000,
+      lockDuration: 60_000,
+      lockRenewTime: 30_000,
+      drainDelay: 10,
       skipStalledCheck: false
     }
   );

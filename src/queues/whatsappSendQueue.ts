@@ -14,7 +14,9 @@ export const whatsappSendQueue: Queue<WhatsAppSendBriefJob> | null =
         connection: redisConnection,
         defaultJobOptions: {
           attempts: 3,
-          backoff: { type: "exponential", delay: 1000 }
+          backoff: { type: "exponential", delay: 1000 },
+          removeOnComplete: 50,
+          removeOnFail: 20
         }
       })
     : null;

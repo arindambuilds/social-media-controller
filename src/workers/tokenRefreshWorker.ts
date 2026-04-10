@@ -17,7 +17,11 @@ async function processTokenRefresh(job: Job<TokenRefreshJob>) {
 
 new Worker<TokenRefreshJob>(queueNames.tokenRefresh, processTokenRefresh, {
   connection: redis,
-  concurrency: 3
+  concurrency: 3,
+  stalledInterval: 60_000,
+  lockDuration: 60_000,
+  lockRenewTime: 30_000,
+  drainDelay: 10
 });
 
 logger.info("Token refresh worker started");

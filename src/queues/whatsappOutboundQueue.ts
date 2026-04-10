@@ -15,11 +15,10 @@ export type WhatsAppOutboundJobPayload = {
 };
 
 const defaultJobOptions: JobsOptions = {
-  /** One attempt + 3 retries. */
   attempts: 4,
   backoff: { type: "exponential", delay: 3000 },
-  removeOnComplete: { count: 200 },
-  removeOnFail: { count: 100 }
+  removeOnComplete: 50,
+  removeOnFail: 20
 };
 
 export const whatsappOutboundQueue: Queue<WhatsAppOutboundJobPayload> | null =

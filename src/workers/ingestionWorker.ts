@@ -17,7 +17,11 @@ async function processJob(job: Job<IngestionJob>) {
 
 new Worker<IngestionJob>(queueNames.ingestion, processJob, {
   connection: redis,
-  concurrency: 5
+  concurrency: 5,
+  stalledInterval: 60_000,
+  lockDuration: 60_000,
+  lockRenewTime: 30_000,
+  drainDelay: 10
 });
 
 logger.info("Ingestion worker started");

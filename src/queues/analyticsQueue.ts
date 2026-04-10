@@ -32,7 +32,10 @@ export async function executeAnalyticsEventJobSync(job: AnalyticsEventJob): Prom
 
 export const analyticsQueue: Queue<AnalyticsEventJob> | null =
   redisConnection != null
-    ? new Queue<AnalyticsEventJob>(queueNames.analytics, { connection: redisConnection })
+    ? new Queue<AnalyticsEventJob>(queueNames.analytics, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 export async function enqueueAnalyticsEvent(

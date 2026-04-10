@@ -16,8 +16,10 @@ const repeatOpts: JobsOptions = {
 /** `enableOfflineQueue` is set on the shared ioredis client (`src/lib/redis.ts`), not on `Queue` opts. */
 export const whatsappBriefingQueue: Queue<WhatsAppBriefingJob> | null =
   redisConnection != null
-    ? // If you change Redis connection behaviour, update `redis.ts`; offline queue is enabled there.
-      new Queue<WhatsAppBriefingJob>(queueNames.whatsappBriefing, { connection: redisConnection })
+    ? new Queue<WhatsAppBriefingJob>(queueNames.whatsappBriefing, {
+        connection: redisConnection,
+        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+      })
     : null;
 
 /**

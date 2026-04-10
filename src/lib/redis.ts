@@ -14,6 +14,13 @@ function effectiveRedisUrl(): string | undefined {
   return raw;
 }
 
+/** True when the error is an Upstash free-tier rate limit ("max requests exceeded"). */
+function isUpstashRateLimitError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.toLowerCase().includes("max requests exceeded") ||
+    msg.toLowerCase().includes("max daily request limit");
+}
+
 let redisClient: Redis | null = null;
 const url = effectiveRedisUrl();
 
@@ -26,10 +33,22 @@ if (url) {
       enableOfflineQueue: true,
       lazyConnect: true,
       connectTimeout: 5000,
-      keepAlive: 10_000
+      keepAlive: 10_000,
+      retryStrategy(times) {
+        // Cap at 30s — covers Upstash free-tier "max requests exceeded" windows
+        const delay = Math.min(times * 1000, 30_000);
+        return delay;
+      }
     });
     redisClient.on("error", (err) => {
-      logger.warn("Redis error", { message: err.message });
+      if (isUpstashRateLimitError(err)) {
+        logger.warn("Redis rate limit hit (Upstash free tier) — retrying in 30s", {
+          message: err.message,
+          hint: "Upgrade Upstash to Pay-as-you-go to remove this limit"
+        });
+      } else {
+        logger.warn("Redis error", { message: err.message });
+      }
     });
   } catch (err) {
     logger.warn("Redis init failed", { message: err instanceof Error ? err.message : String(err) });
@@ -55,6 +74,9 @@ export function createBullMqConnection(): Redis | null {
     enableOfflineQueue: true,
     lazyConnect: true,
     connectTimeout: 5000,
-    keepAlive: 10_000
+    keepAlive: 10_000,
+    retryStrategy(times) {
+      return Math.min(times * 1000, 30_000);
+    }
   });
 }

@@ -26,7 +26,7 @@ export function startMaintenanceWorker(): Worker<MaintenanceJob> | null {
       }
       logger.warn("[maintenanceWorker] unknown job", { name: job.name });
     },
-    { connection: redisConnection, concurrency: 1 }
+    { connection: redisConnection, concurrency: 1, stalledInterval: 60_000, lockDuration: 60_000, lockRenewTime: 30_000, drainDelay: 10 }
   );
 
   worker.on("failed", (job, err) => {

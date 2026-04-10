@@ -40,10 +40,11 @@ export function startWhatsAppOutboundWorker(): Worker<WhatsAppOutboundJobPayload
       connection: conn,
       /** Cap concurrent Graph sends — aligns with Meta throughput limits. */
       concurrency: 3,
-      stalledInterval: 30_000,
+      stalledInterval: 60_000,
       maxStalledCount: 1,
       lockDuration: 60_000,
-      lockRenewTime: 15_000
+      lockRenewTime: 30_000,
+      drainDelay: 10
     }
   );
 
