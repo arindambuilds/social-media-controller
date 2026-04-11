@@ -2,6 +2,7 @@ import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
 import type Redis from "ioredis";
 import { env } from "../config/env";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 import { redisConnection } from "../lib/redis";
@@ -26,11 +27,7 @@ function getWhatsAppIngressQueue(): Queue<WhatsAppIngressQueuePayload> | null {
   if (!whatsappIngressQueueInstance) {
     whatsappIngressQueueInstance = new Queue(queueNames.whatsappIngress, {
       connection: redisConnection,
-      defaultJobOptions: {
-        removeOnComplete: 100,
-        attempts: 3,
-        backoff: { type: "exponential", delay: 1000 }
-      }
+      defaultJobOptions: queueDefaultJobOptions
     });
   }
   return whatsappIngressQueueInstance;
@@ -69,7 +66,7 @@ export async function enqueueWhatsAppIngressPayload(payload: WhatsAppIngressQueu
   const q = getWhatsAppIngressQueue();
   const opts: JobsOptions = {
     jobId: jobIdFor(payload.message),
-    removeOnComplete: 100
+    removeOnComplete: 50
   };
   if (!q) {
     logger.warn("WhatsApp ingress: Redis unavailable — job not enqueued", {

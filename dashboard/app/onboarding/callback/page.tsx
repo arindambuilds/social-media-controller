@@ -14,8 +14,13 @@ function CallbackInner() {
   const pageClassName = usePageEnter();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [phase, setPhase] = useState<"working" | "success" | "error">("working");
-  const [message, setMessage] = useState("");
+  const code = searchParams?.get("code");
+  const state = searchParams?.get("state");
+  const missingOauthParams = !code || !state;
+  const [phase, setPhase] = useState<"working" | "success" | "error">(
+    missingOauthParams ? "error" : "working"
+  );
+  const [message, setMessage] = useState(missingOauthParams ? "Missing OAuth code or state." : "");
   const [postsSynced, setPostsSynced] = useState(0);
 
   useEffect(() => {
@@ -25,11 +30,7 @@ function CallbackInner() {
       return;
     }
 
-    const code = searchParams?.get("code");
-    const state = searchParams?.get("state");
-    if (!code || !state) {
-      setPhase("error");
-      setMessage("Missing OAuth code or state.");
+    if (missingOauthParams) {
       return;
     }
 
@@ -102,7 +103,7 @@ function CallbackInner() {
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
     };
-  }, [router, searchParams]);
+  }, [router, code, state, missingOauthParams]);
 
   if (phase === "working") {
     return (

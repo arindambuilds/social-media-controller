@@ -1,5 +1,6 @@
 import type { Job, Worker } from "bullmq";
 import { Worker as BullWorker } from "bullmq";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -15,12 +16,9 @@ export function startAnalyticsConsumerWorker(): Worker<AnalyticsEventJob> | null
   const worker = new BullWorker<AnalyticsEventJob>(queueNames.analytics, async (job: Job<AnalyticsEventJob>) => {
     await executeAnalyticsEventJobSync(job.data);
   }, {
+    ...workerPollingOptions,
     connection: redisConnection,
-    concurrency: 5,
-    stalledInterval: 60_000,
-    lockDuration: 60_000,
-    lockRenewTime: 30_000,
-    drainDelay: 10
+    concurrency: 5
   });
 
   worker.on("completed", (job) => {

@@ -471,6 +471,7 @@ export default function AnalyticsPage() {
                     <tr key={row.id}>
                       <td className="py-3 pr-4 align-top">
                         {row.mediaUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- Instagram CDN URLs are external/dynamic; next/image requires pre-configured remotePatterns for each CDN host
                           <img
                             src={row.mediaUrl}
                             alt=""

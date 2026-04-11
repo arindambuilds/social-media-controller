@@ -24,9 +24,16 @@ export function ConversationPulseWidget({
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
-    setFlash(true);
-    const t = window.setTimeout(() => setFlash(false), 600);
-    return () => window.clearTimeout(t);
+    const showTimer = window.setTimeout(() => {
+      setFlash(true);
+    }, 0);
+    const hideTimer = window.setTimeout(() => {
+      setFlash(false);
+    }, 600);
+    return () => {
+      window.clearTimeout(showTimer);
+      window.clearTimeout(hideTimer);
+    };
   }, [bumpKey]);
 
   return (

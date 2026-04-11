@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -17,12 +18,9 @@ async function handlePublish(job: Job<PostPublishJob>): Promise<void> {
 }
 
 new Worker<PostPublishJob>(queueNames.postPublish, handlePublish, {
+  ...workerPollingOptions,
   connection: redis,
-  concurrency: 2,
-  stalledInterval: 60_000,
-  lockDuration: 60_000,
-  lockRenewTime: 30_000,
-  drainDelay: 10
+  concurrency: 2
 });
 
 logger.info("Post publish worker started");

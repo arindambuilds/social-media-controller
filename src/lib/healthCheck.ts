@@ -2,6 +2,9 @@ import { env } from "../config/env";
 import { prisma } from "./prisma";
 import { redisConnection } from "./redis";
 import { logger } from "./logger";
+import { briefingQueue } from "../queues/briefingQueue";
+import { maintenanceQueue } from "../queues/maintenanceQueue";
+import { pdfQueue } from "../queues/pdfQueue";
 
 const HEALTH_PROBE_MAX_MS = 5000;
 
@@ -20,12 +23,9 @@ export async function withHealthProbeTimeout<T>(promise: Promise<T>): Promise<T>
       });
   });
 }
-import { briefingQueue } from "../queues/briefingQueue";
-import { maintenanceQueue } from "../queues/maintenanceQueue";
-import { pdfQueue } from "../queues/pdfQueue";
 
 export type HealthStatus = {
-  status: "ok" | "degraded";
+  status: "ok" | "degraded" | "error";
   server: "ok";
   database: "ok" | "error";
   redis: "ok" | "error";
@@ -34,13 +34,51 @@ export type HealthStatus = {
   instagramOAuthConfigured: boolean;
 };
 
+function resolveOverallStatus(
+  database: HealthStatus["database"],
+  redis: HealthStatus["redis"]
+): HealthStatus["status"] {
+  if (database === "ok" && redis === "ok") {
+    return "ok";
+  }
+  if (database === "error" && redis === "error") {
+    return "error";
+  }
+  return "degraded";
+}
+
+function isInstagramOAuthConfigured(): boolean {
+  const hasAppId = Boolean(env.INSTAGRAM_APP_ID || env.FACEBOOK_APP_ID);
+  const hasAppSecret = Boolean(env.INSTAGRAM_APP_SECRET || env.FACEBOOK_APP_SECRET);
+  return hasAppId && hasAppSecret;
+}
+
+export function buildHealthStatus(input: {
+  database: HealthStatus["database"];
+  redis: HealthStatus["redis"];
+  timestamp?: string;
+}): HealthStatus {
+  const timestamp = input.timestamp ?? new Date().toISOString();
+
+  return {
+    status: resolveOverallStatus(input.database, input.redis),
+    server: "ok",
+    database: input.database,
+    redis: input.redis,
+    timestamp,
+    ingestionMode: env.INGESTION_MODE,
+    instagramOAuthConfigured: isInstagramOAuthConfigured()
+  };
+}
+
 export async function getDetailedHealth(): Promise<HealthStatus> {
   const timestamp = new Date().toISOString();
-  let database: "ok" | "error" = "ok";
-  let redis: "ok" | "error" = "ok";
+  let database: HealthStatus["database"] = "error";
+  let redis: HealthStatus["redis"] = "error";
 
   try {
     await prisma.$queryRaw`SELECT 1`;
+    database = "ok";
   } catch {
     database = "error";
   }
@@ -48,23 +86,13 @@ export async function getDetailedHealth(): Promise<HealthStatus> {
   if (redisConnection) {
     try {
       const pong = await redisConnection.ping();
-      if (pong !== "PONG") redis = "error";
+      redis = pong === "PONG" ? "ok" : "error";
     } catch {
       redis = "error";
     }
   }
 
-  const status = database === "ok" && redis === "ok" ? "ok" : "degraded";
-
-  return {
-    status,
-    server: "ok",
-    database,
-    redis,
-    timestamp,
-    ingestionMode: env.INGESTION_MODE,
-    instagramOAuthConfigured: Boolean(env.INSTAGRAM_APP_ID || env.FACEBOOK_APP_ID)
-  };
+  return buildHealthStatus({ database, redis, timestamp });
 }
 
 async function pingUrlReachable(url: string, init?: RequestInit): Promise<boolean> {

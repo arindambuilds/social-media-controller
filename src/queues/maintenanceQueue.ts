@@ -1,4 +1,5 @@
 import { Queue } from "bullmq";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "./queueNames";
 
@@ -8,7 +9,7 @@ export const maintenanceQueue: Queue<MaintenanceJob> | null =
   redisConnection != null
     ? new Queue<MaintenanceJob>(queueNames.maintenance, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { env } from "../config/env";
-import { getPublicHealthSnapshot, withHealthProbeTimeout } from "../lib/healthCheck";
+import { buildHealthStatus, getDetailedHealth, getPublicHealthSnapshot, withHealthProbeTimeout } from "../lib/healthCheck";
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 
@@ -76,30 +76,20 @@ async function getLatestAppliedMigration(): Promise<LatestMigration> {
 
 healthRouter.get("/", async (req, res) => {
   try {
-    const payload: Record<string, unknown> = {
-      status: "ok",
-      timestamp: new Date().toISOString(),
-      environment: env.NODE_ENV === "production" ? "production" : env.NODE_ENV
-    };
     const wantDeps = req.query.deps === "1" || req.query.deps === "true";
-    if (!wantDeps) {
-      res.status(200).json(payload);
+    if (wantDeps) {
+      const snapshot = await withHealthProbeTimeout(getPublicHealthSnapshot());
+      res.status(200).json(snapshot);
       return;
     }
-    const snapshot = await withHealthProbeTimeout(getPublicHealthSnapshot());
-    payload.status = snapshot.status;
-    payload.timestamp = snapshot.timestamp;
-    payload.components = snapshot.components;
-    res.status(200).json(payload);
+
+    const health = await withHealthProbeTimeout(getDetailedHealth());
+    res.status(200).json(health);
   } catch (err) {
     logger.warn("/api/health failed", {
       message: err instanceof Error ? err.message : String(err)
     });
-    res.status(200).json({
-      status: "degraded",
-      timestamp: new Date().toISOString(),
-      message: "Health check dependency error."
-    });
+    res.status(200).json(buildHealthStatus({ database: "error", redis: "error" }));
   }
 });
 
@@ -134,4 +124,3 @@ healthRouter.get("/db", async (_req, res) => {
     });
   }
 });
-

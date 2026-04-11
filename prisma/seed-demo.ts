@@ -4,9 +4,7 @@
  */
 import "dotenv/config";
 import bcrypt from "bcrypt";
-import { PrismaClient } from "../src/generated/prisma";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma";
 
 if (process.env.SEED_DEMO !== "true" && process.env.NODE_ENV === "production") {
   process.exit(0);

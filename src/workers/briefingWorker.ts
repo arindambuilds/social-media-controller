@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -62,13 +63,9 @@ export function startBriefingWorker(): Worker<BriefingJob> | null {
       }
     },
     {
+      ...workerPollingOptions,
       connection: redisConnection,
-      concurrency: 3,
-      maxStalledCount: 2,
-      stalledInterval: 60_000,
-      lockDuration: 60_000,
-      lockRenewTime: 30_000,
-      drainDelay: 10
+      concurrency: 3
     }
   );
 

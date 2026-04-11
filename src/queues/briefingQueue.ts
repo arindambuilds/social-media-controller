@@ -1,5 +1,6 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "./queueNames";
 
@@ -7,24 +8,18 @@ import { queueNames } from "./queueNames";
 export type BriefingJob = { clientId?: string };
 
 const defaultJobOpts: JobsOptions = {
-  attempts: 3,
-  backoff: { type: "fixed", delay: 300_000, jitter: 0.2 },
-  removeOnComplete: { count: 500 },
-  removeOnFail: { count: 200 }
+  ...queueDefaultJobOptions
 };
 
 const dispatchRepeatOpts: JobsOptions = {
-  attempts: 3,
-  backoff: { type: "fixed", delay: 60_000, jitter: 0.2 },
-  removeOnComplete: { count: 50 },
-  removeOnFail: { count: 30 }
+  ...queueDefaultJobOptions
 };
 
 export const briefingQueue: Queue<BriefingJob> | null =
   redisConnection != null
     ? new Queue<BriefingJob>(queueNames.briefing, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 

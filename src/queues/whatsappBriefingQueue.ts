@@ -1,5 +1,6 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "./queueNames";
 
@@ -7,10 +8,7 @@ import { queueNames } from "./queueNames";
 export type WhatsAppBriefingJob = Record<string, never>;
 
 const repeatOpts: JobsOptions = {
-  attempts: 3,
-  backoff: { type: "fixed", delay: 60_000, jitter: 0.2 },
-  removeOnComplete: { count: 50 },
-  removeOnFail: { count: 30 }
+  ...queueDefaultJobOptions
 };
 
 /** `enableOfflineQueue` is set on the shared ioredis client (`src/lib/redis.ts`), not on `Queue` opts. */
@@ -18,7 +16,7 @@ export const whatsappBriefingQueue: Queue<WhatsAppBriefingJob> | null =
   redisConnection != null
     ? new Queue<WhatsAppBriefingJob>(queueNames.whatsappBriefing, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 

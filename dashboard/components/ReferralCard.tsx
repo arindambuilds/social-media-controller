@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { trackEvent } from "../lib/trackEvent";
 import { useI18n } from "../context/i18n-context";
 
 export function ReferralCard({ userId }: { userId: string }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
-  const [refLink, setRefLink] = useState("");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setRefLink(`${window.location.origin}/login?ref=${encodeURIComponent(userId)}`);
+  const refLink = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/login?ref=${encodeURIComponent(userId)}`;
   }, [userId]);
 
   const waMessage = refLink
@@ -63,4 +61,3 @@ export function ReferralCard({ userId }: { userId: string }) {
     </div>
   );
 }
-

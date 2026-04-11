@@ -36,21 +36,25 @@ export function VoicePostButton({ clientId, disabled, onScheduled }: Props) {
   }, [v.audioLevel]);
 
   useEffect(() => {
-    if (v.status === "idle") {
-      setEditCaption("");
-      setEditTags("");
-      setEditSchedule("");
-    }
-  }, [v.status]);
+    const syncTimer = window.setTimeout(() => {
+      const prev = prevStatusRef.current;
+      prevStatusRef.current = v.status;
 
-  useEffect(() => {
-    const prev = prevStatusRef.current;
-    prevStatusRef.current = v.status;
-    if (prev !== "preview" && v.status === "preview" && v.bundle) {
-      setEditCaption(v.bundle.caption);
-      setEditTags(v.bundle.hashtags.join(" "));
-      setEditSchedule(toDatetimeLocalValue(v.bundle.suggestedTime));
-    }
+      if (v.status === "idle") {
+        setEditCaption("");
+        setEditTags("");
+        setEditSchedule("");
+        return;
+      }
+
+      if (prev !== "preview" && v.status === "preview" && v.bundle) {
+        setEditCaption(v.bundle.caption);
+        setEditTags(v.bundle.hashtags.join(" "));
+        setEditSchedule(toDatetimeLocalValue(v.bundle.suggestedTime));
+      }
+    }, 0);
+
+    return () => window.clearTimeout(syncTimer);
   }, [v.status, v.bundle]);
 
   const handleSave = () => {

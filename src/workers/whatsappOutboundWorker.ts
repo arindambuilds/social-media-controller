@@ -1,6 +1,7 @@
 import type { Job } from "bullmq";
 import { UnrecoverableError, Worker } from "bullmq";
 import type Redis from "ioredis";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { createBullMqConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -37,14 +38,10 @@ export function startWhatsAppOutboundWorker(): Worker<WhatsAppOutboundJobPayload
     queueNames.whatsappOutbound,
     async (job: Job<WhatsAppOutboundJobPayload>) => processOutboundJob(job.data),
     {
+      ...workerPollingOptions,
       connection: conn,
       /** Cap concurrent Graph sends — aligns with Meta throughput limits. */
-      concurrency: 3,
-      stalledInterval: 60_000,
-      maxStalledCount: 1,
-      lockDuration: 60_000,
-      lockRenewTime: 30_000,
-      drainDelay: 10
+      concurrency: 3
     }
   );
 

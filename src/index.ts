@@ -1,5 +1,9 @@
-/**
- * Docker / production entry — re-exports the HTTP server bootstrap from `server.ts`.
- * Build output: `dist/index.js` (see package.json `main` / `start`).
- */
-import "./server";
+import { validateEnv } from "./lib/validateEnv";
+
+validateEnv();
+
+void import("./serverRuntime").catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`Server bootstrap failed: ${message}`);
+  process.exit(1);
+});

@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -26,7 +27,11 @@ export function startMaintenanceWorker(): Worker<MaintenanceJob> | null {
       }
       logger.warn("[maintenanceWorker] unknown job", { name: job.name });
     },
-    { connection: redisConnection, concurrency: 1, stalledInterval: 60_000, lockDuration: 60_000, lockRenewTime: 30_000, drainDelay: 10 }
+    {
+      ...workerPollingOptions,
+      connection: redisConnection,
+      concurrency: 1
+    }
   );
 
   worker.on("failed", (job, err) => {

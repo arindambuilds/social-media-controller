@@ -14,10 +14,33 @@ export async function seedDemoDataForUser(userId: string) {
     where: { id: userId },
     include: { client: true },
   });
-  if (!user || !user.client) {
-    throw new Error("User or associated client not found");
+  if (!user) {
+    throw new Error("User not found");
   }
-  const clientId = user.client.id;
+
+  let clientId: string;
+  if (user.client) {
+    clientId = user.client.id;
+  } else {
+    // Recovery path: user exists but has no linked client (e.g. fresh deploy).
+    // Upsert the demo-client record and link it to the user before seeding.
+    logger.warn("User has no linked client — upserting demo-client and linking", { userId });
+    const client = await prisma.client.upsert({
+      where: { id: "demo-client" },
+      update: { ownerId: userId },
+      create: {
+        id: "demo-client",
+        name: "Aroma Silk House",
+        ownerId: userId,
+      },
+    });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { clientId: client.id },
+    });
+    clientId = client.id;
+    logger.info("demo-client upserted and linked to user", { userId, clientId });
+  }
 
   logger.info("Starting transaction to seed demo data", { userId });
   await prisma.$transaction(async (tx) => {

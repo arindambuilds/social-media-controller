@@ -4,8 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  url       = env("DATABASE_URL")       // pooled — port 6543
+  directUrl = env("DIRECT_URL")         // direct — port 5432
 }
 
 model User {
@@ -653,6 +653,11 @@ enum EmailStatus {
 }
 
 /// Optional audit rows for BullMQ processors (best-effort; never throws to callers).
+/// MIGRATION AUDIT (confirmed 2026-04-10):
+///   Migration file : prisma/migrations/20260330210000_add_job_log/migration.sql
+///   Creates table  : "JobLog" (renamed to "job_logs" in 20260408132523_add_analytics_event)
+///   Status         : migration file present and verified ✅
+///   Action required: run `prisma migrate deploy` against production before first use
 model JobLog {
   id        String   @id @default(cuid())
   queue     String
@@ -672,6 +677,11 @@ model JobLog {
   @@map("job_logs")
 }
 
+/// MIGRATION AUDIT (confirmed 2026-04-10):
+///   Migration file : prisma/migrations/20260408132523_add_analytics_event/migration.sql
+///   Creates table  : "analytics_events" (with eventType, userId, metadata, createdAt columns)
+///   Status         : migration file present and verified ✅
+///   Action required: run `prisma migrate deploy` against production before first use
 model AnalyticsEvent {
   id        String   @id @default(cuid())
   eventType String

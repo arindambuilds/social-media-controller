@@ -123,7 +123,7 @@ export default function OnboardingPage() {
         setLoading(false);
       }
     })();
-  }, [router]);
+  }, [router]); // eslint-disable-line react-hooks/exhaustive-deps -- businessName is used only as a fallback default; adding it would re-trigger the fetch on every keystroke and overwrite user input
 
   const hasSnapshot = useMemo(
     () => avgDailyReach != null && bestRecentReach != null && missedReach != null && missedRevenueLow != null && missedRevenueHigh != null,

@@ -1,6 +1,7 @@
 import type { JobsOptions } from "bullmq";
 import type Redis from "ioredis";
 import { Queue, QueueEvents } from "bullmq";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { pdfExportCircuit } from "../lib/circuitBreaker";
 import { computeFairPdfQueuePriority, pdfJobTierForRole } from "../lib/pdfFairPriority";
 import { recordPdfEnqueueByTier } from "../lib/pdfQueueObservability";
@@ -22,10 +23,7 @@ export type PdfGenerateJob = {
 type PdfJobResult = { pdfBase64: string; hasQuickChart?: boolean };
 
 const defaultJobOpts: JobsOptions = {
-  attempts: 3,
-  backoff: { type: "exponential", delay: 2000, jitter: 0.25 },
-  removeOnComplete: { count: 200 },
-  removeOnFail: { count: 80 }
+  ...queueDefaultJobOptions
 };
 
 /** Hard cap on worker processing time (BullMQ fails job if exceeded). */
@@ -53,7 +51,10 @@ const pdfQueueConnection = createBullMqConnection();
 
 export const pdfQueue: Queue<PdfGenerateJob> | null =
   pdfQueueConnection != null
-    ? new Queue<PdfGenerateJob>(queueNames.pdfGenerate, { connection: pdfQueueConnection })
+    ? new Queue<PdfGenerateJob>(queueNames.pdfGenerate, {
+        connection: pdfQueueConnection,
+        defaultJobOptions: queueDefaultJobOptions
+      })
     : null;
 
 let pdfQueueEvents: QueueEvents | null = null;

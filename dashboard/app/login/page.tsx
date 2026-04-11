@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -54,8 +54,8 @@ export default function LoginPage() {
       setSuccess(true);
       toast.success("Done! ✓", "Your dashboard is ready.");
       window.setTimeout(() => router.push("/dashboard"), 550);
-    } catch {
-      const message = "Invalid email or password";
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Invalid email or password";
       setError(message);
       toast.error("Something went sideways — let’s try again", message);
     } finally {
@@ -128,4 +128,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

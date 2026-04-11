@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -47,13 +48,9 @@ export function startWhatsAppSendWorker(): Worker<WhatsAppSendBriefJob> | null {
       }
     },
     {
+      ...workerPollingOptions,
       connection: redisConnection,
       concurrency: 10,
-      stalledInterval: 60_000,
-      maxStalledCount: 1,
-      lockDuration: 60_000,
-      lockRenewTime: 30_000,
-      drainDelay: 10,
       skipStalledCheck: false
     }
   );

@@ -1,39 +1,37 @@
-# Render Blueprint — API + WhatsApp BullMQ workers.
-# DATABASE_URL / DIRECT_URL: set in the Render dashboard (sync: false). Do not use fromDatabase here
-# unless this service uses Render Postgres — external DBs (e.g. Supabase, Neon, other hosts) must be
-# dashboard-managed only, or Blueprint sync will fail when resolving fromDatabase.
-# Service name must match the Render dashboard exactly to avoid Blueprint sync creating a duplicate service.
-# Web: Prisma generate at build; migrate on start.
+# render.yaml — PulseOS service definitions
+#
+# Environment variable split:
+#
+#   SHARED (all 3 services):
+#     DATABASE_URL, DIRECT_URL, REDIS_URL, NODE_ENV,
+#     WA_APP_SECRET, WA_ACCESS_TOKEN, WEBHOOK_VERIFY_TOKEN, WA_PHONE_NUMBER_ID
+#
+#   WEB-ONLY (social-media-controller only):
+#     APP_BASE_URL, DASHBOARD_URL, CORS_ORIGIN,
+#     AUTH_HTTPONLY_COOKIES, JWT_SECRET, JWT_REFRESH_SECRET
+#
+# Workers (pulse-whatsapp-ingress-worker, pulse-whatsapp-outbound-worker)
+# handle queue processing only — they do not serve HTTP, issue JWTs, or
+# enforce CORS, so the web-only vars are intentionally omitted.
+
 services:
   - type: web
     name: social-media-controller
     runtime: node
-    region: oregon
     plan: free
-    buildCommand: npm ci && npx prisma generate && npm run build
+    buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && node dist/index.js
     healthCheckPath: /api/health
     envVars:
+      # --- shared vars ---
+      - key: DATABASE_URL
+        value: PLACEHOLDER_POOLED_URL
+      - key: DIRECT_URL
+        value: PLACEHOLDER_DIRECT_URL
+      - key: REDIS_URL
+        value: PLACEHOLDER_REDIS_URL
       - key: NODE_ENV
         value: production
-      - key: APP_BASE_URL
-        sync: false
-      - key: DASHBOARD_URL
-        sync: false
-      - key: CORS_ORIGIN
-        sync: false
-      - key: AUTH_HTTPONLY_COOKIES
-        value: "true"
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: JWT_REFRESH_SECRET
-        sync: false
-      - key: REDIS_URL
-        sync: false
       - key: WA_APP_SECRET
         sync: false
       - key: WA_ACCESS_TOKEN
@@ -42,15 +40,7 @@ services:
         sync: false
       - key: WA_PHONE_NUMBER_ID
         sync: false
-
-  - type: worker
-    name: pulse-whatsapp-ingress-worker
-    runtime: node
-    buildCommand: npm ci && npm run build
-    startCommand: node dist/workers/whatsappIngressWorkerEntry.js
-    envVars:
-      - key: NODE_ENV
-        value: production
+      # --- web-only vars ---
       - key: APP_BASE_URL
         sync: false
       - key: DASHBOARD_URL
@@ -59,16 +49,26 @@ services:
         sync: false
       - key: AUTH_HTTPONLY_COOKIES
         value: "true"
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
         sync: false
+
+  - type: worker
+    name: pulse-whatsapp-ingress-worker
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: node dist/workers/whatsappIngressWorkerEntry.js
+    envVars:
+      # --- shared vars only (no HTTP/auth/CORS needed) ---
+      - key: DATABASE_URL
+        value: PLACEHOLDER_POOLED_URL
+      - key: DIRECT_URL
+        value: PLACEHOLDER_DIRECT_URL
       - key: REDIS_URL
-        sync: false
+        value: PLACEHOLDER_REDIS_URL
+      - key: NODE_ENV
+        value: production
       - key: WA_APP_SECRET
         sync: false
       - key: WA_ACCESS_TOKEN
@@ -81,29 +81,18 @@ services:
   - type: worker
     name: pulse-whatsapp-outbound-worker
     runtime: node
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     startCommand: node dist/workers/whatsappOutboundWorkerEntry.js
     envVars:
+      # --- shared vars only (no HTTP/auth/CORS needed) ---
+      - key: DATABASE_URL
+        value: PLACEHOLDER_POOLED_URL
+      - key: DIRECT_URL
+        value: PLACEHOLDER_DIRECT_URL
+      - key: REDIS_URL
+        value: PLACEHOLDER_REDIS_URL
       - key: NODE_ENV
         value: production
-      - key: APP_BASE_URL
-        sync: false
-      - key: DASHBOARD_URL
-        sync: false
-      - key: CORS_ORIGIN
-        sync: false
-      - key: AUTH_HTTPONLY_COOKIES
-        value: "true"
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: JWT_REFRESH_SECRET
-        sync: false
-      - key: REDIS_URL
-        sync: false
       - key: WA_APP_SECRET
         sync: false
       - key: WA_ACCESS_TOKEN

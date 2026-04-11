@@ -1,6 +1,7 @@
 import { Job, Worker } from "bullmq";
 import type { EmailProvider } from "./providers/types";
 import { emailConfig } from "../../config/env";
+import { workerPollingOptions } from "../../lib/bullmqDefaults";
 import { logger } from "../../lib/logger";
 import { createBullMqConnection } from "../../lib/redis";
 import { renderTemplate } from "./templates/renderer";
@@ -117,6 +118,7 @@ export function startEmailWorker(): Worker<EmailJob> {
   }
 
   const worker = new Worker<EmailJob>(EMAIL_QUEUE_NAME, processEmailJob, {
+    ...workerPollingOptions,
     connection: conn,
     concurrency: emailConfig.concurrency
   });

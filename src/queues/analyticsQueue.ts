@@ -1,6 +1,7 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
 import { prisma } from "../lib/prisma";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { logger } from "../lib/logger";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "./queueNames";
@@ -34,7 +35,7 @@ export const analyticsQueue: Queue<AnalyticsEventJob> | null =
   redisConnection != null
     ? new Queue<AnalyticsEventJob>(queueNames.analytics, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 
@@ -58,10 +59,8 @@ export async function enqueueAnalyticsEvent(
   }
 
   const defaultOpts: JobsOptions = {
-    jobId: `analytics:${eventType}:${userId || 'anonymous'}:${Date.now()}`,
-    removeOnComplete: 100,
-    attempts: 3,
-    backoff: { type: "exponential", delay: 2000 }
+    ...queueDefaultJobOptions,
+    jobId: `analytics:${eventType}:${userId || "anonymous"}:${Date.now()}`
   };
 
   await analyticsQueue.add("analytics-event", jobData, { ...defaultOpts, ...opts });

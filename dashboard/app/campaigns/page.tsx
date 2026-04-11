@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { GitBranch, Plus, Save, Trash2 } from "lucide-react";
 import { DashboardPageSkeleton } from "../../components/page-skeleton";
 import {
@@ -12,7 +12,6 @@ import {
   CelebrationBurst,
   usePulseToast,
 } from "../../components/pulse";
-import { useAuth } from "../../context/auth-context";
 import { usePageEnter } from "../../hooks/usePageEnter";
 import { useProtectedRoute } from "../../hooks/useProtectedRoute";
 import { getCampaigns, createCampaign, deleteCampaign, type Campaign } from "../../lib/workspace";
@@ -43,7 +42,6 @@ function formatDate(iso: string | null) {
 
 export default function CampaignsPage() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, isReady, isAuthenticated } = useProtectedRoute();
   const pageClassName = usePageEnter();
   const { toast } = usePulseToast();
@@ -67,7 +65,7 @@ export default function CampaignsPage() {
       .then(setCampaigns)
       .catch(() => toast({ message: "Couldn't load campaigns", tone: "info" }))
       .finally(() => setLoading(false));
-  }, [isReady, isAuthenticated, user?.clientId]);
+  }, [isReady, isAuthenticated, user?.clientId, toast]);
 
   if (!isReady || !isAuthenticated) {
     return (

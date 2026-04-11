@@ -1,5 +1,6 @@
 import type { Job, Worker } from "bullmq";
 import { Worker as BullWorker } from "bullmq";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -47,12 +48,9 @@ export function startInstagramSyncWorker(): Worker<InstagramSyncJob> | null {
       throw error;
     }
   }, {
+    ...workerPollingOptions,
     connection: redisConnection,
-    concurrency: 3,
-    stalledInterval: 60_000,
-    lockDuration: 60_000,
-    lockRenewTime: 30_000,
-    drainDelay: 10
+    concurrency: 3
   });
 
   worker.on("completed", (job) => {

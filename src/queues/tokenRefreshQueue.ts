@@ -1,6 +1,7 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
 import { prisma } from "../lib/prisma";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { logger } from "../lib/logger";
 import { decrypt, encrypt } from "../lib/encryption";
 import { redisConnection } from "../lib/redis";
@@ -116,7 +117,7 @@ export const tokenRefreshQueue: Queue<TokenRefreshJob> | null =
   redisConnection != null
     ? new Queue<TokenRefreshJob>(queueNames.tokenRefresh, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 

@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { createBullMqConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -110,13 +111,9 @@ export function startPdfWorker(): Worker<PdfGenerateJob> | null {
       }
     },
     {
+      ...workerPollingOptions,
       connection: workerConnection,
-      concurrency: PDF_WORKER_CONCURRENCY,
-      maxStalledCount: 2,
-      stalledInterval: 60_000,
-      lockDuration: 60_000,
-      lockRenewTime: 30_000,
-      drainDelay: 10
+      concurrency: PDF_WORKER_CONCURRENCY
     }
   );
 

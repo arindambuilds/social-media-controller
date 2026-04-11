@@ -94,7 +94,11 @@ export default function DashboardPage() {
 
   const fetchDashboardStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/dashboard/stats");
+      const currentToken = token;
+      const headers: HeadersInit = currentToken
+        ? { Authorization: `Bearer ${currentToken}` }
+        : {};
+      const res = await fetch("/api/dashboard/stats", { headers });
       if (res.ok) {
         const stats: DashboardStats = await res.json();
         setDashboardStats(stats);
@@ -104,7 +108,7 @@ export default function DashboardPage() {
     } catch (error) {
       setLoadError("Failed to load stats");
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (!isReady || !isAuthenticated) return;

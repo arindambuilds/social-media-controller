@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 const COLORS = ["#FBBF24", "#F59E0B", "#2DD4BF", "#6C63FF", "#FB7185"];
 
@@ -13,19 +13,15 @@ type CelebrationBurstProps = {
  * Short, tasteful confetti burst (CSS-only). Disabled when reduced motion is on.
  */
 export function CelebrationBurst({ show, onDone }: CelebrationBurstProps) {
-  const [active, setActive] = useState(false);
-
   useEffect(() => {
     if (!show) return;
-    setActive(true);
     const t = window.setTimeout(() => {
-      setActive(false);
       onDone?.();
     }, 900);
     return () => window.clearTimeout(t);
   }, [show, onDone]);
 
-  if (!active) return null;
+  if (!show) return null;
 
   return (
     <div className="pulse-celebration" aria-hidden>

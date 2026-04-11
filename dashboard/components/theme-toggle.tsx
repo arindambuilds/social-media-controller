@@ -1,16 +1,13 @@
 ﻿"use client";
 
 import { MoonStar, SunMedium } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function ThemeToggle() {
-  const [mode, setMode] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const nextMode = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-    setMode(nextMode);
-  }, []);
+  const [mode, setMode] = useState<"light" | "dark">(() => {
+    if (typeof document === "undefined") return "light";
+    return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  });
 
   function handleToggle() {
     const nextMode = mode === "dark" ? "light" : "dark";

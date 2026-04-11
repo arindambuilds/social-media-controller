@@ -99,6 +99,8 @@ const envSchema = z
     WA_PHONE_NUMBER_ID: z.string().optional().default(""),
     /** Meta system user / permanent token for Graph sends. */
     WA_ACCESS_TOKEN: z.string().optional().default(""),
+    /** Compatibility alias for Meta WhatsApp Cloud token. */
+    WHATSAPP_ACCESS_TOKEN: z.string().optional().default(""),
     /** Legacy alias for {@link WA_ACCESS_TOKEN} (Render/docs). */
     WA_TOKEN: z.string().optional().default(""),
     /** Graph version segment, e.g. `v19.0` (no leading slash). */
@@ -266,7 +268,12 @@ export const env = {
   APP_BASE_URL: resolveAppBaseUrl(),
   METRICS_SECRET: parsed.METRICS_SECRET?.trim() || undefined,
   /** Resolved Meta Graph token: `WA_ACCESS_TOKEN` wins, then `WA_TOKEN`. */
-  WA_GRAPH_ACCESS_TOKEN: (parsed.WA_ACCESS_TOKEN?.trim() || parsed.WA_TOKEN?.trim() || "").trim()
+  WA_GRAPH_ACCESS_TOKEN: (
+    parsed.WA_ACCESS_TOKEN?.trim() ||
+    parsed.WHATSAPP_ACCESS_TOKEN?.trim() ||
+    parsed.WA_TOKEN?.trim() ||
+    ""
+  ).trim()
 };
 
 export const emailConfig = {

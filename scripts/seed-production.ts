@@ -20,7 +20,7 @@
  */
 
 import bcrypt from "bcrypt";
-import { PrismaClient } from "../src/generated/prisma";
+import { prisma } from "../src/lib/prisma";
 
 const BCRYPT_ROUNDS = 10;
 const DEMO_CLIENT_ID = "demo-client";
@@ -44,8 +44,6 @@ async function main() {
       `SEED_DEMO_EMAIL and SEED_DEMO_PASSWORD must be set before running ${scope}.`
     );
   }
-
-  const prisma = new PrismaClient();
 
   try {
     const passwordHash = await bcrypt.hash(demoPassword, BCRYPT_ROUNDS);

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { trackEvent } from "../lib/trackEvent";
 import { persistAttributionFromUrl } from "../utils/analytics";
 import { getExperimentVariantFromChoices, getStoredExperimentVariant } from "../lib/experiment";
@@ -42,15 +41,21 @@ export function UpgradeModal({
   onUpgrade,
   continueLabel
 }: UpgradeModalProps) {
-  if (!open) return null;
-
   const normalizedFeature = feature ?? featureName ?? "pdf_export";
   const readableFeature = normalizedFeature
     .replace(/_/g, " ")
     .replace(/\b\w/g, (x: string) => x.toUpperCase());
   const [topFeature, setTopFeature] = useState<string | null>(null);
   const [topSource, setTopSource] = useState<string | null>(null);
-  const [ctaVariant, setCtaVariant] = useState<"unlock_report" | "grow_faster" | "premium_insights">("unlock_report");
+  const ctaVariant = useMemo(
+    () =>
+      getExperimentVariantFromChoices("cta_text_variant", [
+        "unlock_report",
+        "grow_faster",
+        "premium_insights"
+      ]) as "unlock_report" | "grow_faster" | "premium_insights",
+    []
+  );
 
   const clampedUsage = Math.max(0, Math.min(usagePct, 100));
   const urgencyLine = useMemo(
@@ -71,21 +76,15 @@ export function UpgradeModal({
     if (!open) return;
     const experimentName = "cta_text_variant";
     const assignedBefore = getStoredExperimentVariant(experimentName);
-    const variant = getExperimentVariantFromChoices(experimentName, [
-      "unlock_report",
-      "grow_faster",
-      "premium_insights"
-    ]) as "unlock_report" | "grow_faster" | "premium_insights";
-    setCtaVariant(variant);
     if (!assignedBefore) {
       trackEvent("experiment_assigned", {
         experiment: experimentName,
-        variant,
+        variant: ctaVariant,
         source: `${normalizedFeature.replace(/_/g, "-")}-paywall`,
         feature: normalizedFeature
       });
     }
-  }, [open, normalizedFeature]);
+  }, [open, normalizedFeature, ctaVariant]);
 
   useEffect(() => {
     if (!open) return;
@@ -141,6 +140,8 @@ export function UpgradeModal({
         ? "Creators use this to ship winning content daily"
         : "Trusted by teams focused on measurable growth";
   const urgencyBanner = clampedUsage >= 100 ? "You've reached your free limit" : "Free exports remaining: 1";
+
+  if (!open) return null;
 
   function handleUpgradeClick() {
     trackEvent("upgrade_click", { usagePct: clampedUsage, feature: normalizedFeature });
@@ -268,4 +269,3 @@ export function UpgradeModal({
     </div>
   );
 }
-

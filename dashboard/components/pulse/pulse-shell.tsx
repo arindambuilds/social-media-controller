@@ -44,7 +44,10 @@ export function PulseStudioShell({ children, title, topBar }: PulseShellProps) {
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
-    close();
+    const timer = window.setTimeout(() => {
+      close();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [pathname, close]);
 
   useEffect(() => {

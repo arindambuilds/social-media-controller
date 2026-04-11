@@ -28,7 +28,7 @@ export function DemoBanner({ onDismiss, className }: DemoBannerProps) {
       <div className="flex-1">
         <h3 className="text-amber-800 font-medium mb-1">Demo Mode Active</h3>
         <p className="text-amber-700 text-sm mb-3">
-          You're currently viewing demo data. Connect your WhatsApp number in settings to start receiving real messages and see your actual performance metrics.
+          You&apos;re currently viewing demo data. Connect your WhatsApp number in settings to start receiving real messages and see your actual performance metrics.
         </p>
         <Button
           variant="outline"

@@ -1,6 +1,7 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
 import { prisma } from "../lib/prisma";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { logger } from "../lib/logger";
 import { env } from "../config/env";
 import { redisConnection } from "../lib/redis";
@@ -33,7 +34,7 @@ export const instagramSyncQueue: Queue<InstagramSyncJob> | null =
   redisConnection != null
     ? new Queue<InstagramSyncJob>(queueNames.instagramSync, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 
@@ -50,10 +51,8 @@ export async function enqueueInstagramSync(
   }
 
   const defaultOpts: JobsOptions = {
-    jobId: `instagram-sync:${socialAccountId}:${trigger}:${Date.now()}`,
-    removeOnComplete: 100,
-    attempts: 3,
-    backoff: { type: "exponential", delay: 2000 }
+    ...queueDefaultJobOptions,
+    jobId: `instagram-sync:${socialAccountId}:${trigger}:${Date.now()}`
   };
 
   await instagramSyncQueue.add("instagram-sync", jobData, { ...defaultOpts, ...opts });

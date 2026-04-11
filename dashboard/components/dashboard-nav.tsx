@@ -130,8 +130,11 @@ export function DashboardNav() {
   const closeUserMenu = useCallback(() => setUserMenuOpen(false), []);
 
   useEffect(() => {
-    setMenuOpen(false);
-    setUserMenuOpen(false);
+    const frame = window.requestAnimationFrame(() => {
+      setMenuOpen(false);
+      setUserMenuOpen(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
 
   useEffect(() => {

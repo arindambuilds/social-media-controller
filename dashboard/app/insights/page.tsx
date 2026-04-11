@@ -127,7 +127,7 @@ export default function InsightsPage() {
       setCooldownRemainingSeconds((s) => Math.max(0, s - 1));
     }, 1000);
     return () => clearInterval(t);
-  }, [cooldownRemainingSeconds > 0]);
+  }, [cooldownRemainingSeconds]);
 
   async function generateInsightFlow() {
     if (!clientId) return;

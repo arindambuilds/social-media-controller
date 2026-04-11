@@ -1,6 +1,7 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
 import { prisma } from "../lib/prisma";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { logger } from "../lib/logger";
 import { env } from "../config/env";
 import { redisConnection } from "../lib/redis";
@@ -67,7 +68,7 @@ export const ingestionQueue: Queue<IngestionJob> | null =
   redisConnection != null
     ? new Queue<IngestionJob>(queueNames.ingestion, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 

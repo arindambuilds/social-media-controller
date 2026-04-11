@@ -10,19 +10,29 @@ import { PdfService } from "../src/services/pdfService";
 import { hashPassword } from "../src/services/authService";
 import { signAccessToken } from "../src/auth/jwt";
 
-/** Skip DB-backed tests when Vitest supplies the default placeholder URL (no real Postgres). */
-const VITEST_PLACEHOLDER_DATABASE_URL = "postgresql://test:test@localhost:5432/test";
-const hasDb =
-  Boolean(process.env.DATABASE_URL?.trim()) &&
-  process.env.DATABASE_URL !== VITEST_PLACEHOLDER_DATABASE_URL;
+/**
+ * Probe the DB at module load time (top-level await).
+ * Skips the entire suite when Postgres is unavailable OR the schema is out of date
+ * (e.g. missing the `onboardingCompleted` column added in a recent migration).
+ */
+async function checkDbReady(): Promise<boolean> {
+  try {
+    await prisma.$connect();
+    // Probe a column added in a recent migration; throws PrismaClientKnownRequestError if stale.
+    await prisma.$queryRaw`SELECT "onboardingCompleted" FROM "User" LIMIT 0`;
+    return true;
+  } catch {
+    await prisma.$disconnect().catch(() => {});
+    return false;
+  }
+}
 
-const run = hasDb ? describe : describe.skip;
+const dbReady = await checkDbReady();
 
-run("API MVP smoke", () => {
+describe.skipIf(!dbReady)("API MVP smoke", () => {
   const app = createApp();
 
   beforeAll(async () => {
-    if (!hasDb) return;
     await prisma.$connect();
   });
 

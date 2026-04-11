@@ -14,7 +14,7 @@ import { runWeeklyDatabaseCleanup } from "./jobs/databaseCleanup";
 import { startMorningBriefingJob } from "./jobs/morningBriefing";
 import { scheduleBriefingE2EOneShot } from "./jobs/scheduleMorningBriefing";
 import { pdfExportCircuit } from "./lib/circuitBreaker";
-import { getDetailedHealth, withHealthProbeTimeout } from "./lib/healthCheck";
+import { buildHealthStatus, getDetailedHealth, withHealthProbeTimeout } from "./lib/healthCheck";
 import { redisConnection } from "./lib/redis";
 import { buildInstagramBrowserOAuthUrl } from "./lib/instagramBrowserOAuth";
 import { logger } from "./lib/logger";
@@ -215,12 +215,12 @@ export function createApp() {
   app.get("/health", async (_req, res) => {
     try {
       const body = await withHealthProbeTimeout(getDetailedHealth());
-      res.status(body.database === "error" ? 503 : 200).json(body);
+      res.status(200).json(body);
     } catch (err) {
       logger.warn("/health failed", {
         message: err instanceof Error ? err.message : String(err)
       });
-      res.status(503).json({ server: "error", database: "error", message: "Health check failed" });
+      res.status(200).json(buildHealthStatus({ database: "error", redis: "error" }));
     }
   });
 

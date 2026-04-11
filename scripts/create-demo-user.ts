@@ -8,7 +8,7 @@
  */
 import "dotenv/config";
 import bcrypt from "bcrypt";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../src/lib/prisma";
 
 const BCRYPT_ROUNDS = 10;
 const DEMO_EMAIL = "demo@demo.com";
@@ -16,8 +16,6 @@ const DEMO_PASSWORD = "Demo1234!";
 const DEMO_CLIENT_ID = "demo-client";
 
 async function main() {
-  const prisma = new PrismaClient();
-
   try {
     console.log("Connecting to database...");
     await prisma.$connect();
@@ -33,12 +31,14 @@ async function main() {
         passwordHash,
         name: "Demo User",
         role: "AGENCY_ADMIN",
+        onboardingCompleted: true,
       },
       create: {
         email: DEMO_EMAIL,
         name: "Demo User",
         passwordHash,
         role: "AGENCY_ADMIN",
+        onboardingCompleted: true,
       },
     });
     console.log(`User upserted: id=${user.id} email=${user.email}`);

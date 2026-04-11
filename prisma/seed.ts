@@ -15,10 +15,9 @@
  */
 import "dotenv/config";
 import bcrypt from "bcrypt";
-import { PrismaClient } from "../src/generated/prisma";
 import { encrypt } from "../src/lib/encryption";
+import { prisma } from "../src/lib/prisma";
 
-const prisma = new PrismaClient();
 const SEED_BCRYPT_ROUNDS = 10;
 
 /** Arома Silk House — saree & ethnic wear, Bhubaneswar. Bilingual Hindi–English, ~4.2% ER in analytics. */

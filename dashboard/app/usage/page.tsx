@@ -115,7 +115,7 @@ export default function UsagePage() {
         <div className="flex items-center gap-3 rounded-2xl border border-red-400/20 bg-red-400/8 px-4 py-3">
           <span className="shrink-0 text-lg">⚠️</span>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-red-300">You're approaching your plan limits</p>
+            <p className="text-sm font-semibold text-red-300">You&apos;re approaching your plan limits</p>
             <p className="mt-0.5 text-xs text-red-300/60">Upgrade to avoid interruptions before your period resets.</p>
           </div>
           <button

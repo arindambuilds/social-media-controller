@@ -45,6 +45,7 @@ function PostCard({ post }: { post: Post }) {
       className="group relative block aspect-square overflow-hidden rounded-xl border border-white/10 transition-all hover:border-cyan-400/50"
     >
       {post.mediaUrl && !imgErr ? (
+        // eslint-disable-next-line @next/next/no-img-element -- dynamic external Instagram CDN URL; next/image requires a configured domain allowlist
         <img
           src={post.mediaUrl}
           alt={caption.slice(0, 40) || "Post"}

@@ -1,6 +1,7 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
 import { prisma } from "../lib/prisma";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { logger } from "../lib/logger";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "./queueNames";
@@ -78,7 +79,7 @@ export const postPublishQueue: Queue<PostPublishJob> | null =
   redisConnection != null
     ? new Queue<PostPublishJob>(queueNames.postPublish, {
         connection: redisConnection,
-        defaultJobOptions: { removeOnComplete: 50, removeOnFail: 20 }
+        defaultJobOptions: queueDefaultJobOptions
       })
     : null;
 

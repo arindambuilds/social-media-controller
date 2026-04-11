@@ -36,10 +36,12 @@ export function OnboardingWizard({ user, onComplete }: Props) {
   const [loading, setLoading] = useState(false);
   const [demoConversations, setDemoConversations] = useState<Conversation[]>([]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchDemoConversations is defined in the same render scope; adding it would cause an infinite loop
   useEffect(() => {
     if (currentStep === 2) {
       fetchDemoConversations();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
   const fetchDemoConversations = async () => {
@@ -174,7 +176,7 @@ export function OnboardingWizard({ user, onComplete }: Props) {
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-display font-bold text-ink mb-2">
-                  This is what PulseOS looks like when it's working
+                  This is what PulseOS looks like when it&apos;s working
                 </h2>
                 <p className="text-muted">
                   These are sample conversations from your demo data.
@@ -222,7 +224,7 @@ export function OnboardingWizard({ user, onComplete }: Props) {
                   Connect your WhatsApp to go live
                 </h2>
                 <p className="text-muted">
-                  Choose how you'd like to proceed.
+                  Choose how you&apos;d like to proceed.
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

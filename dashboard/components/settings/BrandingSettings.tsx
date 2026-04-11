@@ -19,6 +19,7 @@ function ReportPreview({ config }: { config: BrandingConfig }) {
       <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `2px solid ${color}20` }}>
         <div className="flex items-center gap-3">
           {config.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo URL from our own storage; domain not known at build time
             <img src={config.logoUrl} alt="logo" className="h-7 w-auto object-contain" onError={(e) => ((e.currentTarget.style.display = "none"))} />
           ) : (
             <div className="flex h-7 items-center rounded px-3 text-xs font-bold" style={{ background: `${color}20`, color }}>
@@ -176,6 +177,7 @@ export function BrandingSettings() {
           >
             {config.logoUrl ? (
               <div className="space-y-3">
+                {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded logo URL from our own storage; domain not known at build time */}
                 <img src={config.logoUrl} alt="logo" className="mx-auto h-12 object-contain" onError={() => patch({ logoUrl: null })} />
                 <p className="text-xs text-white/35">Click or drag to replace</p>
                 <button

@@ -1,8 +1,7 @@
-import { PrismaClient } from "../src/generated/prisma";
 import { decryptWithKeySources, encryptWithKeySource } from "../src/lib/encryption";
 import { env } from "../src/config/env";
+import { prisma } from "../src/lib/prisma";
 
-const prisma = new PrismaClient();
 const BATCH_SIZE = 100;
 
 function resolvePrimaryKeySource(): string {

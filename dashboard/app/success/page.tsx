@@ -1,19 +1,12 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { Suspense, useEffect, useState } from "react"
+import { Suspense } from "react"
 import Link from "next/link"
 
 function SuccessContent() {
   const searchParams = useSearchParams()
-  const [paymentId, setPaymentId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const rzpPaymentId = searchParams?.get("razorpay_payment_id") ?? null
-    if (rzpPaymentId) {
-      setPaymentId(rzpPaymentId)
-    }
-  }, [searchParams])
+  const paymentId = searchParams?.get("razorpay_payment_id") ?? null
 
   return (
     <div style={{
@@ -63,4 +56,3 @@ export default function SuccessPage() {
     </Suspense>
   )
 }
-

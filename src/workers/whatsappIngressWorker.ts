@@ -1,6 +1,7 @@
 import type { Job } from "bullmq";
 import { UnrecoverableError, Worker } from "bullmq";
 import type Redis from "ioredis";
+import { workerPollingOptions } from "../lib/bullmqDefaults";
 import { createBullMqConnection, redisConnection } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { queueNames } from "../queues/queueNames";
@@ -64,13 +65,9 @@ export function startWhatsAppIngressWorker(): Worker<WhatsAppIngressQueuePayload
     queueNames.whatsappIngress,
     async (job: Job<WhatsAppIngressQueuePayload>) => processWhatsAppIngressJob(job.data),
     {
+      ...workerPollingOptions,
       connection: conn,
-      concurrency: 10,
-      stalledInterval: 60_000,
-      maxStalledCount: 1,
-      lockDuration: 60_000,
-      lockRenewTime: 30_000,
-      drainDelay: 10
+      concurrency: 10
     }
   );
 

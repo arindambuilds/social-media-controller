@@ -1,5 +1,6 @@
 import type { JobsOptions } from "bullmq";
 import { Queue } from "bullmq";
+import { queueDefaultJobOptions } from "../lib/bullmqDefaults";
 import { redisConnection } from "../lib/redis";
 import { queueNames } from "./queueNames";
 
@@ -15,10 +16,7 @@ export type WhatsAppOutboundJobPayload = {
 };
 
 const defaultJobOptions: JobsOptions = {
-  attempts: 4,
-  backoff: { type: "exponential", delay: 3000 },
-  removeOnComplete: 50,
-  removeOnFail: 20
+  ...queueDefaultJobOptions
 };
 
 export const whatsappOutboundQueue: Queue<WhatsAppOutboundJobPayload> | null =
